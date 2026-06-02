@@ -96,7 +96,7 @@ Examples:
 
 ### ✅ Submit a Pull Request
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
+2. Create a feature branch (`git checkout -b feat/my-feature`)
 3. Make your changes and commit (`git commit -m "feat: add new feature"`)
 4. Push to your fork and open a Pull Request
 
