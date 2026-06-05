@@ -1,0 +1,14 @@
+linters:
+	@pre-commit run --all-files -c .pre-commit-config.yaml
+
+test:
+	@python -m pytest -s tests/
+
+alembic-upgrade:
+	@alembic upgrade head
+
+alembic-revision:
+	@alembic revision --autogenerate -m "$(name)"
+
+run:
+	@uvicorn src.main:app --reload

@@ -10,3 +10,24 @@ wheels/
 .venv
 
 .idea
+.mypy_cache
+.ruff_cache
+.env
+local.yml
+
+AGENTS.md
+.aiginore
+.agents
+.clinerules
+.clineignore
+.roorules
+.roo
+.rooignore
+.zoorules
+.zoo
+.zooignore
+.cursor
+.cursorignore
+.claude
+.kilocodeignore
+.kilo
