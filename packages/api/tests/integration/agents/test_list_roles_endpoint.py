@@ -1,0 +1,83 @@
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
+
+
+async def test_list_roles_returns_200_and_roles_with_valid_bearer_token(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    role_admin = await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    role_viewer = await TargetRoleFactory.create(
+        db_session,
+        role_key="viewer",
+        role_label="Viewer",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        role_id=role_admin.id,
+        agent_label="agent-list-roles",
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        token_hash="valid-list-roles-token",
+        agent_id=identity.id,
+        is_active=True,
+    )
+
+    response = await client.get(
+        "/v1/agents/roles",
+        headers={"Authorization": "Bearer valid-list-roles-token"},
+    )
+
+    assert response.status_code == 200
+    assert {
+        (item["role_key"], item["role_label"])
+        for item in response.json()
+    } == {
+        (role_admin.role_key, role_admin.role_label),
+        (role_viewer.role_key, role_viewer.role_label),
+    }
+
+
+async def test_list_roles_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
+    response = await client.get("/v1/agents/roles")
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+async def test_list_roles_returns_401_for_invalid_bearer_token(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ops",
+        role_label="Operations",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        role_id=role.id,
+        agent_label="agent-invalid-token",
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        token_hash="some-other-valid-token",
+        agent_id=identity.id,
+        is_active=True,
+    )
+
+    response = await client.get(
+        "/v1/agents/roles",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or expired token"}
+    assert response.headers["www-authenticate"] == "Bearer"

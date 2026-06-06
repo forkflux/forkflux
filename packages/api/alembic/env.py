@@ -1,12 +1,17 @@
+import pathlib
+import sys
 from logging.config import fileConfig
 from typing import TYPE_CHECKING
 
 import alembic_postgresql_enum  # noqa: F401
-from alembic import context
-from sqlalchemy.ext.asyncio import AsyncEngine
-from src.config import get_settings
 
 # Import all models so that Base.metadata is populated for autogenerate.
+import src.agents.models  # noqa: F401
+from alembic import context
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from src.config import get_settings
 from src.database import Base, get_async_engine
 
 # this is the Alembic Config object, which provides
