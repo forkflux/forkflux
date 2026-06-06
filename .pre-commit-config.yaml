@@ -14,8 +14,15 @@ repos:
         entry: bash -c 'PYTHONPATH="$PYTHONPATH:$PWD" mypy'
         types: [python]
         pass_filenames: false
-      - id: ruff
-        name: ruff
+      - id: ruff-format
+        name: ruff-format
+        stages: [ pre-commit ]
+        language: system
+        entry: ruff format
+        types: [ python ]
+        pass_filenames: false
+      - id: ruff-check
+        name: ruff-check
         stages: [ pre-commit ]
         language: system
         entry: ruff check packages --fix

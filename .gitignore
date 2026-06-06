@@ -12,8 +12,10 @@ wheels/
 .idea
 .mypy_cache
 .ruff_cache
+.pytest_cache
 .env
 local.yml
+docker_data
 
 AGENTS.md
 .aiginore
