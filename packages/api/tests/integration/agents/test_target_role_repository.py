@@ -1,5 +1,7 @@
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from src.agents.dto import TargetRoleCreate
+from src.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
 from src.agents.models import TargetRole
 from src.agents.respositories import TargetRoleRepository
 from tests.factories import TargetRoleFactory
@@ -30,3 +32,58 @@ async def test_target_role_repository_list_returns_all_target_roles(db_session: 
 
     assert all(isinstance(role, TargetRole) for role in roles)
     assert {role.id for role in roles} == {role_admin.id, role_viewer.id}
+
+
+async def test_target_role_repository_get_by_role_key_returns_target_role(db_session: AsyncSession) -> None:
+    created_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="operator",
+        role_label="Operator",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    role = await repository.get_by_role_key(role_key="operator")
+
+    assert isinstance(role, TargetRole)
+    assert role.id == created_role.id
+    assert role.role_key == "operator"
+    assert role.role_label == "Operator"
+
+
+async def test_target_role_repository_get_by_role_key_raises_not_found(db_session: AsyncSession) -> None:
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    with pytest.raises(TargetRoleNotFoundError):
+        await repository.get_by_role_key(role_key="does-not-exist")
+
+
+async def test_target_role_repository_create_persists_and_returns_target_role(db_session: AsyncSession) -> None:
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+    dto = TargetRoleCreate(role_key="operator", role_label="Operator")
+    created_role = await repository.create(dto)
+
+    fetched_role = await db_session.get(TargetRole, created_role.id)
+
+    assert isinstance(created_role, TargetRole)
+    assert created_role.id is not None
+    assert created_role.role_key == "operator"
+    assert created_role.role_label == "Operator"
+    assert created_role.created_at is not None
+    assert fetched_role is not None
+    assert fetched_role.role_key == "operator"
+    assert fetched_role.role_label == "Operator"
+    assert fetched_role.created_at is not None
+
+
+async def test_target_role_repository_create_raises_conflict_for_duplicate_role_key(db_session: AsyncSession) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+    dto = TargetRoleCreate(role_key="admin", role_label="Admin")
+
+    with pytest.raises(TargetRoleConflictError):
+        await repository.create(dto)

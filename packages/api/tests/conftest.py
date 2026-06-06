@@ -1,17 +1,16 @@
 import os
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import NullPool
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession, async_sessionmaker
-from testcontainers.postgres import PostgresContainer
-
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from src.config import get_settings
 from src.database import Base
 from src.main import create_app
+from testcontainers.postgres import PostgresContainer
 
 
 @pytest.fixture
@@ -41,6 +40,7 @@ def configure_test_environment(postgres_container: PostgresContainer) -> Generat
         os.environ["DATABASE_URL"] = original_database_url
 
     get_settings.cache_clear()
+
 
 @pytest.fixture(scope="session")
 async def async_engine(configure_test_environment) -> AsyncGenerator[AsyncEngine, None]:
@@ -77,7 +77,6 @@ async def db_session(async_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, 
     )
     async with session_maker() as session:
         yield session
-
 
 
 @pytest_asyncio.fixture

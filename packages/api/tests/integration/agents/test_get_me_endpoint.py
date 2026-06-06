@@ -1,7 +1,8 @@
+import hashlib
+
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.agents.exceptions import AgentIdentityNotFoundError
 from src.dependencies import get_agent_identity_service
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
@@ -11,6 +12,7 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    raw_token = "valid-get-me-token"
     role = await TargetRoleFactory.create(
         db_session,
         role_key="operator",
@@ -24,14 +26,14 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
     )
     await AgentApiTokenFactory.create(
         db_session,
-        token_hash="valid-get-me-token",
+        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
         agent_id=identity.id,
         is_active=True,
     )
 
     response = await client.get(
         "/v1/agents/me",
-        headers={"Authorization": "Bearer valid-get-me-token"},
+        headers={"Authorization": f"Bearer {raw_token}"},
     )
 
     assert response.status_code == 200
@@ -54,6 +56,7 @@ async def test_get_me_returns_401_for_invalid_bearer_token(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    valid_raw_token = "some-other-valid-token-for-me"
     role = await TargetRoleFactory.create(
         db_session,
         role_key="auditor",
@@ -66,7 +69,7 @@ async def test_get_me_returns_401_for_invalid_bearer_token(
     )
     await AgentApiTokenFactory.create(
         db_session,
-        token_hash="some-other-valid-token-for-me",
+        token_hash=hashlib.sha256(valid_raw_token.encode()).hexdigest(),
         agent_id=identity.id,
         is_active=True,
     )
@@ -86,6 +89,7 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    raw_token = "valid-token-agent-missing"
     role = await TargetRoleFactory.create(
         db_session,
         role_key="support",
@@ -98,7 +102,7 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
     )
     await AgentApiTokenFactory.create(
         db_session,
-        token_hash="valid-token-agent-missing",
+        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
         agent_id=identity.id,
         is_active=True,
     )
@@ -111,7 +115,7 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
     try:
         response = await client.get(
             "/v1/agents/me",
-            headers={"Authorization": "Bearer valid-token-agent-missing"},
+            headers={"Authorization": f"Bearer {raw_token}"},
         )
     finally:
         app.dependency_overrides.clear()

@@ -1,5 +1,8 @@
 from unittest.mock import AsyncMock, Mock
 
+import pytest
+from src.agents.dto import TargetRoleCreate
+from src.agents.exceptions import TargetRoleNotFoundError
 from src.agents.services import TargetRoleService
 
 
@@ -23,3 +26,37 @@ async def test_target_role_service_get_all_roles_delegates_and_returns_roles() -
 
     repository.list.assert_awaited_once_with()
     assert roles == expected_roles
+
+
+async def test_target_role_service_create_role_delegates_and_returns_role() -> None:
+    dto = TargetRoleCreate(role_key="frontend_engineer", role_label="Frontend Engineer")
+    expected_role = object()
+    repository = Mock()
+    repository.create = AsyncMock(return_value=expected_role)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    role = await service.create_role(dto)
+
+    repository.create.assert_awaited_once_with(dto)
+    assert role == expected_role
+
+
+async def test_target_role_service_get_by_role_key_delegates_and_returns_role() -> None:
+    expected_role = object()
+    repository = Mock()
+    repository.get_by_role_key = AsyncMock(return_value=expected_role)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    role = await service.get_by_role_key("frontend_engineer")
+
+    repository.get_by_role_key.assert_awaited_once_with("frontend_engineer")
+    assert role == expected_role
+
+
+async def test_target_role_service_get_by_role_key_propagates_not_found() -> None:
+    repository = Mock()
+    repository.get_by_role_key = AsyncMock(side_effect=TargetRoleNotFoundError)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    with pytest.raises(TargetRoleNotFoundError):
+        await service.get_by_role_key("missing")

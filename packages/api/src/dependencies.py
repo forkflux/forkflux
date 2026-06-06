@@ -1,5 +1,8 @@
-from fastapi import Depends, status, HTTPException, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import hashlib
+import hmac
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.exceptions import AgentApiTokenNotFoundError, AgentIdentityNotFoundError
@@ -16,36 +19,32 @@ def get_trace_id(request: Request) -> str:
 
 
 def get_agent_api_token_repo(
-    session: AsyncSession = Depends(get_session),
-    trace_id: str = Depends(get_trace_id)
+    session: AsyncSession = Depends(get_session), trace_id: str = Depends(get_trace_id)
 ) -> AgentApiTokenRepository:
     return AgentApiTokenRepository(session=session, trace_id=trace_id)
 
 
 def get_agent_api_token_service(
-    repository: AgentApiTokenRepository = Depends(get_agent_api_token_repo),
-    trace_id: str = Depends(get_trace_id)
+    repository: AgentApiTokenRepository = Depends(get_agent_api_token_repo), trace_id: str = Depends(get_trace_id)
 ) -> AgentApiTokenService:
     return AgentApiTokenService(agent_api_token_repo=repository, trace_id=trace_id)
 
 
 def get_agent_identity_repo(
-    session: AsyncSession = Depends(get_session),
-    trace_id: str = Depends(get_trace_id)
+    session: AsyncSession = Depends(get_session), trace_id: str = Depends(get_trace_id)
 ) -> AgentIdentityRepository:
     return AgentIdentityRepository(session=session, trace_id=trace_id)
 
 
 def get_agent_identity_service(
-    repository: AgentIdentityRepository = Depends(get_agent_identity_repo),
-    trace_id: str = Depends(get_trace_id)
+    repository: AgentIdentityRepository = Depends(get_agent_identity_repo), trace_id: str = Depends(get_trace_id)
 ) -> AgentIdentityService:
     return AgentIdentityService(agent_identity_repo=repository, trace_id=trace_id)
 
 
 async def verify_token(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    service: AgentApiTokenService = Depends(get_agent_api_token_service)
+    service: AgentApiTokenService = Depends(get_agent_api_token_service),
 ) -> dict[str, int]:
     if credentials is None:
         raise HTTPException(
@@ -54,9 +53,14 @@ async def verify_token(
         )
 
     token = credentials.credentials
+    provided_hash = hashlib.sha256(token.encode()).hexdigest()
 
     try:
-        entity = await service.get_token(token_hash=token)
+        entity = await service.get_token(token_hash=provided_hash)
+
+        if not hmac.compare_digest(provided_hash, entity.token_hash):
+            raise AgentApiTokenNotFoundError
+
         return {"agent_id": entity.agent_id}
     except AgentApiTokenNotFoundError:
         raise HTTPException(
@@ -68,7 +72,7 @@ async def verify_token(
 
 async def get_current_agent(
     payload: dict[str, int] = Depends(verify_token),
-    agent_service: AgentIdentityService = Depends(get_agent_identity_service)
+    agent_service: AgentIdentityService = Depends(get_agent_identity_service),
 ) -> AgentIdentity:
     agent_id = payload["agent_id"]
 

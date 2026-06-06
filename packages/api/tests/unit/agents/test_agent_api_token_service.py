@@ -1,7 +1,8 @@
+import hashlib
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-
+from src.agents.dto import AgentApiTokenCreate
 from src.agents.exceptions import AgentApiTokenNotFoundError
 from src.agents.services import AgentApiTokenService
 
@@ -37,3 +38,30 @@ async def test_agent_api_token_service_get_token_propagates_not_found_error() ->
         await service.get_token(token_hash="missing-token-hash")
 
     repository.get.assert_awaited_once_with("missing-token-hash")
+
+
+async def test_agent_api_token_service_create_token_delegates_and_returns_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dto = AgentApiTokenCreate(agent_id=17)
+    repository = Mock()
+    repository.create = AsyncMock(return_value=object())
+    service = AgentApiTokenService(agent_api_token_repo=repository, trace_id="trace-123")
+    monkeypatch.setattr("src.agents.services.secrets.token_urlsafe", lambda _: "raw-token-123")
+
+    token = await service.create_token(dto=dto)
+
+    expected_hash = hashlib.sha256("raw-token-123".encode()).hexdigest()
+    repository.create.assert_awaited_once_with(dto=dto, token_hash=expected_hash)
+    assert token == "raw-token-123"
+
+
+async def test_agent_api_token_service_revoke_token_delegates_and_returns_count() -> None:
+    repository = Mock()
+    repository.revoke = AsyncMock(return_value=2)
+    service = AgentApiTokenService(agent_api_token_repo=repository, trace_id="trace-123")
+
+    affected_count = await service.revoke_token(agent_id=17)
+
+    repository.revoke.assert_awaited_once_with(17)
+    assert affected_count == 2
