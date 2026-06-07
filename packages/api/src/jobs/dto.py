@@ -1,0 +1,34 @@
+from dataclasses import dataclass
+from typing import Any
+
+from src.jobs.constants import JobPriorityEnum, JobStatusEnum
+
+
+@dataclass(slots=True)
+class HandoffJobCreate:
+    parent_job_id: int | None
+    summary: str
+    context_payload: dict[str, Any]
+    priority: JobPriorityEnum
+    source_agent_id: int
+    target_role_id: int
+    constraints: list[str]
+
+
+@dataclass(slots=True)
+class JobArtifactCreate:
+    job_id: int
+    artifact_type: str
+    artifact_uri: str
+    artifact_checksum: str | None
+    metadata_json: dict[str, Any]
+
+
+@dataclass(slots=True)
+class JobEventCreate:
+    job_id: int
+    event_type: str
+    previous_status: JobStatusEnum | None
+    current_status: JobStatusEnum
+    actor_agent_id: int | None
+    payload_json: dict[str, Any]

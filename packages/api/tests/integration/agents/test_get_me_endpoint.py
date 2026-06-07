@@ -1,10 +1,10 @@
 import hashlib
 
-from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.exceptions import AgentIdentityNotFoundError
 from src.dependencies import get_agent_identity_service
+from src.main import app
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
 
 
@@ -85,7 +85,6 @@ async def test_get_me_returns_401_for_invalid_bearer_token(
 
 
 async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
-    app: FastAPI,
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -111,6 +110,7 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
         async def get_by_id(self, agent_identity_id: int):
             raise AgentIdentityNotFoundError
 
+    previous_override = app.dependency_overrides.get(get_agent_identity_service)
     app.dependency_overrides[get_agent_identity_service] = lambda: MissingAgentService()
     try:
         response = await client.get(
@@ -118,7 +118,10 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
             headers={"Authorization": f"Bearer {raw_token}"},
         )
     finally:
-        app.dependency_overrides.clear()
+        if previous_override is None:
+            app.dependency_overrides.pop(get_agent_identity_service, None)
+        else:
+            app.dependency_overrides[get_agent_identity_service] = previous_override
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Agent not found"}
