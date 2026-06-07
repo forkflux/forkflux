@@ -8,6 +8,8 @@ from polyfactory.factories.sqlalchemy_factory import SQLAASyncPersistence, SQLAl
 from polyfactory.fields import Use
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from src.jobs.constants import JobPriorityEnum, JobStatusEnum
+from src.jobs.models import HandoffJob, JobArtifact, JobEvent
 
 T = TypeVar("T")
 
@@ -70,4 +72,47 @@ class AgentApiTokenFactory(BaseSQLAlchemyFactory):
 
     token_hash = Use(lambda: hashlib.sha256(f"raw-token-{next(AgentApiTokenFactory._counter)}".encode()).hexdigest())
     is_active: bool = True
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class HandoffJobFactory(BaseSQLAlchemyFactory):
+    __model__ = HandoffJob
+
+    parent_job_id: int | None = None
+    summary = Use(lambda: f"handoff-summary-{next(HandoffJobFactory._counter)}")
+    context_payload = Use(lambda: {"source": "factory", "version": 1})
+    status: JobStatusEnum = JobStatusEnum.PUBLISHED
+    priority: int = JobPriorityEnum.NORMAL.value
+    assignee_agent_id: int | None = None
+    constraints = Use(lambda: [])
+    failure_reason: str | None = None
+    published_at: datetime = datetime.now(timezone.utc)
+    claimed_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    failed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    expires_at: datetime | None = None
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)
+
+
+class JobArtifactFactory(BaseSQLAlchemyFactory):
+    __model__ = JobArtifact
+
+    artifact_type = Use(lambda: f"artifact-type-{next(JobArtifactFactory._counter)}")
+    artifact_uri = Use(lambda: f"s3://artifacts/job/{next(JobArtifactFactory._counter)}")
+    artifact_checksum = Use(lambda: hashlib.sha256(f"artifact-{next(JobArtifactFactory._counter)}".encode()).hexdigest())
+    metadata_json = Use(lambda: {"source": "factory", "version": 1})
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class JobEventFactory(BaseSQLAlchemyFactory):
+    __model__ = JobEvent
+
+    event_type = Use(lambda: f"event-type-{next(JobEventFactory._counter)}")
+    previous_status: JobStatusEnum | None = JobStatusEnum.PUBLISHED
+    current_status: JobStatusEnum = JobStatusEnum.CLAIMED
+    actor_agent_id: int | None = None
+    payload_json = Use(lambda: {"source": "factory", "version": 1})
     created_at: datetime = datetime.now(timezone.utc)

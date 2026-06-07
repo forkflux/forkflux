@@ -7,6 +7,7 @@ import alembic_postgresql_enum  # noqa: F401
 
 # Import all models so that Base.metadata is populated for autogenerate.
 import src.agents.models  # noqa: F401
+import src.jobs.models  # noqa: F401
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
