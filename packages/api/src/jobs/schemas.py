@@ -1,7 +1,6 @@
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-
 from src.jobs.constants import JobPriorityEnum
 
 
@@ -24,3 +23,7 @@ class HandoffJobCreateRequest(BaseModel):
     constraints: list[str]
     artifacts: list[JobArtifact]
     priority: JobPriorityEnum
+
+
+class HandoffJobCreateResponse(BaseModel):
+    job_id: int

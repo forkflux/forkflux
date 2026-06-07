@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, status
-from typing import TypedDict
-
-from src.agents.models import TargetRole, AgentIdentity
-from src.dependencies import verify_token, get_current_agent
-from src.jobs.dependencies import validate_parent_job, validate_target_role, get_handoff_job_service
-from src.jobs.schemas import HandoffJobCreateRequest
+from src.agents.models import AgentIdentity, TargetRole
+from src.dependencies import get_current_agent, verify_token
+from src.jobs.dependencies import get_handoff_job_service, validate_parent_job, validate_target_role
+from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobCreateResponse
 from src.jobs.services import HandoffJobService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_token)])
@@ -12,7 +10,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_t
 
 @router.post(
     "",
-    response_model=TypedDict("CreateJobResponse", {"job_id": int}),
+    response_model=HandoffJobCreateResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(validate_parent_job)],
 )

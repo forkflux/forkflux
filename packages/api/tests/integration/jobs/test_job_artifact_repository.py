@@ -1,7 +1,6 @@
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.jobs.dto import JobArtifactCreate
 from src.jobs.exceptions import JobArtifactConflictError
 from src.jobs.models import JobArtifact
@@ -198,11 +197,7 @@ async def test_job_artifact_repository_bulk_create_raises_conflict_on_integrity_
         await repository.bulk_create(dtos=dtos)
 
     persisted_valid_artifact = (
-        (
-            await db_session.execute(
-                select(JobArtifact).where(JobArtifact.artifact_uri == dtos[0].artifact_uri)
-            )
-        )
+        (await db_session.execute(select(JobArtifact).where(JobArtifact.artifact_uri == dtos[0].artifact_uri)))
         .scalars()
         .one_or_none()
     )

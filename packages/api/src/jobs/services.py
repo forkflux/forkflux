@@ -1,5 +1,4 @@
 import structlog
-
 from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from src.jobs.dto import HandoffJobCreate, JobArtifactCreate, JobEventCreate
 from src.jobs.models import HandoffJob

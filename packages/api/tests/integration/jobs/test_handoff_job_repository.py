@@ -1,6 +1,5 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.agents.models import AgentIdentity, TargetRole
 from src.jobs.constants import JobPriorityEnum, JobStatusEnum
 from src.jobs.dto import HandoffJobCreate

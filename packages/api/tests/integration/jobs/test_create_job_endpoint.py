@@ -1,15 +1,15 @@
 import hashlib
+from typing import Any
 
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
 from src.jobs.models import HandoffJob, JobArtifact, JobEvent
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
 
-def _build_create_job_payload(*, target_role_key: str, parent_job_id: int | None) -> dict:
+def _build_create_job_payload(*, target_role_key: str, parent_job_id: int | None) -> dict[str, Any]:
     return {
         "parent_job_id": parent_job_id,
         "summary": "Prepare incident handoff package",
@@ -117,9 +117,7 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
     assert created_artifacts[1].artifact_checksum == payload["artifacts"][1]["checksum"]
     assert created_artifacts[1].metadata_json == payload["artifacts"][1]["metadata_json"]
 
-    event_rows = await db_session.execute(
-        select(JobEvent).where(JobEvent.job_id == job_id).order_by(JobEvent.id.asc())
-    )
+    event_rows = await db_session.execute(select(JobEvent).where(JobEvent.job_id == job_id).order_by(JobEvent.id.asc()))
     created_events = list(event_rows.scalars())
 
     assert len(created_events) == 1

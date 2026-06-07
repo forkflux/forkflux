@@ -1,6 +1,5 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.jobs.constants import JobStatusEnum
 from src.jobs.dto import JobEventCreate
 from src.jobs.exceptions import JobEventConflictError
@@ -118,4 +117,3 @@ async def test_job_event_factory_creates_event_with_valid_job(db_session: AsyncS
     assert isinstance(event, JobEvent)
     assert event.id is not None
     assert event.job_id == handoff_job.id
-

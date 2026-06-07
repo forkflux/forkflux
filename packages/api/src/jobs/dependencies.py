@@ -1,6 +1,5 @@
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.agents.dependencies import get_target_role_service
 from src.agents.exceptions import TargetRoleNotFoundError
 from src.agents.models import TargetRole
@@ -50,7 +49,9 @@ def get_handoff_job_service(
     )
 
 
-async def validate_parent_job(job_data: HandoffJobCreateRequest, service: HandoffJobService = Depends(get_handoff_job_service)) -> HandoffJob | None:
+async def validate_parent_job(
+    job_data: HandoffJobCreateRequest, service: HandoffJobService = Depends(get_handoff_job_service)
+) -> HandoffJob | None:
     if job_data.parent_job_id is None:
         return None
 
@@ -61,7 +62,9 @@ async def validate_parent_job(job_data: HandoffJobCreateRequest, service: Handof
         raise ParentJobValidationError(field_name="parent_job_id", value=job_data.parent_job_id)
 
 
-async def validate_target_role(job_data: HandoffJobCreateRequest, service: TargetRoleService = Depends(get_target_role_service)) -> TargetRole:
+async def validate_target_role(
+    job_data: HandoffJobCreateRequest, service: TargetRoleService = Depends(get_target_role_service)
+) -> TargetRole:
     try:
         target_role = await service.get_by_role_key(role_key=job_data.target_role_key)
         return target_role

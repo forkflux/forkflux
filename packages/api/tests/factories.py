@@ -84,7 +84,7 @@ class HandoffJobFactory(BaseSQLAlchemyFactory):
     status: JobStatusEnum = JobStatusEnum.PUBLISHED
     priority: int = JobPriorityEnum.NORMAL.value
     assignee_agent_id: int | None = None
-    constraints = Use(lambda: [])
+    constraints: list[str] = []
     failure_reason: str | None = None
     published_at: datetime = datetime.now(timezone.utc)
     claimed_at: datetime | None = None
@@ -102,7 +102,9 @@ class JobArtifactFactory(BaseSQLAlchemyFactory):
 
     artifact_type = Use(lambda: f"artifact-type-{next(JobArtifactFactory._counter)}")
     artifact_uri = Use(lambda: f"s3://artifacts/job/{next(JobArtifactFactory._counter)}")
-    artifact_checksum = Use(lambda: hashlib.sha256(f"artifact-{next(JobArtifactFactory._counter)}".encode()).hexdigest())
+    artifact_checksum = Use(
+        lambda: hashlib.sha256(f"artifact-{next(JobArtifactFactory._counter)}".encode()).hexdigest()
+    )
     metadata_json = Use(lambda: {"source": "factory", "version": 1})
     created_at: datetime = datetime.now(timezone.utc)
 

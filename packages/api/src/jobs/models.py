@@ -4,7 +4,6 @@ from typing import Any
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, Enum, ForeignKey, Index, SmallInteger, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-
 from src.database import Base
 from src.jobs.constants import JobStatusEnum
 
@@ -85,9 +84,7 @@ class JobArtifact(Base):
 
 class JobEvent(Base):
     __tablename__ = "job_event"
-    __table_args__ = (
-        Index("idx_job_event_job_created", "job_id", text("created_at ASC")),
-    )
+    __table_args__ = (Index("idx_job_event_job_created", "job_id", text("created_at ASC")),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("handoff_job.id", ondelete="CASCADE"), nullable=False)

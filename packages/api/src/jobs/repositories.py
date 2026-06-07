@@ -4,7 +4,6 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.jobs.constants import JobStatusEnum
 from src.jobs.dto import HandoffJobCreate, JobArtifactCreate, JobEventCreate
 from src.jobs.exceptions import (
