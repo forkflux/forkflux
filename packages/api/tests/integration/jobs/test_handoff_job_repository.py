@@ -40,7 +40,7 @@ async def test_handoff_job_repository_create_persists_and_applies_defaults(db_se
         priority=JobPriorityEnum.HIGH,
         source_agent_id=source_agent.id,
         target_role_id=target_role.id,
-        constraints=[{"type": "deadline", "value": "today"}],
+        constraints=["deadline:today"],
     )
 
     created_job = await repository.create(dto=dto)

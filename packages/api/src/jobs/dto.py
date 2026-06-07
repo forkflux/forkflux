@@ -12,7 +12,7 @@ class HandoffJobCreate:
     priority: JobPriorityEnum
     source_agent_id: int
     target_role_id: int
-    constraints: list[Any]
+    constraints: list[str]
 
 
 @dataclass(slots=True)
