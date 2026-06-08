@@ -46,3 +46,10 @@ class HandoffJobItem:
 class HandoffJobWithArtifacts(TypedDict):
     job: HandoffJobItem
     artifacts: list[JobArtifact]
+
+
+@dataclass(slots=True)
+class HandoffJobFilterParams:
+    limit: int
+    status: JobStatusEnum | None
+    target_role_id: int | None

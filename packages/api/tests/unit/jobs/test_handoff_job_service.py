@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobItem, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobEventCreate
 from src.jobs.exceptions import HandoffJobConflictError
-from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams, JobArtifact
+from src.jobs.schemas import HandoffJobCreateRequest, JobArtifact
 from src.jobs.services import HandoffJobService
 
 
@@ -67,7 +67,7 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
 
 
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
-    filter_params = HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_key="reviewer")
+    filter_params = HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=1)
     expected_jobs = [Mock(), Mock()]
 
     repository = Mock()

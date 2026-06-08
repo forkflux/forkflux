@@ -4,11 +4,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.models import AgentIdentity, TargetRole
 from src.jobs.constants import JobPriorityEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams
 from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from src.jobs.models import HandoffJob
 from src.jobs.repositories import HandoffJobRepository
-from src.jobs.schemas import HandoffJobFilterParams
 from tests.factories import AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
 
@@ -410,20 +409,20 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
         published_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
     )
 
-    all_items = await repository.list(filter_params=HandoffJobFilterParams(limit=200))
+    all_items = await repository.list(
+        filter_params=HandoffJobFilterParams(limit=200, status=JobStatusEnum.PUBLISHED, target_role_id=None)
+    )
 
-    assert [item.job_details.id for item in all_items] == [oldest_job.id, _middle_job.id, newest_job.id]
+    assert [item.job_details.id for item in all_items] == [oldest_job.id, newest_job.id]
     assert [item.target_role_key for item in all_items] == [
         reviewer_role.role_key,
-        operator_role.role_key,
         reviewer_role.role_key,
     ]
     assert [item.source_agent_label for item in all_items] == [
         source_agent.agent_label,
         source_agent.agent_label,
-        source_agent.agent_label,
     ]
-    assert [item.assignee_agent_label for item in all_items] == [None, None, assignee_agent.agent_label]
+    assert [item.assignee_agent_label for item in all_items] == [None, assignee_agent.agent_label]
 
 
 async def test_handoff_job_repository_list_filters_by_status_and_target_role_key(db_session: AsyncSession) -> None:
@@ -481,7 +480,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
         filter_params=HandoffJobFilterParams(
             limit=200,
             status=JobStatusEnum.PUBLISHED,
-            target_role_key=reviewer_role.role_key,
+            target_role_id=reviewer_role.id,
         )
     )
 
@@ -531,7 +530,9 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
         if day_offset == 0:
             first_job = created_job
 
-    items = await repository.list(filter_params=HandoffJobFilterParams(limit=50))
+    items = await repository.list(
+        filter_params=HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=None)
+    )
 
     assert first_job is not None
     assert len(items) == 50

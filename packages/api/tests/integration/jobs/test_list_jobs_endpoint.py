@@ -34,6 +34,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
 ) -> None:
     raw_token = "valid-list-jobs-token"
     source_agent = await _create_auth_context(db_session, raw_token)
+    source_role_key = f"list-jobs-source-role-{raw_token}"
 
     reviewer_role = await TargetRoleFactory.create(
         db_session,
@@ -57,7 +58,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         status=JobStatusEnum.PUBLISHED,
         priority=JobPriorityEnum.NORMAL.value,
         source_agent_id=source_agent.id,
-        target_role_id=reviewer_role.id,
+        target_role_id=source_agent.role_id,
         assignee_agent_id=None,
         created_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
         updated_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
@@ -69,11 +70,23 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         status=JobStatusEnum.CLAIMED,
         priority=JobPriorityEnum.HIGH.value,
         source_agent_id=source_agent.id,
-        target_role_id=operator_role.id,
+        target_role_id=source_agent.role_id,
         assignee_agent_id=assignee_agent.id,
         created_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
         updated_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
         published_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Different role should be excluded by default",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.NORMAL.value,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        assignee_agent_id=None,
+        created_at=datetime(2026, 3, 3, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 3, tzinfo=timezone.utc),
+        published_at=datetime(2026, 3, 3, tzinfo=timezone.utc),
     )
 
     response = await client.get(
@@ -92,7 +105,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         "priority": JobPriorityEnum.NORMAL.value,
         "source_agent_label": source_agent.agent_label,
         "assignee_agent_label": None,
-        "target_role_key": reviewer_role.role_key,
+        "target_role_key": source_role_key,
         "created_at": oldest_job.created_at.isoformat().replace("+00:00", "Z"),
     }
     assert body[1] == {
@@ -102,12 +115,12 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         "priority": JobPriorityEnum.HIGH.value,
         "source_agent_label": source_agent.agent_label,
         "assignee_agent_label": assignee_agent.agent_label,
-        "target_role_key": operator_role.role_key,
+        "target_role_key": source_role_key,
         "created_at": newest_job.created_at.isoformat().replace("+00:00", "Z"),
     }
 
 
-async def test_list_jobs_filters_by_status_and_target_role_key(
+async def test_list_jobs_filters_by_status_and_target_role_key_when_my_role_only_is_false(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -157,7 +170,7 @@ async def test_list_jobs_filters_by_status_and_target_role_key(
     )
 
     response = await client.get(
-        f"/v1/jobs?status={JobStatusEnum.PUBLISHED.value}&target_role_key={reviewer_role.role_key}",
+        f"/v1/jobs?my_role_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key={reviewer_role.role_key}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -169,6 +182,65 @@ async def test_list_jobs_filters_by_status_and_target_role_key(
     assert body[0]["target_role_key"] == reviewer_role.role_key
 
 
+async def test_list_jobs_with_my_role_only_false_and_no_target_role_key_returns_cross_role_items(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-cross-role-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-cross-role-reviewer",
+        role_label="List jobs cross role reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-cross-role-operator",
+        role_label="List jobs cross role operator",
+    )
+
+    first_matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Cross role first matching",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+    )
+    second_matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Cross role second matching",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+        created_at=datetime(2026, 4, 11, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 11, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 11, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Cross role non matching status",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 4, 12, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 12, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 12, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        f"/v1/jobs?my_role_only=false&status={JobStatusEnum.PUBLISHED.value}",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [first_matching_job.id, second_matching_job.id]
+
+
 async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -176,7 +248,7 @@ async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
     raw_token = "valid-list-jobs-limit-token"
     source_agent = await _create_auth_context(db_session, raw_token)
 
-    target_role = await TargetRoleFactory.create(
+    await TargetRoleFactory.create(
         db_session,
         role_key="list-jobs-limit-role",
         role_label="List jobs limit role",
@@ -190,7 +262,7 @@ async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
         created_job = await HandoffJobFactory.create(
             db_session,
             source_agent_id=source_agent.id,
-            target_role_id=target_role.id,
+            target_role_id=source_agent.role_id,
             created_at=current_dt,
             updated_at=current_dt,
             published_at=current_dt,
@@ -246,7 +318,7 @@ async def test_list_jobs_returns_422_when_target_role_key_is_invalid(
     await _create_auth_context(db_session, raw_token)
 
     response = await client.get(
-        "/v1/jobs?target_role_key=missing-role-key",
+        "/v1/jobs?my_role_only=false&target_role_key=missing-role-key",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
