@@ -58,6 +58,17 @@ class HandoffJobRepository:
 
         return handoff_job
 
+    async def save(self, job: HandoffJob) -> HandoffJob:
+        job.updated_at = datetime.now(timezone.utc)
+
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise HandoffJobConflictError from err
+
+        return job
+
     @staticmethod
     def _map_row_to_list_item(
         row: Row[tuple[HandoffJob, str, str, str | None]],
@@ -96,6 +107,15 @@ class HandoffJobRepository:
             raise HandoffJobNotFoundError
 
         return self._map_row_to_list_item(row)
+
+    async def get_by_id_for_update(self, job_id: int) -> HandoffJob:
+        stmt = select(HandoffJob).where(HandoffJob.id == job_id).with_for_update()
+        result = await self._session.execute(stmt)
+        handoff_job = result.scalar_one_or_none()
+        if handoff_job is None:
+            raise HandoffJobNotFoundError
+
+        return handoff_job
 
     async def list(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         stmt = self._base_list_item_stmt()

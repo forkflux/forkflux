@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
 from src.jobs.dto import HandoffJobCreate, HandoffJobItem, JobEventCreate
+from src.jobs.exceptions import HandoffJobConflictError
 from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams, JobArtifact
 from src.jobs.services import HandoffJobService
 
@@ -171,3 +173,129 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
     assert bulk_create_dtos[1].artifact_checksum == artifacts[1].checksum
     assert bulk_create_dtos[1].metadata_json == artifacts[1].metadata_json
     assert created_job_id == created_job.id
+
+
+async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pass() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.target_role_id = 20
+    job.assignee_agent_id = None
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+    agent.role_id = 20
+
+    await service.claim_job(job_id=123, agent=agent)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.CLAIMED
+    assert job.assignee_agent_id == 10
+
+
+async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_published() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.CLAIMED
+    job.target_role_id = 20
+    job.assignee_agent_id = None
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+    agent.role_id = 20
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.claim_job(job_id=123, agent=agent)
+
+    repository.save.assert_not_called()
+
+
+async def test_handoff_job_service_claim_job_raises_conflict_when_role_mismatch() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.target_role_id = 20
+    job.assignee_agent_id = None
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+    agent.role_id = 99
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.claim_job(job_id=123, agent=agent)
+
+    repository.save.assert_not_called()
+
+
+async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_assigned() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.target_role_id = 20
+    job.assignee_agent_id = 77
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+    agent.role_id = 20
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.claim_job(job_id=123, agent=agent)
+
+    repository.save.assert_not_called()

@@ -9,3 +9,8 @@ class ParentJobValidationError(BaseValidationError):
 class TargetRoleValidationError(BaseValidationError):
     code = "target_role.invalid"
     msg = "Target role is invalid."
+
+
+class HandoffJobClaimValidationError(BaseValidationError):
+    code = "handoff_job_claim.invalid"
+    msg = "Handoff job claim is invalid."

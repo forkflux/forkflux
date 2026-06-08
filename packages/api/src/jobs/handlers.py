@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from src.agents.models import AgentIdentity, TargetRole
 from src.dependencies import get_current_agent, verify_token
+from src.jobs.api_exceptions import HandoffJobClaimValidationError
 from src.jobs.constants import JobPriorityEnum, JobStatusEnum
 from src.jobs.dependencies import (
     get_handoff_job_service,
@@ -9,7 +10,7 @@ from src.jobs.dependencies import (
     validate_target_role,
     validate_target_role_query_param,
 )
-from src.jobs.exceptions import HandoffJobNotFoundError
+from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from src.jobs.schemas import (
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
@@ -110,3 +111,15 @@ async def get_job(
         created_at=job.job_details.created_at,
         updated_at=job.job_details.updated_at,
     )
+
+
+@router.post("/{job_id}/claim", status_code=http_status.HTTP_204_NO_CONTENT)
+async def claim_job(
+    job_id: int,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+):
+    try:
+        await job_service.claim_job(job_id, agent=current_agent)
+    except HandoffJobNotFoundError, HandoffJobConflictError:
+        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path")
