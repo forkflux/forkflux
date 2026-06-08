@@ -57,6 +57,27 @@ async def test_target_role_repository_get_by_role_key_raises_not_found(db_sessio
         await repository.get_by_role_key(role_key="does-not-exist")
 
 
+async def test_target_role_repository_exists_returns_true_when_role_present(db_session: AsyncSession) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="operator",
+        role_label="Operator",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    role_exists = await repository.exists(role_key="operator")
+
+    assert role_exists is True
+
+
+async def test_target_role_repository_exists_returns_false_when_role_missing(db_session: AsyncSession) -> None:
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    role_exists = await repository.exists(role_key="does-not-exist")
+
+    assert role_exists is False
+
+
 async def test_target_role_repository_create_persists_and_returns_target_role(db_session: AsyncSession) -> None:
     repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
     dto = TargetRoleCreate(role_key="operator", role_label="Operator")

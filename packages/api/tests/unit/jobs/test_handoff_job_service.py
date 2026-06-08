@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, Mock
 
 from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
 from src.jobs.dto import HandoffJobCreate, JobEventCreate
-from src.jobs.schemas import HandoffJobCreateRequest, JobArtifact
+from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams, JobArtifact
 from src.jobs.services import HandoffJobService
 
 
@@ -24,6 +24,28 @@ async def test_handoff_job_service_get_job_delegates_and_returns_job() -> None:
 
     repository.get.assert_awaited_once_with(job_id)
     assert job == expected_job
+
+
+async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
+    filter_params = HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_key="reviewer")
+    expected_jobs = [Mock(), Mock()]
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    repository.list = AsyncMock(return_value=expected_jobs)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    jobs = await service.list_jobs(filter_params=filter_params)
+
+    repository.list.assert_awaited_once_with(filter_params=filter_params)
+    assert jobs == expected_jobs
 
 
 async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artifacts_and_returns_job_id() -> None:

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.jobs.constants import JobPriorityEnum, JobStatusEnum
+from src.jobs.models import HandoffJob
 
 
 @dataclass(slots=True)
@@ -32,3 +33,11 @@ class JobEventCreate:
     current_status: JobStatusEnum
     actor_agent_id: int | None
     payload_json: dict[str, Any]
+
+
+@dataclass(slots=True)
+class HandoffJobListItem:
+    job: HandoffJob
+    target_role_key: str
+    source_agent_label: str
+    assignee_agent_label: str | None
