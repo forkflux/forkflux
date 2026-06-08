@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 import structlog
+from src.agents.models import AgentIdentity
 from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from src.jobs.dto import (
     HandoffJobCreate,
@@ -7,6 +10,7 @@ from src.jobs.dto import (
     JobArtifactCreate,
     JobEventCreate,
 )
+from src.jobs.exceptions import HandoffJobConflictError
 from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
 from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams
 
@@ -92,3 +96,40 @@ class HandoffJobService:
 
         log.info("operation_completed", jobs_count=len(jobs))
         return jobs
+
+    async def claim_job(self, job_id: int, agent: AgentIdentity) -> None:
+        log = self._logger.bind(method="claim_job", job_id=job_id, agent_id=agent.id, agent_role_id=agent.role_id)
+        log.info("operation_started")
+
+        job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+
+        if job.status != JobStatusEnum.PUBLISHED:
+            log.warning(
+                "operation_failed",
+                reason="invalid_status",
+                current_status=job.status.value,
+            )
+            raise HandoffJobConflictError
+
+        if agent.role_id != job.target_role_id:
+            log.warning(
+                "operation_failed",
+                reason="role_mismatch",
+                target_role_id=job.target_role_id,
+            )
+            raise HandoffJobConflictError
+
+        if job.assignee_agent_id is not None:
+            log.warning(
+                "operation_failed",
+                reason="already_assigned",
+                assignee_agent_id=job.assignee_agent_id,
+            )
+            raise HandoffJobConflictError
+
+        job.status = JobStatusEnum.CLAIMED
+        job.assignee_agent_id = agent.id
+        job.claimed_at = datetime.now(timezone.utc)
+
+        await self._handoff_job_repo.save(job=job)
+        log.info("operation_completed")

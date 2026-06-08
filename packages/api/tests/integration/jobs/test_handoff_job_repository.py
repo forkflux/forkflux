@@ -187,6 +187,55 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_target_r
     assert created_job.target_role_id == valid_target_role_id
 
 
+async def test_handoff_job_repository_save_persists_updated_job_and_returns_updated_object(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-save-target-role",
+        role_label="Handoff save target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-save-source-role",
+        role_label="Handoff save source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-save-source-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Before save",
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.PUBLISHED,
+    )
+    original_updated_at = handoff_job.updated_at
+
+    handoff_job.summary = "After save"
+    handoff_job.status = JobStatusEnum.CLAIMED
+    handoff_job.failure_reason = "waiting for assignee"
+    saved_job = await repository.save(job=handoff_job)
+
+    fetched_job = await db_session.get(HandoffJob, handoff_job.id)
+
+    assert isinstance(saved_job, HandoffJob)
+    assert saved_job.id == handoff_job.id
+    assert saved_job.summary == "After save"
+    assert saved_job.status == JobStatusEnum.CLAIMED
+    assert saved_job.failure_reason == "waiting for assignee"
+    assert saved_job.updated_at > original_updated_at
+
+    assert fetched_job is not None
+    assert fetched_job.summary == "After save"
+    assert fetched_job.status == JobStatusEnum.CLAIMED
+    assert fetched_job.failure_reason == "waiting for assignee"
+    assert fetched_job.updated_at == saved_job.updated_at
+
+
 async def test_handoff_job_repository_get_returns_job_by_id(db_session: AsyncSession) -> None:
     target_role = await TargetRoleFactory.create(
         db_session,
@@ -227,6 +276,50 @@ async def test_handoff_job_repository_get_raises_not_found_for_missing_job_id(db
 
     with pytest.raises(HandoffJobNotFoundError):
         await repository.get(job_id=999_999)
+
+
+async def test_handoff_job_repository_get_by_id_for_update_returns_job_by_id(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-get-for-update-target-role",
+        role_label="Handoff get for update target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-get-for-update-source-role",
+        role_label="Handoff get for update source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-get-for-update-source-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+    created_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Get handoff job by id for update",
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    fetched_job = await repository.get_by_id_for_update(job_id=created_job.id)
+
+    assert isinstance(fetched_job, HandoffJob)
+    assert fetched_job.id == created_job.id
+    assert fetched_job.summary == created_job.summary
+    assert fetched_job.source_agent_id == source_agent.id
+    assert fetched_job.target_role_id == target_role.id
+
+
+async def test_handoff_job_repository_get_by_id_for_update_raises_not_found_for_missing_job_id(
+    db_session: AsyncSession,
+) -> None:
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    with pytest.raises(HandoffJobNotFoundError):
+        await repository.get_by_id_for_update(job_id=999_999)
 
 
 async def test_handoff_job_repository_list_returns_items_with_target_role_key_and_created_at_asc(
