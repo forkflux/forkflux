@@ -79,3 +79,9 @@ class HandoffJobWithArtifactsItem(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+
+class HandoffJobChangeStatusRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    status: JobStatusEnum

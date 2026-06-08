@@ -4,7 +4,7 @@ from typing import AsyncGenerator, Generator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from src.config import get_settings
 from src.database import Base
@@ -57,8 +57,11 @@ async def setup_db(async_engine: AsyncEngine) -> AsyncGenerator[None, None]:
 @pytest.fixture(scope="function", autouse=True)
 async def clean_database(async_engine: AsyncEngine):
     async with async_engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+        # for table in reversed(Base.metadata.sorted_tables):
+        #     await conn.execute(table.delete())
+        table_names = [f'"{table.name}"' for table in Base.metadata.sorted_tables]
+        if table_names:
+            await conn.execute(text(f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE"))
     yield
 
 

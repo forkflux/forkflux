@@ -85,6 +85,32 @@ async def test_handoff_job_repository_create_persists_and_applies_defaults(db_se
     assert persisted_target_role is not None
 
 
+async def test_handoff_job_factory_uses_database_identity_sequence(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-sequence-target-role",
+        role_label="Handoff sequence target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-sequence-source-role",
+        role_label="Handoff sequence source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-sequence-source-agent",
+        role_id=source_role.id,
+    )
+
+    created_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    assert created_job.id == 1
+
+
 async def test_handoff_job_repository_create_raises_conflict_on_invalid_source_agent_id_and_session_remains_usable(
     db_session: AsyncSession,
 ) -> None:

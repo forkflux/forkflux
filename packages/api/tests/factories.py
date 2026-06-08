@@ -28,6 +28,7 @@ class CustomSQLAASyncPersistence(SQLAASyncPersistence[Any]):
 class BaseSQLAlchemyFactory(SQLAlchemyFactory[Any]):
     __is_base_factory__ = True
     __async_persistence__ = CustomSQLAASyncPersistence
+    __set_primary_key__ = False
     _counter = count(1)
 
     @classmethod

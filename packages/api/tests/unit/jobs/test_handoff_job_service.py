@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -297,5 +298,192 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_as
 
     with pytest.raises(HandoffJobConflictError):
         await service.claim_job(job_id=123, agent=agent)
+
+    repository.save.assert_not_called()
+
+
+async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_for_assignee() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.CLAIMED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent=agent)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.IN_PROGRESS
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.started_at, datetime)
+
+
+async def test_handoff_job_service_change_job_status_sets_completed_at_for_assignee() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.IN_PROGRESS
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent=agent)
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.COMPLETED
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.completed_at, datetime)
+
+
+async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_for_claimed() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.CLAIMED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 42
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent=agent)
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.CANCELLED
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.cancelled_at, datetime)
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_for_invalid_transition() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.assignee_agent_id = None
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 42
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent=agent)
+
+    repository.save.assert_not_called()
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_when_assignee_mismatch() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.CLAIMED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 99
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent=agent)
+
+    repository.save.assert_not_called()
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_when_non_source_cancels_published() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.assignee_agent_id = None
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 99
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent=agent)
 
     repository.save.assert_not_called()
