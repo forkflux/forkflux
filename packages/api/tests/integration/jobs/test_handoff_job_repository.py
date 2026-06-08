@@ -213,10 +213,13 @@ async def test_handoff_job_repository_get_returns_job_by_id(db_session: AsyncSes
 
     fetched_job = await repository.get(job_id=created_job.id)
 
-    assert fetched_job.id == created_job.id
-    assert fetched_job.summary == created_job.summary
-    assert fetched_job.source_agent_id == source_agent.id
-    assert fetched_job.target_role_id == target_role.id
+    assert fetched_job.job_details.id == created_job.id
+    assert fetched_job.job_details.summary == created_job.summary
+    assert fetched_job.job_details.source_agent_id == source_agent.id
+    assert fetched_job.job_details.target_role_id == target_role.id
+    assert fetched_job.target_role_key == target_role.role_key
+    assert fetched_job.source_agent_label == source_agent.agent_label
+    assert fetched_job.assignee_agent_label is None
 
 
 async def test_handoff_job_repository_get_raises_not_found_for_missing_job_id(db_session: AsyncSession) -> None:
@@ -290,7 +293,7 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
 
     all_items = await repository.list(filter_params=HandoffJobFilterParams(limit=200))
 
-    assert [item.job.id for item in all_items] == [oldest_job.id, _middle_job.id, newest_job.id]
+    assert [item.job_details.id for item in all_items] == [oldest_job.id, _middle_job.id, newest_job.id]
     assert [item.target_role_key for item in all_items] == [
         reviewer_role.role_key,
         operator_role.role_key,
@@ -364,7 +367,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
     )
 
     assert len(filtered_items) == 1
-    assert filtered_items[0].job.id == matching_job.id
+    assert filtered_items[0].job_details.id == matching_job.id
     assert filtered_items[0].target_role_key == reviewer_role.role_key
     assert filtered_items[0].source_agent_label == source_agent.agent_label
     assert filtered_items[0].assignee_agent_label == assignee_agent.agent_label
@@ -413,7 +416,7 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
 
     assert first_job is not None
     assert len(items) == 50
-    assert items[0].job.id == first_job.id
+    assert items[0].job_details.id == first_job.id
     assert items[0].target_role_key == target_role.role_key
     assert items[0].source_agent_label == source_agent.agent_label
     assert items[0].assignee_agent_label == assignee_agent.agent_label
