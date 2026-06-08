@@ -40,6 +40,9 @@ warn_redundant_casts = true
 warn_unused_configs = true
 warn_unreachable = true
 warn_no_return = true
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "packages/"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
