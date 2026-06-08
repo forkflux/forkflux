@@ -133,3 +133,71 @@ class HandoffJobService:
 
         await self._handoff_job_repo.save(job=job)
         log.info("operation_completed")
+
+    async def change_job_status(self, job_id: int, status: JobStatusEnum, agent: AgentIdentity) -> None:
+        log = self._logger.bind(
+            method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent.id
+        )
+        log.info("operation_started")
+
+        job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+        current_status = job.status
+
+        allowed_transitions = {
+            (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS),
+            (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
+            (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED),
+            (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
+            (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED),
+            (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED),
+        }
+
+        if (current_status, status) not in allowed_transitions:
+            log.warning(
+                "operation_failed",
+                reason="invalid_status_transition",
+                current_status=current_status.value,
+            )
+            raise HandoffJobConflictError
+
+        if current_status == JobStatusEnum.PUBLISHED and status == JobStatusEnum.CANCELLED:
+            if job.source_agent_id != agent.id:
+                log.warning(
+                    "operation_failed",
+                    reason="source_agent_mismatch",
+                    source_agent_id=job.source_agent_id,
+                )
+                raise HandoffJobConflictError
+        elif current_status == JobStatusEnum.CLAIMED and status == JobStatusEnum.CANCELLED:
+            allowed_agent_ids = {job.source_agent_id, job.assignee_agent_id}
+            if agent.id not in allowed_agent_ids:
+                log.warning(
+                    "operation_failed",
+                    reason="agent_not_allowed_to_cancel_claimed_job",
+                    source_agent_id=job.source_agent_id,
+                    assignee_agent_id=job.assignee_agent_id,
+                )
+                raise HandoffJobConflictError
+        elif job.assignee_agent_id != agent.id:
+            log.warning(
+                "operation_failed",
+                reason="assignee_mismatch",
+                assignee_agent_id=job.assignee_agent_id,
+            )
+            raise HandoffJobConflictError
+
+        timestamp = datetime.now(timezone.utc)
+        job.status = status
+        job.updated_at = timestamp
+
+        if status == JobStatusEnum.IN_PROGRESS:
+            job.started_at = timestamp
+        elif status == JobStatusEnum.COMPLETED:
+            job.completed_at = timestamp
+        elif status == JobStatusEnum.FAILED:
+            job.failed_at = timestamp
+        elif status == JobStatusEnum.CANCELLED:
+            job.cancelled_at = timestamp
+
+        await self._handoff_job_repo.save(job=job)
+        log.info("operation_completed", previous_status=current_status.value, current_status=status.value)

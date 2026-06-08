@@ -14,3 +14,13 @@ class TargetRoleValidationError(BaseValidationError):
 class HandoffJobClaimValidationError(BaseValidationError):
     code = "handoff_job_claim.invalid"
     msg = "Handoff job claim is invalid."
+
+
+class HandoffJobIdentityValidationError(BaseValidationError):
+    code = "handoff_job_identity.invalid"
+    msg = "Handoff job identity is invalid."
+
+
+class HandoffJobStatusValidationError(BaseValidationError):
+    code = "handoff_job_status.invalid"
+    msg = "Handoff job status transition is invalid."
