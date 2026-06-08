@@ -1,9 +1,9 @@
 import structlog
 from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, JobArtifactCreate, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobListItem, JobArtifactCreate, JobEventCreate
 from src.jobs.models import HandoffJob
 from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from src.jobs.schemas import HandoffJobCreateRequest
+from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams
 
 
 class HandoffJobService:
@@ -68,3 +68,17 @@ class HandoffJobService:
 
     async def get_job(self, job_id: int) -> HandoffJob:
         return await self._handoff_job_repo.get(job_id)
+
+    async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobListItem]:
+        log = self._logger.bind(
+            method="list_jobs",
+            status=filter_params.status.value if filter_params.status is not None else None,
+            target_role_key=filter_params.target_role_key,
+            limit=filter_params.limit,
+        )
+        log.info("operation_started")
+
+        jobs = await self._handoff_job_repo.list(filter_params=filter_params)
+
+        log.info("operation_completed", jobs_count=len(jobs))
+        return jobs

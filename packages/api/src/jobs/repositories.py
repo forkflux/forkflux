@@ -4,8 +4,10 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
+from src.agents.models import AgentIdentity, TargetRole
 from src.jobs.constants import JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, JobArtifactCreate, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobListItem, JobArtifactCreate, JobEventCreate
 from src.jobs.exceptions import (
     HandoffJobConflictError,
     HandoffJobNotFoundError,
@@ -13,6 +15,7 @@ from src.jobs.exceptions import (
     JobEventConflictError,
 )
 from src.jobs.models import HandoffJob, JobArtifact, JobEvent
+from src.jobs.schemas import HandoffJobFilterParams
 
 
 class HandoffJobRepository:
@@ -61,6 +64,41 @@ class HandoffJobRepository:
             raise HandoffJobNotFoundError
 
         return handoff_job
+
+    async def list(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobListItem]:
+        source_agent = aliased(AgentIdentity)
+        assignee_agent = aliased(AgentIdentity)
+
+        stmt = (
+            select(
+                HandoffJob,
+                TargetRole.role_key,
+                source_agent.agent_label,
+                assignee_agent.agent_label,
+            )
+            .join(TargetRole, HandoffJob.target_role_id == TargetRole.id)
+            .join(source_agent, HandoffJob.source_agent_id == source_agent.id)
+            .outerjoin(assignee_agent, HandoffJob.assignee_agent_id == assignee_agent.id)
+        )
+
+        if filter_params.status is not None:
+            stmt = stmt.where(HandoffJob.status == filter_params.status)
+
+        if filter_params.target_role_key is not None:
+            stmt = stmt.where(TargetRole.role_key == filter_params.target_role_key)
+
+        stmt = stmt.order_by(HandoffJob.created_at.asc()).limit(filter_params.limit)
+        result = await self._session.execute(stmt)
+
+        return [
+            HandoffJobListItem(
+                job=job,
+                target_role_key=target_role_key,
+                source_agent_label=source_agent_label,
+                assignee_agent_label=assignee_agent_label,
+            )
+            for job, target_role_key, source_agent_label, assignee_agent_label in result.all()
+        ]
 
 
 class JobArtifactRepository:

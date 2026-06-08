@@ -37,7 +37,7 @@ async def custom_validation_exception_handler(request: Request, exc: BaseValidat
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "detail": [
-                {"loc": ["body", exc.field_name], "msg": exc.msg, "type": exc.code, "input": exc.value, "ctx": {}}
+                {"loc": [exc.loc, exc.field_name], "msg": exc.msg, "type": exc.code, "input": exc.value, "ctx": {}}
             ]
         },
     )

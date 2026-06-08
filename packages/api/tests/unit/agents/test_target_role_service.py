@@ -60,3 +60,25 @@ async def test_target_role_service_get_by_role_key_propagates_not_found() -> Non
 
     with pytest.raises(TargetRoleNotFoundError):
         await service.get_by_role_key("missing")
+
+
+async def test_target_role_service_is_role_exists_returns_true() -> None:
+    repository = Mock()
+    repository.exists = AsyncMock(return_value=True)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    result = await service.is_role_exists("frontend_engineer")
+
+    repository.exists.assert_awaited_once_with("frontend_engineer")
+    assert result is True
+
+
+async def test_target_role_service_is_role_exists_returns_false() -> None:
+    repository = Mock()
+    repository.exists = AsyncMock(return_value=False)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    result = await service.is_role_exists("nonexistent")
+
+    repository.exists.assert_awaited_once_with("nonexistent")
+    assert result is False

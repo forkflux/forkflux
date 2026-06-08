@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.models import AgentIdentity, TargetRole
@@ -6,6 +8,7 @@ from src.jobs.dto import HandoffJobCreate
 from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from src.jobs.models import HandoffJob
 from src.jobs.repositories import HandoffJobRepository
+from src.jobs.schemas import HandoffJobFilterParams
 from tests.factories import AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
 
@@ -221,3 +224,196 @@ async def test_handoff_job_repository_get_raises_not_found_for_missing_job_id(db
 
     with pytest.raises(HandoffJobNotFoundError):
         await repository.get(job_id=999_999)
+
+
+async def test_handoff_job_repository_list_returns_items_with_target_role_key_and_created_at_asc(
+    db_session: AsyncSession,
+) -> None:
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-reviewer",
+        role_label="Handoff list reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-operator",
+        role_label="Handoff list operator",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-source",
+        role_label="Handoff list source",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-source-agent",
+        role_id=source_role.id,
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-assignee-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    oldest_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Oldest",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    _middle_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Middle",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+        created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+    newest_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Newest",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        assignee_agent_id=assignee_agent.id,
+        created_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+    )
+
+    all_items = await repository.list(filter_params=HandoffJobFilterParams(limit=200))
+
+    assert [item.job.id for item in all_items] == [oldest_job.id, _middle_job.id, newest_job.id]
+    assert [item.target_role_key for item in all_items] == [
+        reviewer_role.role_key,
+        operator_role.role_key,
+        reviewer_role.role_key,
+    ]
+    assert [item.source_agent_label for item in all_items] == [
+        source_agent.agent_label,
+        source_agent.agent_label,
+        source_agent.agent_label,
+    ]
+    assert [item.assignee_agent_label for item in all_items] == [None, None, assignee_agent.agent_label]
+
+
+async def test_handoff_job_repository_list_filters_by_status_and_target_role_key(db_session: AsyncSession) -> None:
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-status-reviewer",
+        role_label="Handoff list status reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-status-operator",
+        role_label="Handoff list status operator",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-status-source",
+        role_label="Handoff list status source",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-status-source-agent",
+        role_id=source_role.id,
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-status-assignee-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Matching",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        assignee_agent_id=assignee_agent.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Non matching status",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Non matching role",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+    )
+
+    filtered_items = await repository.list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            status=JobStatusEnum.PUBLISHED,
+            target_role_key=reviewer_role.role_key,
+        )
+    )
+
+    assert len(filtered_items) == 1
+    assert filtered_items[0].job.id == matching_job.id
+    assert filtered_items[0].target_role_key == reviewer_role.role_key
+    assert filtered_items[0].source_agent_label == source_agent.agent_label
+    assert filtered_items[0].assignee_agent_label == assignee_agent.agent_label
+
+
+async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-limit-role",
+        role_label="Handoff list limit role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-list-limit-source",
+        role_label="Handoff list limit source",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-limit-source-agent",
+        role_id=source_role.id,
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-list-limit-assignee-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    first_job = None
+    base_dt = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    for day_offset in range(51):
+        current_dt = base_dt + timedelta(days=day_offset)
+        created_job = await HandoffJobFactory.create(
+            db_session,
+            source_agent_id=source_agent.id,
+            target_role_id=target_role.id,
+            assignee_agent_id=assignee_agent.id,
+            created_at=current_dt,
+            updated_at=current_dt,
+            published_at=current_dt,
+        )
+        if day_offset == 0:
+            first_job = created_job
+
+    items = await repository.list(filter_params=HandoffJobFilterParams(limit=50))
+
+    assert first_job is not None
+    assert len(items) == 50
+    assert items[0].job.id == first_job.id
+    assert items[0].target_role_key == target_role.role_key
+    assert items[0].source_agent_label == source_agent.agent_label
+    assert items[0].assignee_agent_label == assignee_agent.agent_label

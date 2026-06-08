@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
-from src.jobs.constants import JobPriorityEnum
+from pydantic import BaseModel, ConfigDict, Field
+from src.jobs.constants import JobPriorityEnum, JobStatusEnum
 
 
 class JobArtifact(BaseModel):
@@ -27,3 +28,24 @@ class HandoffJobCreateRequest(BaseModel):
 
 class HandoffJobCreateResponse(BaseModel):
     job_id: int
+
+
+class HandoffJobFilterParams(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    limit: int = Field(50, ge=50, le=200)
+    status: JobStatusEnum | None = None
+    target_role_key: str | None = None
+
+
+class HandoffJobListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    summary: str
+    status: JobStatusEnum
+    priority: JobPriorityEnum
+    source_agent_label: str
+    assignee_agent_label: str | None
+    target_role_key: str
+    created_at: datetime

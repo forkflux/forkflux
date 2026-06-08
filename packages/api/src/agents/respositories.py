@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
@@ -32,6 +32,18 @@ class TargetRoleRepository:
             raise TargetRoleNotFoundError
 
         return target_role
+
+    async def exists(self, role_key: str) -> bool:
+        log = self._logger.bind(method="exists", role_key=role_key)
+        result = await self._session.execute(select(exists().where(TargetRole.role_key == role_key)))
+        role_exists = result.scalar_one()
+
+        if role_exists:
+            log.info("target_role_exists_hit")
+        else:
+            log.info("target_role_exists_miss")
+
+        return role_exists
 
     async def create(self, dto: TargetRoleCreate) -> TargetRole:
         target_role = TargetRole(

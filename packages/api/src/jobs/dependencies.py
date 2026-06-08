@@ -70,3 +70,15 @@ async def validate_target_role(
         return target_role
     except TargetRoleNotFoundError:
         raise TargetRoleValidationError(field_name="target_role_key", value=job_data.target_role_key)
+
+
+async def validate_target_role_query_param(
+    target_role_key: str | None = None, service: TargetRoleService = Depends(get_target_role_service)
+) -> str | None:
+    if target_role_key is None:
+        return None
+
+    is_role_exists = await service.is_role_exists(role_key=target_role_key)
+    if not is_role_exists:
+        raise TargetRoleValidationError(field_name="target_role_key", value=target_role_key, loc="query")
+    return target_role_key

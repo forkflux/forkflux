@@ -18,6 +18,9 @@ class TargetRoleService:
     async def get_by_role_key(self, role_key: str) -> TargetRole:
         return await self._target_role_repo.get_by_role_key(role_key)
 
+    async def is_role_exists(self, role_key: str) -> bool:
+        return await self._target_role_repo.exists(role_key)
+
     async def create_role(self, dto: TargetRoleCreate) -> TargetRole:
         return await self._target_role_repo.create(dto)
 

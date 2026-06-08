@@ -1,0 +1,264 @@
+import hashlib
+from datetime import datetime, timedelta, timezone
+
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.agents.models import AgentIdentity
+from src.jobs.constants import JobPriorityEnum, JobStatusEnum
+from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
+
+
+async def _create_auth_context(db_session: AsyncSession, raw_token: str) -> AgentIdentity:
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key=f"list-jobs-source-role-{raw_token}",
+        role_label="List jobs source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        role_id=source_role.id,
+        agent_label=f"list-jobs-source-agent-{raw_token}",
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+        agent_id=source_agent.id,
+        is_active=True,
+    )
+    return source_agent
+
+
+async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fields(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-reviewer-role",
+        role_label="List jobs reviewer role",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-operator-role",
+        role_label="List jobs operator role",
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        role_id=operator_role.id,
+        agent_label="list-jobs-assignee-agent",
+    )
+
+    oldest_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Oldest list job",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.NORMAL.value,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        assignee_agent_id=None,
+        created_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    newest_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Newest list job",
+        status=JobStatusEnum.CLAIMED,
+        priority=JobPriorityEnum.HIGH.value,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+        assignee_agent_id=assignee_agent.id,
+        created_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 3, 2, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        "/v1/jobs",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [oldest_job.id, newest_job.id]
+
+    assert body[0] == {
+        "id": oldest_job.id,
+        "summary": oldest_job.summary,
+        "status": JobStatusEnum.PUBLISHED.value,
+        "priority": JobPriorityEnum.NORMAL.value,
+        "source_agent_label": source_agent.agent_label,
+        "assignee_agent_label": None,
+        "target_role_key": reviewer_role.role_key,
+        "created_at": oldest_job.created_at.isoformat().replace("+00:00", "Z"),
+    }
+    assert body[1] == {
+        "id": newest_job.id,
+        "summary": newest_job.summary,
+        "status": JobStatusEnum.CLAIMED.value,
+        "priority": JobPriorityEnum.HIGH.value,
+        "source_agent_label": source_agent.agent_label,
+        "assignee_agent_label": assignee_agent.agent_label,
+        "target_role_key": operator_role.role_key,
+        "created_at": newest_job.created_at.isoformat().replace("+00:00", "Z"),
+    }
+
+
+async def test_list_jobs_filters_by_status_and_target_role_key(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-filter-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-filter-reviewer",
+        role_label="List jobs filter reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-filter-operator",
+        role_label="List jobs filter operator",
+    )
+
+    matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Matching filter",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Non matching status",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Non matching role",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+        created_at=datetime(2026, 4, 3, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 3, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 3, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        f"/v1/jobs?status={JobStatusEnum.PUBLISHED.value}&target_role_key={reviewer_role.role_key}",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == matching_job.id
+    assert body[0]["status"] == JobStatusEnum.PUBLISHED.value
+    assert body[0]["target_role_key"] == reviewer_role.role_key
+
+
+async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-limit-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-limit-role",
+        role_label="List jobs limit role",
+    )
+
+    first_job = None
+    second_job = None
+    base_dt = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    for day_offset in range(51):
+        current_dt = base_dt + timedelta(days=day_offset)
+        created_job = await HandoffJobFactory.create(
+            db_session,
+            source_agent_id=source_agent.id,
+            target_role_id=target_role.id,
+            created_at=current_dt,
+            updated_at=current_dt,
+            published_at=current_dt,
+        )
+        if day_offset == 0:
+            first_job = created_job
+        if day_offset == 1:
+            second_job = created_job
+
+    response = await client.get(
+        "/v1/jobs?limit=50",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert first_job is not None
+    assert second_job is not None
+    assert len(body) == 50
+    assert body[0]["id"] == first_job.id
+    assert body[1]["id"] == second_job.id
+
+
+async def test_list_jobs_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
+    response = await client.get("/v1/jobs")
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+async def test_list_jobs_returns_401_for_invalid_bearer_token(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    valid_raw_token = "some-other-valid-list-jobs-token"
+    await _create_auth_context(db_session, valid_raw_token)
+
+    response = await client.get(
+        "/v1/jobs",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or expired token"}
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+async def test_list_jobs_returns_422_when_target_role_key_is_invalid(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-invalid-role-token"
+    await _create_auth_context(db_session, raw_token)
+
+    response = await client.get(
+        "/v1/jobs?target_role_key=missing-role-key",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": [
+            {
+                "loc": ["query", "target_role_key"],
+                "msg": "Target role is invalid.",
+                "type": "target_role.invalid",
+                "input": "missing-role-key",
+                "ctx": {},
+            }
+        ]
+    }
