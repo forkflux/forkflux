@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -202,6 +204,107 @@ async def test_job_artifact_repository_bulk_create_raises_conflict_on_integrity_
         .one_or_none()
     )
     assert persisted_valid_artifact is None
+
+
+async def test_job_artifact_repository_list_returns_artifacts_for_job_ordered_by_created_at_asc(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-artifact-list-target-role",
+        role_label="Job artifact list target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-artifact-list-source-role",
+        role_label="Job artifact list source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-artifact-list-source-agent",
+        role_id=source_role.id,
+    )
+
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    created_at_base = datetime.now(timezone.utc)
+    second_artifact = await JobArtifactFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        artifact_type="trace",
+        artifact_uri="s3://bucket/job-artifacts/list-order-2.json",
+        artifact_checksum="list-order-checksum-2",
+        metadata_json={"order": 2},
+        created_at=created_at_base + timedelta(seconds=10),
+    )
+    first_artifact = await JobArtifactFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        artifact_type="document",
+        artifact_uri="s3://bucket/job-artifacts/list-order-1.pdf",
+        artifact_checksum="list-order-checksum-1",
+        metadata_json={"order": 1},
+        created_at=created_at_base,
+    )
+
+    other_handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    await JobArtifactFactory.create(
+        db_session,
+        job_id=other_handoff_job.id,
+        artifact_type="binary",
+        artifact_uri="s3://bucket/job-artifacts/list-other-job.bin",
+        artifact_checksum="list-order-checksum-other",
+        metadata_json={"order": 999},
+        created_at=created_at_base + timedelta(seconds=20),
+    )
+
+    repository = JobArtifactRepository(session=db_session, trace_id="trace-123")
+
+    listed_artifacts = await repository.list(job_id=handoff_job.id)
+
+    assert [artifact.id for artifact in listed_artifacts] == [first_artifact.id, second_artifact.id]
+    assert all(artifact.job_id == handoff_job.id for artifact in listed_artifacts)
+
+
+async def test_job_artifact_repository_list_returns_empty_list_when_job_has_no_artifacts(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-artifact-list-empty-target-role",
+        role_label="Job artifact list empty target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-artifact-list-empty-source-role",
+        role_label="Job artifact list empty source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-artifact-list-empty-source-agent",
+        role_id=source_role.id,
+    )
+
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    repository = JobArtifactRepository(session=db_session, trace_id="trace-123")
+
+    listed_artifacts = await repository.list(job_id=handoff_job.id)
+
+    assert listed_artifacts == []
 
 
 async def test_job_artifact_factory_creates_artifact_with_valid_job(db_session: AsyncSession) -> None:

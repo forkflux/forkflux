@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
+from typing import cast
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import Row, Select, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from src.agents.models import AgentIdentity, TargetRole
 from src.jobs.constants import JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobListItem, JobArtifactCreate, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobItem, JobArtifactCreate, JobEventCreate
 from src.jobs.exceptions import (
     HandoffJobConflictError,
     HandoffJobNotFoundError,
@@ -57,15 +58,20 @@ class HandoffJobRepository:
 
         return handoff_job
 
-    async def get(self, job_id: int) -> HandoffJob:
-        result = await self._session.execute(select(HandoffJob).where(HandoffJob.id == job_id))
-        handoff_job = result.scalar_one_or_none()
-        if handoff_job is None:
-            raise HandoffJobNotFoundError
+    @staticmethod
+    def _map_row_to_list_item(
+        row: Row[tuple[HandoffJob, str, str, str | None]],
+    ) -> HandoffJobItem:
+        job, target_role_key, source_agent_label, assignee_agent_label = row
+        return HandoffJobItem(
+            job_details=job,
+            target_role_key=target_role_key,
+            source_agent_label=source_agent_label,
+            assignee_agent_label=assignee_agent_label,
+        )
 
-        return handoff_job
-
-    async def list(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobListItem]:
+    @staticmethod
+    def _base_list_item_stmt() -> Select[tuple[HandoffJob, str, str, str | None]]:
         source_agent = aliased(AgentIdentity)
         assignee_agent = aliased(AgentIdentity)
 
@@ -80,6 +86,19 @@ class HandoffJobRepository:
             .join(source_agent, HandoffJob.source_agent_id == source_agent.id)
             .outerjoin(assignee_agent, HandoffJob.assignee_agent_id == assignee_agent.id)
         )
+        return cast(Select[tuple[HandoffJob, str, str, str | None]], stmt)
+
+    async def get(self, job_id: int) -> HandoffJobItem:
+        stmt = self._base_list_item_stmt().where(HandoffJob.id == job_id)
+        result = await self._session.execute(stmt)
+        row = result.one_or_none()
+        if row is None:
+            raise HandoffJobNotFoundError
+
+        return self._map_row_to_list_item(row)
+
+    async def list(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
+        stmt = self._base_list_item_stmt()
 
         if filter_params.status is not None:
             stmt = stmt.where(HandoffJob.status == filter_params.status)
@@ -90,15 +109,7 @@ class HandoffJobRepository:
         stmt = stmt.order_by(HandoffJob.created_at.asc()).limit(filter_params.limit)
         result = await self._session.execute(stmt)
 
-        return [
-            HandoffJobListItem(
-                job=job,
-                target_role_key=target_role_key,
-                source_agent_label=source_agent_label,
-                assignee_agent_label=assignee_agent_label,
-            )
-            for job, target_role_key, source_agent_label, assignee_agent_label in result.all()
-        ]
+        return [self._map_row_to_list_item(row) for row in result.all()]
 
 
 class JobArtifactRepository:
@@ -150,6 +161,13 @@ class JobArtifactRepository:
             raise JobArtifactConflictError from err
 
         return job_artifacts
+
+    async def list(self, job_id: int) -> list[JobArtifact]:
+        result = await self._session.execute(
+            select(JobArtifact).where(JobArtifact.job_id == job_id).order_by(JobArtifact.created_at.asc())
+        )
+
+        return list(result.scalars().all())
 
 
 class JobEventRepository:

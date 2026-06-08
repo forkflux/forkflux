@@ -6,8 +6,8 @@ from src.agents.models import TargetRole
 from src.agents.services import TargetRoleService
 from src.database import get_session
 from src.jobs.api_exceptions import ParentJobValidationError, TargetRoleValidationError
+from src.jobs.dto import HandoffJobItem
 from src.jobs.exceptions import HandoffJobNotFoundError
-from src.jobs.models import HandoffJob
 from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
 from src.jobs.schemas import HandoffJobCreateRequest
 from src.jobs.services import HandoffJobService
@@ -51,7 +51,7 @@ def get_handoff_job_service(
 
 async def validate_parent_job(
     job_data: HandoffJobCreateRequest, service: HandoffJobService = Depends(get_handoff_job_service)
-) -> HandoffJob | None:
+) -> HandoffJobItem | None:
     if job_data.parent_job_id is None:
         return None
 

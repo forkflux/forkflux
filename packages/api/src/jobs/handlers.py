@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from src.agents.models import AgentIdentity, TargetRole
 from src.dependencies import get_current_agent, verify_token
@@ -9,11 +9,16 @@ from src.jobs.dependencies import (
     validate_target_role,
     validate_target_role_query_param,
 )
+from src.jobs.exceptions import HandoffJobNotFoundError
 from src.jobs.schemas import (
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobFilterParams,
     HandoffJobListItem,
+    HandoffJobWithArtifactsItem,
+)
+from src.jobs.schemas import (
+    JobArtifact as JobArtifactItem,
 )
 from src.jobs.services import HandoffJobService
 
@@ -48,14 +53,60 @@ async def list_jobs(
     )
     return [
         HandoffJobListItem(
-            id=x.job.id,
-            summary=x.job.summary,
-            status=x.job.status,
-            priority=JobPriorityEnum(x.job.priority),
+            id=x.job_details.id,
+            summary=x.job_details.summary,
+            status=x.job_details.status,
+            priority=JobPriorityEnum(x.job_details.priority),
             source_agent_label=x.source_agent_label,
             assignee_agent_label=x.assignee_agent_label,
             target_role_key=x.target_role_key,
-            created_at=x.job.created_at,
+            created_at=x.job_details.created_at,
         )
         for x in jobs
     ]
+
+
+@router.get("/{job_id}", response_model=HandoffJobWithArtifactsItem)
+async def get_job(
+    job_id: int,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+):
+    try:
+        entity = await job_service.get_job_with_artifacts(job_id)
+    except HandoffJobNotFoundError:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=HandoffJobNotFoundError.msg)
+
+    job = entity["job"]
+    artifacts = entity["artifacts"]
+
+    return HandoffJobWithArtifactsItem(
+        id=job.job_details.id,
+        parent_job_id=job.job_details.parent_job_id,
+        summary=job.job_details.summary,
+        context_payload=job.job_details.context_payload,
+        status=job.job_details.status,
+        priority=JobPriorityEnum(job.job_details.priority),
+        source_agent_label=job.source_agent_label,
+        assignee_agent_label=job.assignee_agent_label,
+        target_role_key=job.target_role_key,
+        constraints=job.job_details.constraints,
+        artifacts=[
+            JobArtifactItem(
+                type=artifact.artifact_type,
+                uri=artifact.artifact_uri,
+                checksum=artifact.artifact_checksum,
+                metadata_json=artifact.metadata_json,
+            )
+            for artifact in artifacts
+        ],
+        failure_reason=job.job_details.failure_reason,
+        published_at=job.job_details.published_at,
+        claimed_at=job.job_details.claimed_at,
+        started_at=job.job_details.started_at,
+        completed_at=job.job_details.completed_at,
+        failed_at=job.job_details.failed_at,
+        cancelled_at=job.job_details.cancelled_at,
+        expires_at=job.job_details.expires_at,
+        created_at=job.job_details.created_at,
+        updated_at=job.job_details.updated_at,
+    )

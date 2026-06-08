@@ -1,7 +1,12 @@
 import structlog
 from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobListItem, JobArtifactCreate, JobEventCreate
-from src.jobs.models import HandoffJob
+from src.jobs.dto import (
+    HandoffJobCreate,
+    HandoffJobItem,
+    HandoffJobWithArtifacts,
+    JobArtifactCreate,
+    JobEventCreate,
+)
 from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
 from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams
 
@@ -66,10 +71,15 @@ class HandoffJobService:
         log.info("operation_completed", artifact_count=len(artifact_dtos))
         return created_job.id
 
-    async def get_job(self, job_id: int) -> HandoffJob:
+    async def get_job(self, job_id: int) -> HandoffJobItem:
         return await self._handoff_job_repo.get(job_id)
 
-    async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobListItem]:
+    async def get_job_with_artifacts(self, job_id: int) -> HandoffJobWithArtifacts:
+        job = await self._handoff_job_repo.get(job_id)
+        artifacts = await self._job_artifact_repo.list(job_id=job_id)
+        return {"job": job, "artifacts": artifacts}
+
+    async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         log = self._logger.bind(
             method="list_jobs",
             status=filter_params.status.value if filter_params.status is not None else None,

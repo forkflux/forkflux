@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 from src.jobs.constants import JobPriorityEnum, JobStatusEnum
-from src.jobs.models import HandoffJob
+from src.jobs.models import HandoffJob, JobArtifact
 
 
 @dataclass(slots=True)
@@ -36,8 +36,13 @@ class JobEventCreate:
 
 
 @dataclass(slots=True)
-class HandoffJobListItem:
-    job: HandoffJob
+class HandoffJobItem:
+    job_details: HandoffJob
     target_role_key: str
     source_agent_label: str
     assignee_agent_label: str | None
+
+
+class HandoffJobWithArtifacts(TypedDict):
+    job: HandoffJobItem
+    artifacts: list[JobArtifact]

@@ -1,14 +1,19 @@
 from unittest.mock import AsyncMock, Mock
 
 from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobItem, JobEventCreate
 from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams, JobArtifact
 from src.jobs.services import HandoffJobService
 
 
 async def test_handoff_job_service_get_job_delegates_and_returns_job() -> None:
     job_id = 123
-    expected_job = object()
+    expected_job = HandoffJobItem(
+        job_details=Mock(),
+        target_role_key="reviewer",
+        source_agent_label="source-agent",
+        assignee_agent_label=None,
+    )
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
@@ -24,6 +29,38 @@ async def test_handoff_job_service_get_job_delegates_and_returns_job() -> None:
 
     repository.get.assert_awaited_once_with(job_id)
     assert job == expected_job
+
+
+async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_payload() -> None:
+    job_id = 123
+    expected_job = HandoffJobItem(
+        job_details=Mock(),
+        target_role_key="reviewer",
+        source_agent_label="source-agent",
+        assignee_agent_label=None,
+    )
+    expected_artifacts = [object(), object()]
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    repository.get = AsyncMock(return_value=expected_job)
+    job_artifact_repo.list = AsyncMock(return_value=expected_artifacts)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.get_job_with_artifacts(job_id=job_id)
+
+    repository.get.assert_awaited_once_with(job_id)
+    job_artifact_repo.list.assert_awaited_once_with(job_id=job_id)
+    assert result["job"] is expected_job
+    assert result["artifacts"] == expected_artifacts
 
 
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:

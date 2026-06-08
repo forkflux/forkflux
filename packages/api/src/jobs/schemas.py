@@ -49,3 +49,33 @@ class HandoffJobListItem(BaseModel):
     assignee_agent_label: str | None
     target_role_key: str
     created_at: datetime
+
+
+class HandoffJobWithArtifactsItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    parent_job_id: int | None
+    summary: str
+    context_payload: dict[str, Any]
+    status: JobStatusEnum
+    priority: JobPriorityEnum
+
+    source_agent_label: str
+    assignee_agent_label: str | None
+    target_role_key: str
+
+    constraints: list[str]
+    artifacts: list[JobArtifact]
+    failure_reason: str | None
+
+    published_at: datetime
+    claimed_at: datetime | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    expires_at: datetime | None
+
+    created_at: datetime
+    updated_at: datetime
