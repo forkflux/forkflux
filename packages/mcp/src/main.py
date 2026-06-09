@@ -194,5 +194,28 @@ def get_job_details(job_id: Annotated[int, Field(description="The unique numeric
     return _api_request("GET", f"/jobs/{job_id}")
 
 
+@mcp.tool("forkflux_claim_job")
+def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job to claim.")]):
+    """
+    Atomically claims a published job from the ForkFlux coordination bus.
+
+    Target Agents MUST call this tool immediately after deciding to take a job
+    (usually found via 'forkflux_list_jobs'), BEFORE starting any actual execution.
+    Claiming transitions the job status from 'published' to 'claimed' and
+    assigns it to you, preventing other agents from taking it.
+
+    If the claim fails (e.g., returns an HTTP 409 Conflict error), it means
+    another agent has already claimed this job. In that case, do not proceed
+    with the work; instead, fetch the list of jobs again to find a new one.
+
+    Args:
+        job_id: The ID of the job you want to lock and claim for yourself.
+
+    Returns:
+        JSON response confirming the successful claim, or an error message.
+    """
+    return _api_request("POST", f"/jobs/{job_id}/claim")
+
+
 if __name__ == "__main__":
     mcp.run(transport="http", host="127.0.0.1", port=9000, docs_url="/docs")
