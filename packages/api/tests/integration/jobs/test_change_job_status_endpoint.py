@@ -42,7 +42,7 @@ async def _assert_no_events_for_job(db_session: AsyncSession, job_id: int) -> No
 
 
 async def test_change_job_status_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.post("/v1/jobs/1/status", json={"status": JobStatusEnum.IN_PROGRESS.value})
+    response = await client.post("/api/v1/jobs/1/status", json={"status": JobStatusEnum.IN_PROGRESS.value})
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -62,7 +62,7 @@ async def test_change_job_status_returns_401_for_invalid_bearer_token(
     )
 
     response = await client.post(
-        "/v1/jobs/1/status",
+        "/api/v1/jobs/1/status",
         json={"status": JobStatusEnum.IN_PROGRESS.value},
         headers={"Authorization": "Bearer invalid-token"},
     )
@@ -111,7 +111,7 @@ async def test_change_job_status_returns_204_and_sets_started_at_for_assignee(
     )
 
     response = await client.post(
-        f"/v1/jobs/{job.id}/status",
+        f"/api/v1/jobs/{job.id}/status",
         json={"status": JobStatusEnum.IN_PROGRESS.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
@@ -169,7 +169,7 @@ async def test_change_job_status_returns_204_and_sets_completed_at_for_assignee(
     )
 
     response = await client.post(
-        f"/v1/jobs/{job.id}/status",
+        f"/api/v1/jobs/{job.id}/status",
         json={"status": JobStatusEnum.COMPLETED.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
@@ -219,7 +219,7 @@ async def test_change_job_status_returns_204_and_sets_cancelled_at_for_source_ag
     )
 
     response = await client.post(
-        f"/v1/jobs/{job.id}/status",
+        f"/api/v1/jobs/{job.id}/status",
         json={"status": JobStatusEnum.CANCELLED.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
@@ -250,7 +250,7 @@ async def test_change_job_status_returns_422_when_job_does_not_exist(
     )
 
     response = await client.post(
-        "/v1/jobs/999999/status",
+        "/api/v1/jobs/999999/status",
         json={"status": JobStatusEnum.IN_PROGRESS.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
@@ -298,7 +298,7 @@ async def test_change_job_status_returns_422_for_invalid_transition_and_keeps_st
     )
 
     response = await client.post(
-        f"/v1/jobs/{job.id}/status",
+        f"/api/v1/jobs/{job.id}/status",
         json={"status": JobStatusEnum.COMPLETED.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
@@ -368,7 +368,7 @@ async def test_change_job_status_returns_422_when_assignee_mismatches_and_keeps_
     )
 
     response = await client.post(
-        f"/v1/jobs/{job.id}/status",
+        f"/api/v1/jobs/{job.id}/status",
         json={"status": JobStatusEnum.IN_PROGRESS.value},
         headers={"Authorization": f"Bearer {raw_token}"},
     )
