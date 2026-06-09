@@ -4,6 +4,9 @@ from typing import Any
 import httpx
 from fastmcp import FastMCP
 
+from src.constants import JobPriorityEnum
+from src.schemas import JobArtifact
+
 FORKFLUX_INSTRUCTIONS = """
 You are connected to the ForkFlux Coordination Bus, an infrastructure layer for decentralized AI agents to securely hand off jobs across isolated machines.
 
@@ -86,6 +89,54 @@ def list_roles():
     are available to handle specific types of tasks.
     """
     return _api_request("GET", "/agents/roles")
+
+
+@mcp.tool("forkflux_create_job")
+def create_job(
+    summary: str,
+    context_payload: dict[str, Any],
+    target_role_key: str,
+    constraints: list[str],
+    artifacts: list[JobArtifact],
+    priority: JobPriorityEnum,
+    parent_job_id: int | None = None,
+):
+    """
+    Publishes a new handoff job to the ForkFlux coordination bus for delegation.
+
+    Use this tool when you (as a Source Agent) need to hand off a job to another
+    specialized agent (Target Agent) on a different machine or environment.
+
+    CRITICAL: The Target Agent operates in complete isolation. They cannot see your
+    local workspace, files, or chat history. You MUST pack all necessary context
+    into the parameters below.
+
+    Args:
+        summary: A concise, human-readable title of the job.
+        context_payload: The complete isolated context required to execute the job.
+            Include relevant code snippets, error logs, state descriptions, and steps to reproduce.
+        target_role_key: The required specialization for this job. MUST be a valid key
+            retrieved using the `list_roles` tool (e.g., 'qa_agent', 'security_reviewer').
+        constraints: A list of strict acceptance criteria or execution boundaries the Target Agent must follow.
+        artifacts: A list of external resources (like S3 URIs, Git commits, or database dumps) attached to this job.
+        priority: The urgency of the job (10=LOW, 20=NORMAL, 30=HIGH, 40=URGENT).
+        parent_job_id: (Optional) The ID of the job that spawned this job, used for tracing the handoff chain.
+    """
+    serialized_artifacts = [artifact.model_dump() for artifact in artifacts] if artifacts else []
+
+    return _api_request(
+        "POST",
+        "/jobs",
+        json_data={
+            "summary": summary,
+            "context_payload": context_payload,
+            "target_role_key": target_role_key,
+            "constraints": constraints,
+            "artifacts": serialized_artifacts,
+            "priority": priority,
+            "parent_job_id": parent_job_id,
+        },
+    )
 
 
 if __name__ == "__main__":
