@@ -14,12 +14,12 @@ from src.jobs.dependencies import (
     validate_target_role,
     validate_target_role_query_param,
 )
+from src.jobs.dto import HandoffJobFilterParams
 from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from src.jobs.schemas import (
     HandoffJobChangeStatusRequest,
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
-    HandoffJobFilterParams,
     HandoffJobListItem,
     HandoffJobWithArtifactsItem,
 )
@@ -51,11 +51,14 @@ async def create_job(
 async def list_jobs(
     limit: int = Query(50, ge=50, le=200),
     status: JobStatusEnum | None = None,
-    target_role_key: str | None = Depends(validate_target_role_query_param),
+    target_role_key: TargetRole = Depends(validate_target_role_query_param),
+    my_role_only: bool = True,
     job_service: HandoffJobService = Depends(get_handoff_job_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
 ):
+    target_role_id = current_agent.role_id if my_role_only else target_role_key.id if target_role_key else None
     jobs = await job_service.list_jobs(
-        HandoffJobFilterParams(limit=limit, status=status, target_role_key=target_role_key)
+        HandoffJobFilterParams(limit=limit, status=status, target_role_id=target_role_id)
     )
     return [
         HandoffJobListItem(

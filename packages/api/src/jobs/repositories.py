@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from src.agents.models import AgentIdentity, TargetRole
 from src.jobs.constants import JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobItem, JobArtifactCreate, JobEventCreate
+from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobArtifactCreate, JobEventCreate
 from src.jobs.exceptions import (
     HandoffJobConflictError,
     HandoffJobNotFoundError,
@@ -16,7 +16,6 @@ from src.jobs.exceptions import (
     JobEventConflictError,
 )
 from src.jobs.models import HandoffJob, JobArtifact, JobEvent
-from src.jobs.schemas import HandoffJobFilterParams
 
 
 class HandoffJobRepository:
@@ -123,8 +122,8 @@ class HandoffJobRepository:
         if filter_params.status is not None:
             stmt = stmt.where(HandoffJob.status == filter_params.status)
 
-        if filter_params.target_role_key is not None:
-            stmt = stmt.where(TargetRole.role_key == filter_params.target_role_key)
+        if filter_params.target_role_id is not None:
+            stmt = stmt.where(HandoffJob.target_role_id == filter_params.target_role_id)
 
         stmt = stmt.order_by(HandoffJob.created_at.asc()).limit(filter_params.limit)
         result = await self._session.execute(stmt)

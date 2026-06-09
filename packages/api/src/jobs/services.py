@@ -5,6 +5,7 @@ from src.agents.models import AgentIdentity
 from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from src.jobs.dto import (
     HandoffJobCreate,
+    HandoffJobFilterParams,
     HandoffJobItem,
     HandoffJobWithArtifacts,
     JobArtifactCreate,
@@ -12,7 +13,7 @@ from src.jobs.dto import (
 )
 from src.jobs.exceptions import HandoffJobConflictError
 from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from src.jobs.schemas import HandoffJobCreateRequest, HandoffJobFilterParams
+from src.jobs.schemas import HandoffJobCreateRequest
 
 
 class HandoffJobService:
@@ -87,7 +88,7 @@ class HandoffJobService:
         log = self._logger.bind(
             method="list_jobs",
             status=filter_params.status.value if filter_params.status is not None else None,
-            target_role_key=filter_params.target_role_key,
+            target_role_id=filter_params.target_role_id,
             limit=filter_params.limit,
         )
         log.info("operation_started")
