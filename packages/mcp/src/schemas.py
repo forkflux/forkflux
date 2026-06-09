@@ -6,5 +6,5 @@ from pydantic import BaseModel
 class JobArtifact(BaseModel):
     type: str
     uri: str
-    checksum: str | None
+    checksum: str | None = None
     metadata_json: dict[str, Any]

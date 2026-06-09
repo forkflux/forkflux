@@ -58,13 +58,13 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
             uri="git://repo/commit/abc123",
             checksum="sha256:abc123",
             metadata_json={"branch": "feature/mcp-tests"},
-        ),
+        ).model_dump(),
         JobArtifact(
             type="s3",
             uri="s3://bucket/path/to/logs.json",
             checksum=None,
             metadata_json={"content_type": "application/json"},
-        ),
+        ).model_dump(),
     ]
 
     expected_payload = {

@@ -122,6 +122,8 @@ def create_job(
         priority: The urgency of the job (10=LOW, 20=NORMAL, 30=HIGH, 40=URGENT).
         parent_job_id: (Optional) The ID of the job that spawned this job, used for tracing the handoff chain.
     """
+    serialized_artifacts = [artifact.model_dump() for artifact in artifacts] if artifacts else []
+
     return _api_request(
         "POST",
         "/jobs",
@@ -130,7 +132,7 @@ def create_job(
             "context_payload": context_payload,
             "target_role_key": target_role_key,
             "constraints": constraints,
-            "artifacts": artifacts,
+            "artifacts": serialized_artifacts,
             "priority": priority,
             "parent_job_id": parent_job_id,
         },
