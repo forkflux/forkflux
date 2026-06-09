@@ -22,8 +22,8 @@ def create_app() -> FastAPI:
     def health() -> None:
         return None
 
-    application.include_router(agents_router, prefix="/v1")
-    application.include_router(jobs_router, prefix="/v1")
+    application.include_router(agents_router, prefix="/api/v1")
+    application.include_router(jobs_router, prefix="/api/v1")
 
     return application
 
