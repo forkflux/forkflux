@@ -53,7 +53,13 @@ def _api_request(
         with httpx.Client() as client:
             response = client.request(method, url, headers=headers, params=params, json=json_data)
             if response.is_success:
-                return {"success": True, "details": response.json()}
+                if response.status_code == 204:
+                    return {"success": True, "details": None}
+
+                try:
+                    return {"success": True, "details": response.json()}
+                except ValueError:
+                    return {"success": True, "details": None}
 
             if response.status_code in (400, 422):
                 try:

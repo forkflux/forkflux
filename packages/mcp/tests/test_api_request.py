@@ -26,6 +26,7 @@ def test_api_request_returns_success_payload_and_forwards_request_args(monkeypat
 
     response = SimpleNamespace(
         is_success=True,
+        status_code=200,
         json=lambda: {"ok": True},
     )
     captured = _patch_http_request(monkeypatch, response)
@@ -41,6 +42,37 @@ def test_api_request_returns_success_payload_and_forwards_request_args(monkeypat
         "Content-Type": "application/json",
         "Authorization": "Bearer test-key",
     }
+
+
+def test_api_request_returns_success_payload_with_none_details_for_204(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = SimpleNamespace(
+        is_success=True,
+        status_code=204,
+        json=lambda: (_ for _ in ()).throw(AssertionError("response.json() must not be called for 204")),
+    )
+    _patch_http_request(monkeypatch, response)
+
+    result = _api_request("POST", "/jobs/77/status", json_data={"status": "completed"})
+
+    assert result == {"success": True, "details": None}
+
+
+def test_api_request_returns_success_payload_with_none_details_when_success_body_is_not_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _raise_value_error() -> dict[str, object]:
+        raise ValueError("not json")
+
+    response = SimpleNamespace(
+        is_success=True,
+        status_code=200,
+        json=_raise_value_error,
+    )
+    _patch_http_request(monkeypatch, response)
+
+    result = _api_request("GET", "/agents/roles")
+
+    assert result == {"success": True, "details": None}
 
 
 def test_api_request_returns_validation_error_with_json_details_for_400(monkeypatch: pytest.MonkeyPatch) -> None:
