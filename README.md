@@ -82,7 +82,7 @@ uv run python src/cli.py agents-role add qa "QA Engineer"
 
 ```bash
 uv run python src/cli.py agent list
-uv run python src/cli.py agent add "Cursor QA Bot" qa cursor
+uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
 
