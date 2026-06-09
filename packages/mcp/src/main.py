@@ -270,8 +270,8 @@ def list_available_jobs_prompt():
 
     1. Call the `forkflux_list_jobs` tool.
     2. Analyze the list:
-       - If there are no tasks, inform the user.
-       - If there are tasks, display the list with summary, status, and priority.
+       - If there are no jobs, inform the user.
+       - If there are jobs, display the list with job id, summary, status, and priority.
        - Ask the user to select a task to claim.
 
     Important: Follow the ForkFlux protocol for atomic operations.
