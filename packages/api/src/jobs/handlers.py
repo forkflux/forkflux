@@ -49,7 +49,7 @@ async def create_job(
 
 @router.get("", response_model=list[HandoffJobListItem])
 async def list_jobs(
-    limit: int = Query(50, ge=50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     status: JobStatusEnum | None = None,
     target_role_key: TargetRole = Depends(validate_target_role_query_param),
     my_role_only: bool = True,

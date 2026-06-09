@@ -1,4 +1,13 @@
-from enum import IntEnum
+from enum import Enum, IntEnum
+
+
+class JobStatusEnum(str, Enum):
+    PUBLISHED = "published"
+    CLAIMED = "claimed"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class JobPriorityEnum(IntEnum):

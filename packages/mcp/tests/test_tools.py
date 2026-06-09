@@ -35,6 +35,30 @@ async def test_list_roles_calls_api_request_with_expected_contract_and_returns_p
     _assert_tool_result_envelope(result, expected_payload)
 
 
+async def test_list_jobs_calls_api_request_with_default_params_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": [{"id": 11, "status": "published"}],
+    }
+
+    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool("forkflux_list_jobs")
+
+    mock_api_request.assert_called_once_with(
+        "GET",
+        "/jobs",
+        params={
+            "limit": 50,
+            "status": "published",
+            "target_role_key": None,
+            "my_role_only": True,
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
 async def test_create_job_calls_api_request_with_full_payload_and_returns_result(
     client: Client[FastMCPTransport],
 ) -> None:
