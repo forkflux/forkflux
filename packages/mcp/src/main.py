@@ -5,7 +5,7 @@ import httpx
 from fastmcp import FastMCP
 from pydantic import Field
 
-from src.constants import JobPriorityEnum, JobStatusEnum
+from src.constants import JobChangeStatusEnum, JobPriorityEnum, JobStatusEnum
 from src.schemas import JobArtifact
 
 FORKFLUX_INSTRUCTIONS = """
@@ -215,6 +215,42 @@ def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job
         JSON response confirming the successful claim, or an error message.
     """
     return _api_request("POST", f"/jobs/{job_id}/claim")
+
+
+@mcp.tool("forkflux_change_job_status")
+def change_job_status(
+    job_id: Annotated[int, Field(description="The unique ID of the job.")],
+    status: JobChangeStatusEnum,
+    failure_reason: Annotated[
+        str | None,
+        Field(
+            description="A detailed explanation of why the task failed. REQUIRED if status is 'failed', otherwise ignore."  # noqa: E501
+        ),
+    ] = None,
+):
+    """
+    Updates the execution lifecycle status of a job you have claimed.
+
+    Target Agents MUST use this tool to reflect their current progress to the Coordination Bus.
+    Follow this state machine:
+    1. 'in_progress': Set this IMMEDIATELY after claiming the job and before you start reading files or writing code.
+    2. 'completed': Set this when you have successfully finished the task and met all acceptance criteria.
+    3. 'failed': Set this if you cannot complete the task. CRITICAL: You MUST provide a detailed `failure_reason`
+        (e.g., "missing context payload", "broken environment", "compilation error: <logs>")
+        so the engineering team or Source Agent knows exactly what to fix.
+    4. 'cancelled': Set this if the user explicitly asks you to drop the task.
+
+    Args:
+        job_id: The ID of the job you are updating.
+        status: The new status to apply.
+        failure_reason: The reason for failure.
+
+    Returns:
+        JSON response confirming the status update.
+    """
+    return _api_request(
+        "POST", f"/jobs/{job_id}/status", json_data={"status": status.value, "failure_reason": failure_reason}
+    )
 
 
 if __name__ == "__main__":

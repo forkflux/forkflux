@@ -367,6 +367,46 @@ async def test_handoff_job_service_change_job_status_sets_completed_at_for_assig
     assert isinstance(job.completed_at, datetime)
 
 
+async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_reason_for_assignee() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.IN_PROGRESS
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    agent = Mock()
+    agent.id = 10
+
+    failure_reason = "executor timeout"
+    await service.change_job_status(
+        job_id=123,
+        status=JobStatusEnum.FAILED,
+        agent=agent,
+        failure_reason=failure_reason,
+    )
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.FAILED
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.failed_at, datetime)
+    assert job.failure_reason == failure_reason
+
+
 async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_for_claimed() -> None:
     repository = Mock()
     repository.get_by_id_for_update = AsyncMock()

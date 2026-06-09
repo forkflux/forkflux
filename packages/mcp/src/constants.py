@@ -10,6 +10,13 @@ class JobStatusEnum(str, Enum):
     CANCELLED = "cancelled"
 
 
+class JobChangeStatusEnum(str, Enum):
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class JobPriorityEnum(IntEnum):
     LOW = 10
     NORMAL = 20

@@ -135,7 +135,9 @@ class HandoffJobService:
         await self._handoff_job_repo.save(job=job)
         log.info("operation_completed")
 
-    async def change_job_status(self, job_id: int, status: JobStatusEnum, agent: AgentIdentity) -> None:
+    async def change_job_status(
+        self, job_id: int, status: JobStatusEnum, agent: AgentIdentity, failure_reason: str | None = None
+    ) -> None:
         log = self._logger.bind(
             method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent.id
         )
@@ -196,6 +198,7 @@ class HandoffJobService:
         elif status == JobStatusEnum.COMPLETED:
             job.completed_at = timestamp
         elif status == JobStatusEnum.FAILED:
+            job.failure_reason = failure_reason
             job.failed_at = timestamp
         elif status == JobStatusEnum.CANCELLED:
             job.cancelled_at = timestamp

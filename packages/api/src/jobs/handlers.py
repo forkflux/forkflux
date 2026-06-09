@@ -141,7 +141,7 @@ async def change_job_status(
     current_agent: AgentIdentity = Depends(get_current_agent),
 ):
     try:
-        await job_service.change_job_status(job_id, data.status, current_agent)
+        await job_service.change_job_status(job_id, data.status, current_agent, data.failure_reason)
     except HandoffJobNotFoundError:
         raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")
     except HandoffJobConflictError:
