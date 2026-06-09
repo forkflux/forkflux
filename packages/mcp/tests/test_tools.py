@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from fastmcp.client import Client
 from fastmcp.client.transports import FastMCPTransport
-from src.constants import JobPriorityEnum
+from src.constants import JobChangeStatusEnum, JobPriorityEnum
 from src.schemas import JobArtifact
 
 
@@ -157,4 +157,62 @@ async def test_claim_job_calls_api_request_with_expected_contract_and_returns_pa
         result = await client.call_tool("forkflux_claim_job", arguments={"job_id": 77})
 
     mock_api_request.assert_called_once_with("POST", "/jobs/77/claim")
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_change_job_status_in_progress_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"id": 77, "status": "in_progress"},
+    }
+
+    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_change_job_status",
+            arguments={
+                "job_id": 77,
+                "status": JobChangeStatusEnum.IN_PROGRESS,
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs/77/status",
+        json_data={"status": "in_progress", "failure_reason": None},
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_change_job_status_failed_calls_api_request_with_failure_reason_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {
+            "id": 77,
+            "status": "failed",
+            "failure_reason": "pytest collection failed due to missing fixture",
+        },
+    }
+
+    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_change_job_status",
+            arguments={
+                "job_id": 77,
+                "status": JobChangeStatusEnum.FAILED,
+                "failure_reason": "pytest collection failed due to missing fixture",
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs/77/status",
+        json_data={
+            "status": "failed",
+            "failure_reason": "pytest collection failed due to missing fixture",
+        },
+    )
     _assert_tool_result_envelope(result, expected_payload)
