@@ -143,3 +143,18 @@ async def test_get_job_details_calls_api_request_with_expected_contract_and_retu
 
     mock_api_request.assert_called_once_with("GET", "/jobs/77")
     _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_claim_job_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"id": 77, "status": "claimed"},
+    }
+
+    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool("forkflux_claim_job", arguments={"job_id": 77})
+
+    mock_api_request.assert_called_once_with("POST", "/jobs/77/claim")
+    _assert_tool_result_envelope(result, expected_payload)
