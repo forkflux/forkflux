@@ -11,14 +11,14 @@ from src.schemas import JobArtifact
 FORKFLUX_INSTRUCTIONS = """
 You are connected to the ForkFlux Coordination Bus, an infrastructure layer for decentralized AI agents to securely hand off jobs across isolated machines.
 
-Depending on your current role in the user's workflow, follow these rules:
+You do not have a fixed role. You must dynamically act as either a Source or a Target based on what the user is asking you to do right now.
 
-AS A SOURCE AGENT (Publishing work):
-- When a job requires execution by another agent (e.g., passing code to a QA agent), use `forkflux_create_job`.
+WHEN THE USER ASKS YOU TO HAND OFF WORK (Acting as Source):
 - To get all available roles, use `forkflux_list_roles`.
+- When a job requires execution by another agent (e.g., passing code to a QA agent), use `forkflux_create_job`.
 - Provide explicit, strict `constraints` and embed all necessary context in the `context_payload` and all necessary artifacts in the `artifacts`.
 
-AS A TARGET AGENT (Consuming work):
+WHEN THE USER ASKS YOU TO CHECK FOR OR RECEIVE NEW WORK (Acting as Target):
 1. Use `forkflux_list_jobs` to find available jobs with status 'published'.
 2. Verify with the user that the job is safe to claim (unless the user has pre-approved autonomous claiming).
 3. Attempt to claim a job using `forkflux_claim_job`.
@@ -87,7 +87,7 @@ def list_roles():
 
     Use this when you are a Source Agent preparing to publish a new job
     and need to know which roles (e.g., 'qa', 'refactorer', 'security')
-    are available to handle specific types of tasks.
+    are available to handle specific types of jobs.
     """
     return _api_request("GET", "/agents/roles")
 
@@ -149,11 +149,11 @@ def list_jobs(
 ):
     """
     Fetches a list of jobs from the ForkFlux Coordination Bus.
-    Target Agents should use this tool to poll the Shared Task Pool for available jobs to claim.
+    Target Agents should use this tool to poll the Coordination Bus for available jobs to claim.
 
     Args:
         limit: The maximum number of jobs to return (min 1, max 200). Default is 50.
-        status: Filter by task lifecycle status. Defaults to 'published' (jobs ready to be claimed).
+        status: Filter by job lifecycle status. Defaults to 'published' (jobs ready to be claimed).
         target_role_key: Filter jobs explicitly intended for a specific agent role.
         my_role_only: If True (default), filters the pool to return only jobs matching the current agent's role.
 
@@ -179,7 +179,7 @@ def get_job_details(job_id: Annotated[int, Field(description="The unique numeric
     Fetches the detailed card and full handoff context for a specific job.
 
     Target Agents MUST use this tool to retrieve the complete 'context_payload',
-    'constraints', and 'artifacts' needed to understand and execute the task.
+    'constraints', and 'artifacts' needed to understand and execute the job.
     While 'forkflux_list_jobs' provides a summary, this tool provides the actual
     data payload required to do the work.
 
@@ -224,7 +224,7 @@ def change_job_status(
     failure_reason: Annotated[
         str | None,
         Field(
-            description="A detailed explanation of why the task failed. REQUIRED if status is 'failed', otherwise ignore."  # noqa: E501
+            description="A detailed explanation of why the job failed. REQUIRED if status is 'failed', otherwise ignore."  # noqa: E501
         ),
     ] = None,
 ):
@@ -234,11 +234,11 @@ def change_job_status(
     Target Agents MUST use this tool to reflect their current progress to the Coordination Bus.
     Follow this state machine:
     1. 'in_progress': Set this IMMEDIATELY after claiming the job and before you start reading files or writing code.
-    2. 'completed': Set this when you have successfully finished the task and met all acceptance criteria.
-    3. 'failed': Set this if you cannot complete the task. CRITICAL: You MUST provide a detailed `failure_reason`
+    2. 'completed': Set this when you have successfully finished the job and met all acceptance criteria.
+    3. 'failed': Set this if you cannot complete the job. CRITICAL: You MUST provide a detailed `failure_reason`
         (e.g., "missing context payload", "broken environment", "compilation error: <logs>")
         so the engineering team or Source Agent knows exactly what to fix.
-    4. 'cancelled': Set this if the user explicitly asks you to drop the task.
+    4. 'cancelled': Set this if the user explicitly asks you to drop the job.
 
     Args:
         job_id: The ID of the job you are updating.
