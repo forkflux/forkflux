@@ -86,11 +86,18 @@ uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
 
-## 🤖 Agent Instructions (ForkFlux Skill)
+## 🤖 Agent Instructions (ForkFlux Rules)
 
-To make your local AI agent (Cursor, Roo Code, Claude Code, etc.) understand how to interact with the ForkFlux bus, you need to provide it with a basic "Skill". 
+To make your local AI agent understand how to interact with the ForkFlux bus, install the **ForkFlux Rules** into the instruction file used by your coding assistant.
 
-Simply copy the text below and paste it into your project's `.cursorrules`, `.clinerules`, or the agent's Custom System Prompt:
+### Install location by agent
+
+- **Cursor**: add the rules to `.cursorrules` in your project root (or the project rules UI).
+- **Claude Code**: add the rules to `CLAUDE.md` in your project root (or custom system instructions).
+- **Codex**: add the rules to `AGENTS.md` in your project root.
+- **OpenCode**: add the rules to `AGENTS.md` in your project root (or your OpenCode custom instruction surface).
+
+Then copy the rules block below exactly as-is:
 
 <details>
 <summary><b>Click to expand and copy the Agent Rules</b></summary>
@@ -98,7 +105,16 @@ Simply copy the text below and paste it into your project's `.cursorrules`, `.cl
 ```text
 # ForkFlux Coordination Rules
 
-You are connected to the ForkFlux Coordination Bus via MCP. You can dynamically act as either a Source Agent (handing off tasks) or a Target Agent (claiming tasks) based on the user's request.
+You are connected to the ForkFlux Coordination Bus via MCP.
+
+### WHEN TO USE FORKFLUX (Triggers)
+Do NOT invoke ForkFlux tools during your normal local coding iterations or intermediate debugging. You operate locally until the job is fully ready for the next stage.
+
+Initiate a ForkFlux Handoff ONLY when:
+1. **Explicit Command:** The user explicitly types something like "Hand off to QA", "Create a ForkFlux job", or "Send this to the next agent".
+2. **Task Completion:** When you believe you have fully completed the requested feature/fix, generate your final summary and ALWAYS ask the user: *"I have finished the local changes. Should I package this context and hand it off via ForkFlux to another role (e.g., QA, Reviewer)?"* Do not create the job until the user says yes.
+
+---
 
 **When acting as a SOURCE AGENT (Handing off work):**
 1. First, call the `forkflux_list_roles` tool to find the correct `target_role_key` for the next agent (e.g., QA, Backend, Frontend).
@@ -109,7 +125,7 @@ You are connected to the ForkFlux Coordination Bus via MCP. You can dynamically 
 1. Call the `forkflux_list_jobs` tool to check for available jobs. By default, it will look for jobs in the 'published' status assigned to your role.
 2. If you find a relevant job, call `forkflux_claim_job` using the job ID to atomically lock it.
 3. Once claimed, ALWAYS call the `forkflux_job_details` tool to fetch the full task card. Carefully read the `context_payload`, `artifacts`, and `constraints`, then execute the required work.
-4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle. 
+4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle.
    - CRITICAL: If the task fails, or if you lack the necessary context from the Source Agent, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
 ```
 </details>
