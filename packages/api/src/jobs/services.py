@@ -198,7 +198,7 @@ class HandoffJobService:
         elif status == JobStatusEnum.COMPLETED:
             job.completed_at = timestamp
         elif status == JobStatusEnum.FAILED:
-            job.failed_reason = failure_reason
+            job.failure_reason = failure_reason
             job.failed_at = timestamp
         elif status == JobStatusEnum.CANCELLED:
             job.cancelled_at = timestamp
