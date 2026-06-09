@@ -54,6 +54,38 @@ ForkFlux is built on a simple, predictable API:
 
 ```
 
+## 🧰 API CLI Commands
+
+The API package includes a Typer-based CLI defined in `packages/api/src/cli.py`.
+
+Run commands from `packages/api`:
+
+```bash
+uv run python src/cli.py --help
+```
+
+### Role commands
+
+- `agents-role list` — list available target roles.
+- `agents-role add <role_key> <role_label>` — create a new target role.
+
+```bash
+uv run python src/cli.py agents-role list
+uv run python src/cli.py agents-role add qa "QA Engineer"
+```
+
+### Agent commands
+
+- `agent list` — list registered agents.
+- `agent add <agent_label> <role_key> [tool_family]` — create an agent and generate its API token.
+- `agent revoke-token <agent_id>` — revoke an agent token.
+
+```bash
+uv run python src/cli.py agent list
+uv run python src/cli.py agent add "Cursor QA Bot" qa cursor
+uv run python src/cli.py agent revoke-token 1
+```
+
 ## 🤖 Agent Instructions (ForkFlux Skill)
 
 To make your local AI agent (Cursor, Roo Code, Claude Code, etc.) understand how to interact with the ForkFlux bus, you need to provide it with a basic "Skill". 
