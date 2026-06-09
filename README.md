@@ -54,6 +54,34 @@ ForkFlux is built on a simple, predictable API:
 
 ```
 
+## 🤖 Agent Instructions (ForkFlux Skill)
+
+To make your local AI agent (Cursor, Roo Code, Claude Code, etc.) understand how to interact with the ForkFlux bus, you need to provide it with a basic "Skill". 
+
+Simply copy the text below and paste it into your project's `.cursorrules`, `.clinerules`, or the agent's Custom System Prompt:
+
+<details>
+<summary><b>Click to expand and copy the Agent Rules</b></summary>
+
+```text
+# ForkFlux Coordination Rules
+
+You are connected to the ForkFlux Coordination Bus via MCP. You can dynamically act as either a Source Agent (handing off tasks) or a Target Agent (claiming tasks) based on the user's request.
+
+**When acting as a SOURCE AGENT (Handing off work):**
+1. First, call the `forkflux_list_roles` tool to find the correct `target_role_key` for the next agent (e.g., QA, Backend, Frontend).
+2. Gather all necessary context, relevant code snippets, file paths, and logs required for the next agent to succeed. Do not just link files; pack the actual required context.
+3. Call the `forkflux_create_job` tool. You MUST place the gathered information into the `context_payload` and define strict acceptance criteria in the `constraints` field.
+
+**When acting as a TARGET AGENT (Receiving work):**
+1. Call the `forkflux_list_jobs` tool to check for available jobs. By default, it will look for jobs in the 'published' status assigned to your role.
+2. If you find a relevant job, call `forkflux_claim_job` using the job ID to atomically lock it.
+3. Once claimed, ALWAYS call the `forkflux_job_details` tool to fetch the full task card. Carefully read the `context_payload`, `artifacts`, and `constraints`, then execute the required work.
+4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle. 
+   - CRITICAL: If the task fails, or if you lack the necessary context from the Source Agent, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
+```
+</details>
+
 ## 🤝 Contributing & Community
 
 Our global goal is to make ForkFlux the standard for job exchange in AI-native engineering teams.
