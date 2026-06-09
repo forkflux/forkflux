@@ -259,5 +259,24 @@ def change_job_status(
     )
 
 
+@mcp.prompt("list-available-jobs")
+def list_available_jobs_prompt():
+    """
+    Fetch the current list of available jobs from ForkFlux.
+    Use this prompt to see the pool of tasks ready for execution.
+    """
+    return """
+    You are working with ForkFlux. Your current goal is to find available work.
+
+    1. Call the `forkflux_list_jobs` tool.
+    2. Analyze the list:
+       - If there are no tasks, inform the user.
+       - If there are tasks, display the list with summary, status, and priority.
+       - Ask the user to select a task to claim.
+
+    Important: Follow the ForkFlux protocol for atomic operations.
+    """
+
+
 if __name__ == "__main__":
     mcp.run()
