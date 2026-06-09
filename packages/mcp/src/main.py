@@ -142,7 +142,7 @@ def create_job(
 
 @mcp.tool("forkflux_list_jobs")
 def list_jobs(
-    limit: Annotated[int, Field(default=50, ge=50, le=200)] = 50,
+    limit: Annotated[int, Field(default=50, ge=1, le=200)] = 50,
     status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
     target_role_key: str | None = None,
     my_role_only: bool = True,
@@ -171,6 +171,27 @@ def list_jobs(
             "my_role_only": my_role_only,
         },
     )
+
+
+@mcp.tool("forkflux_job_details")
+def get_job_details(job_id: Annotated[int, Field(description="The unique numeric ID of the job to retrieve.")]):
+    """
+    Fetches the detailed card and full handoff context for a specific job.
+
+    Target Agents MUST use this tool to retrieve the complete 'context_payload',
+    'constraints', and 'artifacts' needed to understand and execute the task.
+    While 'forkflux_list_jobs' provides a summary, this tool provides the actual
+    data payload required to do the work.
+
+    Use this tool after finding a relevant job in the pool, or if a user provides a specific job ID.
+
+    Args:
+        job_id: The ID of the job.
+
+    Returns:
+        A JSON response containing the full job details, including metadata and execution context.
+    """
+    return _api_request("GET", f"/jobs/{job_id}")
 
 
 if __name__ == "__main__":
