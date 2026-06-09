@@ -75,7 +75,7 @@ async def validate_target_role(
 async def validate_target_role_query_param(
     target_role_key: str | None = None, service: TargetRoleService = Depends(get_target_role_service)
 ) -> TargetRole | None:
-    if target_role_key is None:
+    if target_role_key is None or target_role_key.strip() == "":
         return None
 
     try:
