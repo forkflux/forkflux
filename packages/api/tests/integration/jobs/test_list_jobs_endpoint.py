@@ -241,6 +241,94 @@ async def test_list_jobs_with_my_role_only_false_and_no_target_role_key_returns_
     assert [item["id"] for item in body] == [first_matching_job.id, second_matching_job.id]
 
 
+async def test_list_jobs_with_my_role_only_true_and_empty_target_role_key_treats_it_as_omitted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-empty-role-my-role-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-empty-role-my-role-reviewer",
+        role_label="List jobs empty role my role reviewer",
+    )
+
+    matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="My role only matching",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 20, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 20, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 20, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Other role should be excluded",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 21, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 21, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        f"/api/v1/jobs?limit=10&status={JobStatusEnum.PUBLISHED.value}&target_role_key=&my_role_only=true",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [matching_job.id]
+
+
+async def test_list_jobs_with_my_role_only_false_and_empty_target_role_key_treats_it_as_omitted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-empty-role-cross-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="list-jobs-empty-role-cross-reviewer",
+        role_label="List jobs empty role cross reviewer",
+    )
+
+    first_matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Cross role first matching with empty key",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 30, tzinfo=timezone.utc),
+    )
+    second_matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Cross role second matching with empty key",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+        created_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        f"/api/v1/jobs?my_role_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key=",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [first_matching_job.id, second_matching_job.id]
+
+
 async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
     client: AsyncClient,
     db_session: AsyncSession,
