@@ -74,3 +74,19 @@ def _api_request(
             }
     except Exception as e:
         return {"success": False, "error": "Network or Internal Error", "details": str(e)}
+
+
+@mcp.tool("forkflux_list_roles")
+def list_roles():
+    """
+    Returns a list of available agent roles.
+
+    Use this when you are a Source Agent preparing to publish a new job
+    and need to know which roles (e.g., 'qa', 'refactorer', 'security')
+    are available to handle specific types of tasks.
+    """
+    return _api_request("GET", "/agents/roles")
+
+
+if __name__ == "__main__":
+    mcp.run(transport="http", host="127.0.0.1", port=9000, docs_url="/docs")
