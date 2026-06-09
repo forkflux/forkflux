@@ -1,10 +1,11 @@
 import os
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
 from fastmcp import FastMCP
+from pydantic import Field
 
-from src.constants import JobPriorityEnum
+from src.constants import JobPriorityEnum, JobStatusEnum
 from src.schemas import JobArtifact
 
 FORKFLUX_INSTRUCTIONS = """
@@ -135,6 +136,39 @@ def create_job(
             "artifacts": serialized_artifacts,
             "priority": priority,
             "parent_job_id": parent_job_id,
+        },
+    )
+
+
+@mcp.tool("forkflux_list_jobs")
+def list_jobs(
+    limit: Annotated[int, Field(default=50, ge=50, le=200)] = 50,
+    status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
+    target_role_key: str | None = None,
+    my_role_only: bool = True,
+):
+    """
+    Fetches a list of jobs from the ForkFlux Coordination Bus.
+    Target Agents should use this tool to poll the Shared Task Pool for available jobs to claim.
+
+    Args:
+        limit: The maximum number of jobs to return (min 1, max 200). Default is 50.
+        status: Filter by task lifecycle status. Defaults to 'published' (jobs ready to be claimed).
+        target_role_key: Filter jobs explicitly intended for a specific agent role.
+        my_role_only: If True (default), filters the pool to return only jobs matching the current agent's role.
+
+    Returns:
+        A JSON response containing the list of jobs matching the filters.
+    """
+
+    return _api_request(
+        "GET",
+        "/jobs",
+        params={
+            "limit": limit,
+            "status": status.value if status else None,
+            "target_role_key": target_role_key,
+            "my_role_only": my_role_only,
         },
     )
 
