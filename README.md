@@ -1,6 +1,6 @@
 # ForkFlux 🐜
 
-**Protocol-native coordination bus for decentralized AI agents.**
+**Coordination layer for AI agents across isolated developer local environments (devices)**
 
 > 🎥 **ForkFlux in Action:** *[Demo video link coming soon]*
 
@@ -47,12 +47,17 @@ ForkFlux is built on a simple, predictable API:
 
 ## 🚀 Quick Start
 
-*(Instructions for installation, starting the server, and configuring the MCP in clients will be added here soon)*
+Use the full guide in [QUICK_START.md](QUICK_START.md).
 
-```bash
-# TODO: Add installation instructions
+Summary:
 
-```
+1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
+2. Inside the API container, add roles and agents with the CLI.
+3. Copy agent rules from [rules/forkflux.md](rules/forkflux.md).
+4. Add command docs from the [commands/](commands/) folder to your assistant.
+5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+
+> Note: Docker must be running before you start this flow.
 
 ## 🧰 API CLI Commands
 
@@ -85,6 +90,31 @@ uv run python src/cli.py agent list
 uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
+
+## ⌨️ Slash Commands
+
+ForkFlux ships reusable slash-command specs in [commands/](commands/) that map to MCP tools.
+
+### How to set them up
+
+1. Open your assistant's custom command directory.
+2. Copy each file from [commands/](commands/) as a slash command definition.
+3. Keep the same command names (for example: `/ff-list-roles`, `/ff-create-job`).
+4. Reload your assistant session so new commands are available.
+
+### Available commands
+
+| Slash command | File | Short description |
+|---|---|---|
+| `/ff-list-roles` | [commands/ff-list-roles.md](commands/ff-list-roles.md) | Lists available target roles for routing handoff jobs. |
+| `/ff-create-job` | [commands/ff-create-job.md](commands/ff-create-job.md) | Publishes a new handoff job with constraints, context payload, and artifacts. |
+| `/ff-list-jobs` | [commands/ff-list-jobs.md](commands/ff-list-jobs.md) | Lists jobs from the shared pool (default focus: `published` jobs). |
+| `/ff-list-available-jobs` | [commands/ff-list-available-jobs.md](commands/ff-list-available-jobs.md) | Lists `published` jobs filtered to the current agent role only. |
+| `/ff-claim-job` | [commands/ff-claim-job.md](commands/ff-claim-job.md) | Atomically claims a job to prevent multi-agent race conditions. |
+| `/ff-job-details` | [commands/ff-job-details.md](commands/ff-job-details.md) | Retrieves full job card details, constraints, context summary, and artifacts. |
+| `/ff-change-job-status` | [commands/ff-change-job-status.md](commands/ff-change-job-status.md) | Updates lifecycle state (`in_progress`, `completed`, `failed`, `cancelled`). |
+
+These command files are designed to keep agent behavior deterministic and protocol-aligned.
 
 ## 🤖 Agent Instructions (ForkFlux Rules)
 
