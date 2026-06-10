@@ -17,8 +17,9 @@ Initiate a ForkFlux Handoff ONLY when:
 3. Call the `forkflux_create_job` tool. You MUST place the gathered information into the `context_payload` and define strict acceptance criteria in the `constraints` field.
 
 **When acting as a TARGET AGENT (Receiving work):**
-1. Call the `forkflux_list_jobs` tool to check for available jobs. By default, it will look for jobs in the 'published' status assigned to your role.
-2. If you find a relevant job, call `forkflux_claim_job` using the job ID to atomically lock it.
-3. Once claimed, ALWAYS call the `forkflux_job_details` tool to fetch the full task card. Carefully read the `context_payload`, `artifacts`, and `constraints`, then execute the required work.
-4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle.
-   - CRITICAL: If the task fails, or if you lack the necessary context from the Source Agent, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
+1. Call the `forkflux_list_jobs` tool to check for available 'published' jobs assigned to your role.
+2. Call `forkflux_claim_job` using the job ID.
+   - **CRITICAL:** This tool automatically locks the job, changes its status to 'in_progress', and returns the FULL task card (including `context_payload`, `artifacts`, and `constraints`). You do NOT need to request job details separately.
+3. Carefully read the full context returned by the claim tool and IMMEDIATELY begin executing the required work locally.
+4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle to either 'completed' or 'failed'.
+   - **CRITICAL:** If the task fails, or if you lack the necessary context from the Source Agent to even begin, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).

@@ -8,7 +8,7 @@ from src.main import _api_request
 def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespace):
     captured: dict[str, object] = {}
 
-    def _fake_request(self, method, url, headers=None, params=None, json=None):
+    async def _fake_request(self, method, url, headers=None, params=None, json=None):
         captured["method"] = method
         captured["url"] = str(url)
         captured["headers"] = headers
@@ -16,11 +16,11 @@ def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespa
         captured["json"] = json
         return response
 
-    monkeypatch.setattr(httpx.Client, "request", _fake_request)
+    monkeypatch.setattr(httpx.AsyncClient, "request", _fake_request)
     return captured
 
 
-def test_api_request_returns_success_payload_and_forwards_request_args(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_api_request_returns_success_payload_and_forwards_request_args(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("src.main.API_URL", "http://api.example.test")
     monkeypatch.setattr("src.main.API_KEY", "test-key")
 
@@ -31,7 +31,7 @@ def test_api_request_returns_success_payload_and_forwards_request_args(monkeypat
     )
     captured = _patch_http_request(monkeypatch, response)
 
-    result = _api_request("GET", "/agents/roles", params={"page": 1}, json_data={"x": "y"})
+    result = await _api_request("GET", "/agents/roles", params={"page": 1}, json_data={"x": "y"})
 
     assert result == {"success": True, "details": {"ok": True}}
     assert captured["method"] == "GET"
@@ -44,7 +44,7 @@ def test_api_request_returns_success_payload_and_forwards_request_args(monkeypat
     }
 
 
-def test_api_request_returns_success_payload_with_none_details_for_204(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_api_request_returns_success_payload_with_none_details_for_204(monkeypatch: pytest.MonkeyPatch) -> None:
     response = SimpleNamespace(
         is_success=True,
         status_code=204,
@@ -52,12 +52,12 @@ def test_api_request_returns_success_payload_with_none_details_for_204(monkeypat
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("POST", "/jobs/77/status", json_data={"status": "completed"})
+    result = await _api_request("POST", "/jobs/77/status", json_data={"status": "completed"})
 
     assert result == {"success": True, "details": None}
 
 
-def test_api_request_returns_success_payload_with_none_details_when_success_body_is_not_json(
+async def test_api_request_returns_success_payload_with_none_details_when_success_body_is_not_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def _raise_value_error() -> dict[str, object]:
@@ -70,12 +70,12 @@ def test_api_request_returns_success_payload_with_none_details_when_success_body
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("GET", "/agents/roles")
+    result = await _api_request("GET", "/agents/roles")
 
     assert result == {"success": True, "details": None}
 
 
-def test_api_request_returns_validation_error_with_json_details_for_400(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_api_request_returns_validation_error_with_json_details_for_400(monkeypatch: pytest.MonkeyPatch) -> None:
     response = SimpleNamespace(
         is_success=False,
         status_code=400,
@@ -84,7 +84,7 @@ def test_api_request_returns_validation_error_with_json_details_for_400(monkeypa
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("POST", "/jobs", json_data={"summary": "s"})
+    result = await _api_request("POST", "/jobs", json_data={"summary": "s"})
 
     assert result == {
         "success": False,
@@ -94,7 +94,7 @@ def test_api_request_returns_validation_error_with_json_details_for_400(monkeypa
     }
 
 
-def test_api_request_returns_validation_error_with_text_details_when_body_is_not_json(
+async def test_api_request_returns_validation_error_with_text_details_when_body_is_not_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def _raise_value_error() -> dict[str, object]:
@@ -108,7 +108,7 @@ def test_api_request_returns_validation_error_with_text_details_when_body_is_not
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("POST", "/jobs", json_data={"summary": "s"})
+    result = await _api_request("POST", "/jobs", json_data={"summary": "s"})
 
     assert result == {
         "success": False,
@@ -118,7 +118,7 @@ def test_api_request_returns_validation_error_with_text_details_when_body_is_not
     }
 
 
-def test_api_request_returns_network_internal_error_for_401(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_api_request_returns_network_internal_error_for_401(monkeypatch: pytest.MonkeyPatch) -> None:
     response = SimpleNamespace(
         is_success=False,
         status_code=401,
@@ -126,7 +126,7 @@ def test_api_request_returns_network_internal_error_for_401(monkeypatch: pytest.
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("GET", "/agents/roles")
+    result = await _api_request("GET", "/agents/roles")
 
     assert result == {
         "success": False,
@@ -135,7 +135,7 @@ def test_api_request_returns_network_internal_error_for_401(monkeypatch: pytest.
     }
 
 
-def test_api_request_returns_http_error_for_non_validation_non_401(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_api_request_returns_http_error_for_non_validation_non_401(monkeypatch: pytest.MonkeyPatch) -> None:
     response = SimpleNamespace(
         is_success=False,
         status_code=503,
@@ -143,7 +143,7 @@ def test_api_request_returns_http_error_for_non_validation_non_401(monkeypatch: 
     )
     _patch_http_request(monkeypatch, response)
 
-    result = _api_request("GET", "/agents/roles")
+    result = await _api_request("GET", "/agents/roles")
 
     assert result == {
         "success": False,
@@ -153,13 +153,13 @@ def test_api_request_returns_http_error_for_non_validation_non_401(monkeypatch: 
     }
 
 
-def test_api_request_returns_network_internal_error_when_request_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fake_request(self, method, url, headers=None, params=None, json=None):
+async def test_api_request_returns_network_internal_error_when_request_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_request(self, method, url, headers=None, params=None, json=None):
         raise httpx.ConnectError("connection refused")
 
-    monkeypatch.setattr(httpx.Client, "request", _fake_request)
+    monkeypatch.setattr(httpx.AsyncClient, "request", _fake_request)
 
-    result = _api_request("GET", "/agents/roles")
+    result = await _api_request("GET", "/agents/roles")
 
     assert result == {
         "success": False,

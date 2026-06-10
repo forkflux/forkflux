@@ -128,9 +128,12 @@ class HandoffJobService:
             )
             raise HandoffJobConflictError
 
-        job.status = JobStatusEnum.CLAIMED
+        timestamp = datetime.now(timezone.utc)
+
+        job.status = JobStatusEnum.IN_PROGRESS
         job.assignee_agent_id = agent.id
-        job.claimed_at = datetime.now(timezone.utc)
+        job.claimed_at = timestamp
+        job.started_at = timestamp
 
         await self._handoff_job_repo.save(job=job)
         log.info("operation_completed")

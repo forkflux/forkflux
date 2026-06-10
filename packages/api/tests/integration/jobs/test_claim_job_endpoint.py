@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.jobs.constants import JobStatusEnum
+from src.jobs.constants import JobPriorityEnum, JobStatusEnum
 from src.jobs.models import HandoffJob, JobEvent
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
@@ -41,7 +41,7 @@ async def _assert_no_events_for_job(db_session: AsyncSession, job_id: int) -> No
     assert list(event_rows.scalars()) == []
 
 
-async def test_claim_job_returns_204_and_persists_status_and_assignee(
+async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persists_status_and_assignee(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -83,17 +83,40 @@ async def test_claim_job_returns_204_and_persists_status_and_assignee(
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
-    assert response.status_code == 204
-    assert response.content == b""
+    assert response.status_code == 201
+    body = response.json()
+    assert body["id"] == job.id
+    assert body["parent_job_id"] == job.parent_job_id
+    assert body["summary"] == job.summary
+    assert body["context_payload"] == job.context_payload
+    assert body["status"] == JobStatusEnum.IN_PROGRESS.value
+    assert body["priority"] == JobPriorityEnum(job.priority).value
+    assert body["source_agent_label"] == source_agent.agent_label
+    assert body["assignee_agent_label"] == "claim-job-claimant-agent"
+    assert body["target_role_key"] == "claim-job-claimant-role"
+    assert body["constraints"] == job.constraints
+    assert body["artifacts"] == []
+    assert body["failure_reason"] is None
+    assert body["published_at"] == job.published_at.isoformat().replace("+00:00", "Z")
+    assert body["claimed_at"] is not None
+    assert body["started_at"] is not None
+    assert body["completed_at"] is None
+    assert body["failed_at"] is None
+    assert body["cancelled_at"] is None
+    assert body["expires_at"] is None
+    assert body["created_at"] == job.created_at.isoformat().replace("+00:00", "Z")
 
     await db_session.refresh(job)
     claimed_job = await db_session.get(HandoffJob, job.id)
     assert claimed_job is not None
-    assert claimed_job.status == JobStatusEnum.CLAIMED
+    assert claimed_job.status == JobStatusEnum.IN_PROGRESS
     assert claimed_job.assignee_agent_id == claimant_id
     assert claimed_job.claimed_at is not None
     assert claimed_job.claimed_at >= old_timestamp
+    assert claimed_job.started_at is not None
+    assert claimed_job.started_at >= old_timestamp
     assert claimed_job.updated_at > old_timestamp
+    assert body["updated_at"] == claimed_job.updated_at.isoformat().replace("+00:00", "Z")
 
     await _assert_no_events_for_job(db_session, job.id)
 

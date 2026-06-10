@@ -205,8 +205,10 @@ async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pas
 
     repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
     repository.save.assert_awaited_once_with(job=job)
-    assert job.status == JobStatusEnum.CLAIMED
+    assert job.status == JobStatusEnum.IN_PROGRESS
     assert job.assignee_agent_id == 10
+    assert isinstance(job.claimed_at, datetime)
+    assert isinstance(job.started_at, datetime)
 
 
 async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_published() -> None:
