@@ -16,15 +16,13 @@ from src.jobs.dependencies import (
 )
 from src.jobs.dto import HandoffJobFilterParams
 from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
+from src.jobs.helpers import handoff_job_to_response_model
 from src.jobs.schemas import (
     HandoffJobChangeStatusRequest,
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobListItem,
     HandoffJobWithArtifactsItem,
-)
-from src.jobs.schemas import (
-    JobArtifact as JobArtifactItem,
 )
 from src.jobs.services import HandoffJobService
 
@@ -85,43 +83,10 @@ async def get_job(
     except HandoffJobNotFoundError:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=HandoffJobNotFoundError.msg)
 
-    job = entity["job"]
-    artifacts = entity["artifacts"]
-
-    return HandoffJobWithArtifactsItem(
-        id=job.job_details.id,
-        parent_job_id=job.job_details.parent_job_id,
-        summary=job.job_details.summary,
-        context_payload=job.job_details.context_payload,
-        status=job.job_details.status,
-        priority=JobPriorityEnum(job.job_details.priority),
-        source_agent_label=job.source_agent_label,
-        assignee_agent_label=job.assignee_agent_label,
-        target_role_key=job.target_role_key,
-        constraints=job.job_details.constraints,
-        artifacts=[
-            JobArtifactItem(
-                type=artifact.artifact_type,
-                uri=artifact.artifact_uri,
-                checksum=artifact.artifact_checksum,
-                metadata_json=artifact.metadata_json,
-            )
-            for artifact in artifacts
-        ],
-        failure_reason=job.job_details.failure_reason,
-        published_at=job.job_details.published_at,
-        claimed_at=job.job_details.claimed_at,
-        started_at=job.job_details.started_at,
-        completed_at=job.job_details.completed_at,
-        failed_at=job.job_details.failed_at,
-        cancelled_at=job.job_details.cancelled_at,
-        expires_at=job.job_details.expires_at,
-        created_at=job.job_details.created_at,
-        updated_at=job.job_details.updated_at,
-    )
+    return handoff_job_to_response_model(entity=entity)
 
 
-@router.post("/{job_id}/claim", status_code=http_status.HTTP_204_NO_CONTENT)
+@router.post("/{job_id}/claim", status_code=http_status.HTTP_201_CREATED, response_model=HandoffJobWithArtifactsItem)
 async def claim_job(
     job_id: int,
     job_service: HandoffJobService = Depends(get_handoff_job_service),
@@ -131,6 +96,9 @@ async def claim_job(
         await job_service.claim_job(job_id, current_agent)
     except HandoffJobNotFoundError, HandoffJobConflictError:
         raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path")
+
+    entity = await job_service.get_job_with_artifacts(job_id)
+    return handoff_job_to_response_model(entity=entity)
 
 
 @router.post("/{job_id}/status", status_code=http_status.HTTP_204_NO_CONTENT)

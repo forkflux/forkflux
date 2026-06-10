@@ -61,13 +61,11 @@ Add command docs from the `commands/` directory into your assistant command syst
 
 Recommended commands:
 
-- `commands/ff-list-roles.md`
-- `commands/ff-create-job.md`
-- `commands/ff-list-jobs.md`
-- `commands/ff-list-available-jobs.md`
-- `commands/ff-claim-job.md`
-- `commands/ff-job-details.md`
-- `commands/ff-change-job-status.md`
+- `commands/ff-roles.md`
+- `commands/ff-push.md`
+- `commands/ff-board.md`
+- `commands/ff-claim.md`
+- `commands/ff-close.md`
 
 ## 5) Add the MCP server configuration
 

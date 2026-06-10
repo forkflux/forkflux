@@ -20,18 +20,17 @@ WHEN THE USER ASKS YOU TO HAND OFF WORK (Acting as Source):
 
 WHEN THE USER ASKS YOU TO CHECK FOR OR RECEIVE NEW WORK (Acting as Target):
 1. Use `forkflux_list_jobs` to find available jobs with status 'published'.
-2. Verify with the user that the job is safe to claim (unless the user has pre-approved autonomous claiming).
-3. Attempt to claim a job using `forkflux_claim_job`.
+2. Verify with the user that the job is safe to claim.
+3. Attempt to claim a job using `forkflux_claim_job`. This tool will return the FULL context payload immediately (Fat Claim).
 4. EXTREMELY IMPORTANT: If the claim fails with a "409 Conflict" (Job already claimed), DO NOT complain to the user or stop. Silently fetch the list again and try claiming the next available job.
-5. Once claimed, read the full context via `forkflux_get_job_context`.
-6. Complete the work locally, then update the status to 'completed' or 'failed' (include a failure_reason if it failed) using `forkflux_update_status`.
+5. Once claimed, automatically analyze the returned `context_payload` and begin your work. Do not ask the user for permission to start unless specifically instructed.
+6. Complete the work locally, then update the status to 'completed' or 'failed' (include a failure_reason if it failed) using `forkflux_change_job_status`.
 """  # noqa: E501
 
 mcp = FastMCP(
     "ForkFlux",
     instructions=FORKFLUX_INSTRUCTIONS,
 )
-
 
 API_URL = os.environ.get("FORKFLUX_API_URL", "http://localhost:8000/api/v1")
 API_KEY = os.environ.get("FORKFLUX_API_KEY")
@@ -40,7 +39,7 @@ if not API_KEY:
     print("Warning: FORKFLUX_API_KEY is not set.")
 
 
-def _api_request(
+async def _api_request(
     method: str, endpoint: str, params: dict[str, Any] | None = None, json_data: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     headers = {
@@ -50,8 +49,8 @@ def _api_request(
     url = f"{API_URL}{endpoint}"
 
     try:
-        with httpx.Client() as client:
-            response = client.request(method, url, headers=headers, params=params, json=json_data)
+        async with httpx.AsyncClient() as client:
+            response = await client.request(method, url, headers=headers, params=params, json=json_data)
             if response.is_success:
                 if response.status_code == 204:
                     return {"success": True, "details": None}
@@ -87,19 +86,21 @@ def _api_request(
 
 
 @mcp.tool("forkflux_list_roles")
-def list_roles():
+async def list_roles():
     """
     Returns a list of available agent roles.
 
     Use this when you are a Source Agent preparing to publish a new job
     and need to know which roles (e.g., 'qa', 'refactorer', 'security')
     are available to handle specific types of jobs.
+
+    CRITICAL: Output the result as a clean, human-readable Markdown list. DO NOT dump raw JSON.
     """
-    return _api_request("GET", "/agents/roles")
+    return await _api_request("GET", "/agents/roles")
 
 
 @mcp.tool("forkflux_create_job")
-def create_job(
+async def create_job(
     summary: str,
     context_payload: dict[str, Any],
     target_role_key: str,
@@ -111,27 +112,24 @@ def create_job(
     """
     Publishes a new handoff job to the ForkFlux coordination bus for delegation.
 
-    Use this tool when you (as a Source Agent) need to hand off a job to another
-    specialized agent (Target Agent) on a different machine or environment.
-
     CRITICAL: The Target Agent operates in complete isolation. They cannot see your
     local workspace, files, or chat history. You MUST pack all necessary context
     into the parameters below.
 
     Args:
         summary: A concise, human-readable title of the job.
-        context_payload: The complete isolated context required to execute the job.
+        context_payload: A highly detailed, structured JSON dictionary. Do NOT pass a simple flat string.
             Include relevant code snippets, error logs, state descriptions, and steps to reproduce.
         target_role_key: The required specialization for this job. MUST be a valid key
             retrieved using the `list_roles` tool (e.g., 'qa_agent', 'security_reviewer').
         constraints: A list of strict acceptance criteria or execution boundaries the Target Agent must follow.
         artifacts: A list of external resources (like S3 URIs, Git commits, or database dumps) attached to this job.
-        priority: The urgency of the job (10=LOW, 20=NORMAL, 30=HIGH, 40=URGENT).
+        priority: The urgency of the job.
         parent_job_id: (Optional) The ID of the job that spawned this job, used for tracing the handoff chain.
     """
     serialized_artifacts = [artifact.model_dump() for artifact in artifacts] if artifacts else []
 
-    return _api_request(
+    return await _api_request(
         "POST",
         "/jobs",
         json_data={
@@ -147,7 +145,7 @@ def create_job(
 
 
 @mcp.tool("forkflux_list_jobs")
-def list_jobs(
+async def list_jobs(
     limit: Annotated[int, Field(default=50, ge=1, le=200)] = 50,
     status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
     target_role_key: str | None = None,
@@ -157,17 +155,16 @@ def list_jobs(
     Fetches a list of jobs from the ForkFlux Coordination Bus.
     Target Agents should use this tool to poll the Coordination Bus for available jobs to claim.
 
+    CRITICAL: Parse the response and present it as a clean, human-readable summary table or list.
+    DO NOT output the raw JSON to the user, as context payloads are too large.
+
     Args:
         limit: The maximum number of jobs to return (min 1, max 200). Default is 50.
         status: Filter by job lifecycle status. Defaults to 'published' (jobs ready to be claimed).
         target_role_key: Filter jobs explicitly intended for a specific agent role.
         my_role_only: If True (default), filters the pool to return only jobs matching the current agent's role.
-
-    Returns:
-        A JSON response containing the list of jobs matching the filters.
     """
-
-    return _api_request(
+    return await _api_request(
         "GET",
         "/jobs",
         params={
@@ -180,81 +177,58 @@ def list_jobs(
 
 
 @mcp.tool("forkflux_job_details")
-def get_job_details(job_id: Annotated[int, Field(description="The unique numeric ID of the job to retrieve.")]):
+async def get_job_details(job_id: Annotated[int, Field(description="The unique numeric ID of the job to retrieve.")]):
     """
-    Fetches the detailed card and full handoff context for a specific job.
+    Fetches the detailed card and full handoff context for a specific job without claiming it.
 
-    Target Agents MUST use this tool to retrieve the complete 'context_payload',
-    'constraints', and 'artifacts' needed to understand and execute the job.
-    While 'forkflux_list_jobs' provides a summary, this tool provides the actual
-    data payload required to do the work.
-
-    Use this tool after finding a relevant job in the pool, or if a user provides a specific job ID.
+    NOTE: You do NOT need to call this after `forkflux_claim_job`, because claiming automatically
+    returns the full context. Use this only if you need to inspect a job before deciding to claim it.
 
     Args:
         job_id: The ID of the job.
-
-    Returns:
-        A JSON response containing the full job details, including metadata and execution context.
     """
-    return _api_request("GET", f"/jobs/{job_id}")
+    return await _api_request("GET", f"/jobs/{job_id}")
 
 
 @mcp.tool("forkflux_claim_job")
-def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job to claim.")]):
+async def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job to claim.")]):
     """
-    Atomically claims a published job from the ForkFlux coordination bus.
+    Atomically claims a published job from the ForkFlux coordination bus and returns its FULL context.
 
-    Target Agents MUST call this tool immediately after deciding to take a job
-    (usually found via 'forkflux_list_jobs'), BEFORE starting any actual execution.
-    Claiming transitions the job status from 'published' to 'claimed' and
-    assigns it to you, preventing other agents from taking it.
+    Target Agents MUST call this tool immediately after deciding to take a job.
+    Claiming transitions the job status to 'in_progress' and locks it for you.
 
     If the claim fails (e.g., returns an HTTP 409 Conflict error), it means
-    another agent has already claimed this job. In that case, do not proceed
-    with the work; instead, fetch the list of jobs again to find a new one.
+    another agent has already claimed this job. Do not proceed with the work;
+    instead, fetch the list of jobs again to find a new one.
 
     Args:
         job_id: The ID of the job you want to lock and claim for yourself.
-
-    Returns:
-        JSON response confirming the successful claim, or an error message.
     """
-    return _api_request("POST", f"/jobs/{job_id}/claim")
+    return await _api_request("POST", f"/jobs/{job_id}/claim")
 
 
 @mcp.tool("forkflux_change_job_status")
-def change_job_status(
+async def change_job_status(
     job_id: Annotated[int, Field(description="The unique ID of the job.")],
     status: JobChangeStatusEnum,
     failure_reason: Annotated[
         str | None,
         Field(
-            description="A detailed explanation of why the job failed. REQUIRED if status is 'failed', otherwise ignore."  # noqa: E501
+            description="A detailed explanation of why the job failed. REQUIRED if status is 'failed' otherwise ignore."
         ),
     ] = None,
 ):
     """
     Updates the execution lifecycle status of a job you have claimed.
 
-    Target Agents MUST use this tool to reflect their current progress to the Coordination Bus.
-    Follow this state machine:
-    1. 'in_progress': Set this IMMEDIATELY after claiming the job and before you start reading files or writing code.
-    2. 'completed': Set this when you have successfully finished the job and met all acceptance criteria.
-    3. 'failed': Set this if you cannot complete the job. CRITICAL: You MUST provide a detailed `failure_reason`
-        (e.g., "missing context payload", "broken environment", "compilation error: <logs>")
-        so the engineering team or Source Agent knows exactly what to fix.
-    4. 'cancelled': Set this if the user explicitly asks you to drop the job.
-
-    Args:
-        job_id: The ID of the job you are updating.
-        status: The new status to apply.
-        failure_reason: The reason for failure.
-
-    Returns:
-        JSON response confirming the status update.
+    Target Agents MUST use this tool to reflect their current progress:
+    1. 'in_progress': Set this if the job was 'claimed' but not automatically marked as 'in_progress'.
+    2. 'completed': Set this ONLY when you have successfully finished the job and met ALL acceptance criteria.
+    3. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
+    4. 'cancelled': Set this if the user explicitly asks you to abort.
     """
-    return _api_request(
+    return await _api_request(
         "POST", f"/jobs/{job_id}/status", json_data={"status": status.value, "failure_reason": failure_reason}
     )
 
@@ -271,7 +245,7 @@ def list_available_jobs_prompt():
     1. Call the `forkflux_list_jobs` tool.
     2. Analyze the list:
        - If there are no jobs, inform the user.
-       - If there are jobs, display the list with job id, summary, status, and priority.
+       - If there are jobs, display the list with job id, summary, status, and priority. DO NOT dump raw JSON.
        - Ask the user to select a task to claim.
 
     Important: Follow the ForkFlux protocol for atomic operations.

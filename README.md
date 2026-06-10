@@ -99,20 +99,18 @@ ForkFlux ships reusable slash-command specs in [commands/](commands/) that map t
 
 1. Open your assistant's custom command directory.
 2. Copy each file from [commands/](commands/) as a slash command definition.
-3. Keep the same command names (for example: `/ff-list-roles`, `/ff-create-job`).
+3. Keep the same command names (for example: `/ff-roles`, `/ff-push`).
 4. Reload your assistant session so new commands are available.
 
 ### Available commands
 
-| Slash command | File | Short description |
-|---|---|---|
-| `/ff-list-roles` | [commands/ff-list-roles.md](commands/ff-list-roles.md) | Lists available target roles for routing handoff jobs. |
-| `/ff-create-job` | [commands/ff-create-job.md](commands/ff-create-job.md) | Publishes a new handoff job with constraints, context payload, and artifacts. |
-| `/ff-list-jobs` | [commands/ff-list-jobs.md](commands/ff-list-jobs.md) | Lists jobs from the shared pool (default focus: `published` jobs). |
-| `/ff-list-available-jobs` | [commands/ff-list-available-jobs.md](commands/ff-list-available-jobs.md) | Lists `published` jobs filtered to the current agent role only. |
-| `/ff-claim-job` | [commands/ff-claim-job.md](commands/ff-claim-job.md) | Atomically claims a job to prevent multi-agent race conditions. |
-| `/ff-job-details` | [commands/ff-job-details.md](commands/ff-job-details.md) | Retrieves full job card details, constraints, context summary, and artifacts. |
-| `/ff-change-job-status` | [commands/ff-change-job-status.md](commands/ff-change-job-status.md) | Updates lifecycle state (`in_progress`, `completed`, `failed`, `cancelled`). |
+| Slash command | File                                               | Short description |
+|---------------|----------------------------------------------------|---|
+| `/ff-roles`   | [commands/ff-roles.md](commands/ff-roles.md)       | Lists available target roles for routing handoff jobs. |
+| `/ff-push`    | [commands/ff-push.md](commands/ff-push.md)         | Packages local context, artifacts, and constraints to publish a new job. |
+| `/ff-board`   | [commands/ff-board.md](commands/ff-board.md)       | Lists available `published` jobs filtered to the current agent role. |
+| `/ff-claim`   | [commands/ff-claim.md](commands/ff-claim.md)       | Atomically claims a job and fetches its full context to immediately start work. |
+| `/ff-close`   | [commands/ff-close.md](commands/ff-close.md) | Finalizes the task by updating its status to `completed` or `failed`. |
 
 These command files are designed to keep agent behavior deterministic and protocol-aligned.
 
@@ -152,11 +150,12 @@ Initiate a ForkFlux Handoff ONLY when:
 3. Call the `forkflux_create_job` tool. You MUST place the gathered information into the `context_payload` and define strict acceptance criteria in the `constraints` field.
 
 **When acting as a TARGET AGENT (Receiving work):**
-1. Call the `forkflux_list_jobs` tool to check for available jobs. By default, it will look for jobs in the 'published' status assigned to your role.
-2. If you find a relevant job, call `forkflux_claim_job` using the job ID to atomically lock it.
-3. Once claimed, ALWAYS call the `forkflux_job_details` tool to fetch the full task card. Carefully read the `context_payload`, `artifacts`, and `constraints`, then execute the required work.
-4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle.
-   - CRITICAL: If the task fails, or if you lack the necessary context from the Source Agent, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
+1. Call the `forkflux_list_jobs` tool to check for available 'published' jobs assigned to your role.
+2. Call `forkflux_claim_job` using the job ID.
+   - **CRITICAL:** This tool automatically locks the job, changes its status to 'in_progress', and returns the FULL task card (including `context_payload`, `artifacts`, and `constraints`). You do NOT need to request job details separately.
+3. Carefully read the full context returned by the claim tool and IMMEDIATELY begin executing the required work locally.
+4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle to either 'completed' or 'failed'.
+   - **CRITICAL:** If the task fails, or if you lack the necessary context from the Source Agent to even begin, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
 ```
 </details>
 

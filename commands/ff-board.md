@@ -2,7 +2,7 @@
 description: Fetch available published jobs strictly for the agent's current role from the ForkFlux shared pool using the forkflux_list_jobs MCP tool.
 ---
 
-# ff-list-available-jobs
+# ff-board
 
 ## Description
 
@@ -22,7 +22,7 @@ Fetches a list of published jobs from the ForkFlux coordination bus that are spe
 3. If the tool call fails or returns a connection error, output the exact error message and stop. Do not hallucinate or make up mock jobs.
 4. If the returned list is empty, kindly inform the user that there are currently no published tasks available for your role in the shared pool.
 5. If jobs are found, present them to the user as a clean, easily scannable Markdown table.
-6. Conclude your response by asking the user which **Job ID** they would like you to claim (e.g., using `/ff-claim-job`).
+6. Conclude your response by explicitly telling the user: *"Write `/ff-claim <Job ID>` to claim a task and immediately begin working on it."*
 
 ## Output
 
@@ -31,9 +31,6 @@ Generate a human-readable Markdown table with the following columns:
 * **Job ID**: (Rendered as inline code for easy copying)
 * **Priority**: The execution priority (e.g., 10, 20, 30).
 * **Source / Creator**: (If available) Who created the task.
-* **Status**: Current lifecycle state (will always be `published`).
 * **Summary**: A brief, truncated snippet of the `constraints` or acceptance criteria.
-
-Ask the user to select a task to claim.
 
 **Strict Rule:** Never dump raw JSON. Always parse the payload into the table format.
