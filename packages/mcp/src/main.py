@@ -222,11 +222,11 @@ async def change_job_status(
     """
     Updates the execution lifecycle status of a job you have claimed.
 
-    Target Agents MUST use this tool to reflect their current progress:
-    1. 'in_progress': Set this if the job was 'claimed' but not automatically marked as 'in_progress'.
-    2. 'completed': Set this ONLY when you have successfully finished the job and met ALL acceptance criteria.
-    3. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
-    4. 'cancelled': Set this if the user explicitly asks you to abort.
+    Claiming a job automatically transitions it to 'in_progress'.
+    Target Agents should use this tool for manual transitions only:
+    1. 'completed': Set this ONLY when you have successfully finished the job and met ALL acceptance criteria.
+    2. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
+    3. 'cancelled': Set this if the user explicitly asks you to abort.
     """
     return await _api_request(
         "POST", f"/jobs/{job_id}/status", json_data={"status": status.value, "failure_reason": failure_reason}

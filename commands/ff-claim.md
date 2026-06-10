@@ -6,7 +6,7 @@ description: Atomically claim a job from the ForkFlux coordination bus, retrieve
 
 ## Description
 
-Atomically claims a specific ForkFlux job, locking it for the current Target Agent and changing its status from `published` to `claimed`. This prevents race conditions where multiple agents might accidentally start working on the same job. It also retrieves the full job context (Fat Claim) so the agent can immediately analyze the acceptance criteria and begin work.
+Atomically claims a specific ForkFlux job, locking it for the current Target Agent and changing its status from `PUBLISHED` to `IN_PROGRESS` (API payload value: `in_progress`). This prevents race conditions where multiple agents might accidentally start working on the same job. It also returns the full job context in the claim response (Fat Claim) so the agent can immediately analyze the acceptance criteria and begin work.
 
 ## Required MCP tool
 
@@ -20,15 +20,15 @@ Atomically claims a specific ForkFlux job, locking it for the current Target Age
 4. If the tool call fails for any other reason, output the exact error message and stop.
 5. **Analyze Context (Fat Claim):** If successful, the tool response will contain the full context of the job (Acceptance Criteria, payload artifacts, instructions). Read and analyze this payload thoroughly.
 6. **Next Logical Step (Tool Chaining):** You are now the official owner of this job. Briefly summarize the core objective based on the payload you just received.
-7. Ask the user for confirmation to begin executing the work. **Crucial rule:** Remind yourself (and the user) that once confirmed, your very first technical action must be updating the job status to `in_progress` before writing any code.
+7. Ask the user for confirmation to begin executing the work. **Crucial rule:** Remind yourself (and the user) that claiming already set the job to `IN_PROGRESS` (API payload value: `in_progress`), so proceed directly with execution.
 
 ## Output
 
 Provide a brief, energetic confirmation to the user in Markdown format:
 
 * 🔒 **Job Claimed**: Mention the `job_id` and a 1-sentence summary of the objective.
-* 🚦 **Status**: Confirmed as `claimed`.
+* 🚦 **Status**: Confirmed as `IN_PROGRESS` (API payload value: `in_progress`).
 * 📦 **Context Received**: Confirm that you have successfully unpacked the task payload.
-* 🚀 **Next Action**: Ask the user: *"Shall I update the status to `in_progress` and start executing this task now?"*
+* 🚀 **Next Action**: Ask the user: *"Shall I start executing this task now?"*
 
 **Strict Rule:** Do not dump raw JSON. Focus on the workflow transition and human-readable summary.
