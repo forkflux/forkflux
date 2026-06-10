@@ -4,7 +4,7 @@ services:
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     environment:
-      - DATABASE_URL=postgres://ff_user:ff_password@postgres:5432/ff_db
+      - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -14,7 +14,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgres://ff_user:ff_password@postgres:5432/ff_db
+      - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
     depends_on:
       postgres:
         condition: service_healthy
