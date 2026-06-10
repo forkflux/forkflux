@@ -1,0 +1,22 @@
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Install only MCP runtime dependencies into an isolated virtualenv.
+COPY packages/mcp/pyproject.toml /app/packages/mcp/pyproject.toml
+RUN uv venv /opt/venv
+RUN uv pip install --python /opt/venv/bin/python /app/packages/mcp
+
+
+FROM python:3.14-slim-bookworm AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:${PATH}"
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY packages/mcp/src /app/src
+
+CMD ["python", "-m", "src.main"]

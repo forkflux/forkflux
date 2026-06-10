@@ -1,0 +1,18 @@
+services:
+  api:
+    image: ghcr.io/forkflux/forkflux-api:dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://ff_user:ff_password@postgres:5432/ff_db
+
+  postgres:
+    image: postgres:18-alpine
+    volumes:
+      - ./docker_data/postgresql:/var/lib/postgresql/18/docker
+    environment:
+      - POSTGRES_USER=ff_user
+      - POSTGRES_PASSWORD=ff_password
+      - POSTGRES_DB=ff_db
+    ports:
+      - "5432:5432"
