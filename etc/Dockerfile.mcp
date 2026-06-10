@@ -14,9 +14,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:${PATH}"
 
+RUN groupadd --system --gid 10001 appgroup \
+    && useradd --system --uid 10001 --gid appgroup --create-home --home-dir /home/appuser appuser
+
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 COPY packages/mcp/src /app/src
+
+RUN chown -R appuser:appgroup /app /opt/venv
+
+USER appuser
 
 CMD ["python", "-m", "src.main"]
