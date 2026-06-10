@@ -1,0 +1,38 @@
+services:
+  migrate:
+    image: ghcr.io/forkflux/forkflux-api:dev
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgres://ff_user:ff_password@postgres:5432/ff_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: ghcr.io/forkflux/forkflux-api:dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://ff_user:ff_password@postgres:5432/ff_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:18-alpine
+    volumes:
+      - ./docker_data/postgresql:/var/lib/postgresql/18/docker
+    environment:
+      - POSTGRES_USER=ff_user
+      - POSTGRES_PASSWORD=ff_password
+      - POSTGRES_DB=ff_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ff_user -d ff_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
