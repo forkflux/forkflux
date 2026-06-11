@@ -49,13 +49,7 @@ python src/cli.py agent add "Cursor QA Bot" qa
 
 The `agent add` command returns an API token. Save this token securely — you will use it as `FORKFLUX_API_KEY` in the MCP config.
 
-## 3) Add ForkFlux rules for your agent
-
-Copy the ForkFlux coordination rules from `rules/forkflux.md` into your assistant instruction surface (for example: `.cursorrules`, `AGENTS.md`, or your tool's rule UI).
-
-These rules define when to hand off, how to list roles, create jobs, claim jobs, and report status correctly.
-
-## 4) Use skills, MCP prompts, or slash commands
+## 3) Use skills, MCP prompts, or slash commands
 
 Install ForkFlux skills from `skills/`:
 
@@ -74,7 +68,7 @@ Recommended commands:
 - `commands/ff-claim.md`
 - `commands/ff-close.md`
 
-## 5) Add the MCP server configuration
+## 4) Add the MCP server configuration
 
 Configure your MCP client with the ForkFlux MCP server:
 
