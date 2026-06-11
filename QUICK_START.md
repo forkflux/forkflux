@@ -55,7 +55,12 @@ Copy the ForkFlux coordination rules from `rules/forkflux.md` into your assistan
 
 These rules define when to hand off, how to list roles, create jobs, claim jobs, and report status correctly.
 
-## 4) Use MCP prompts or add slash commands
+## 4) Use skills, MCP prompts, or slash commands
+
+Install ForkFlux skills from `skills/`:
+
+- `skills/forkflux-sender/SKILL.md`
+- `skills/forkflux-receiver/SKILL.md`
 
 If your AI assistant supports MCP prompts, use the prompts exposed by the ForkFlux MCP server directly.
 

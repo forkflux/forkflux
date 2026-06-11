@@ -54,8 +54,9 @@ Summary:
 1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
 2. Inside the API container, add roles and agents with the CLI.
 3. Copy agent rules from [rules/forkflux.md](rules/forkflux.md).
-4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
-5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+4. Load reusable agent skills from [skills/](skills/).
+5. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
+6. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
 
 > Note: Docker must be running before you start this flow.
 
@@ -91,9 +92,9 @@ uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
 
-## ⌨️ Automation: MCP Prompts & Slash Commands
+## ⌨️ Automation: MCP Prompts, Slash Commands, and Skills
 
-ForkFlux supports two ways of guiding your AI assistant through handoff workflows, depending on your client capabilities.
+ForkFlux supports multiple ways of guiding your AI assistant through handoff workflows, depending on your client capabilities.
 
 ### Option 1: Native MCP Prompts (Recommended)
 If your AI assistant natively supports the MCP Prompts surface (e.g., Claude Code), the instructions are already exposed by the server.
@@ -134,6 +135,17 @@ If your assistant does not support prompt surfaces yet (or you use custom modes 
 | `/ff-close`   | [commands/ff-close.md](commands/ff-close.md) | Finalizes the task by updating its status to `completed` or `failed`. |
 
 These command files are designed to keep agent behavior deterministic and protocol-aligned.
+
+### Option 3: Reusable Skills (for skill-enabled assistants)
+
+You can install ForkFlux sender/receiver playbooks directly from [skills/](skills/).
+
+#### Available skills
+
+| Skill | File | Purpose |
+|---|---|---|
+| `forkflux-sender` | [skills/forkflux-sender/SKILL.md](skills/forkflux-sender/SKILL.md) | Source-agent workflow: discover roles, publish handoff jobs, and apply strict output contracts. |
+| `forkflux-receiver` | [skills/forkflux-receiver/SKILL.md](skills/forkflux-receiver/SKILL.md) | Target-agent workflow: list board, claim atomically, and close jobs with terminal-state validation. |
 
 ## 🤖 Agent Instructions (ForkFlux Rules)
 
