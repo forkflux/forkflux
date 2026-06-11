@@ -55,9 +55,11 @@ Copy the ForkFlux coordination rules from `rules/forkflux.md` into your assistan
 
 These rules define when to hand off, how to list roles, create jobs, claim jobs, and report status correctly.
 
-## 4) Add agent commands
+## 4) Use MCP prompts or add slash commands
 
-Add command docs from the `commands/` directory into your assistant command system.
+If your AI assistant supports MCP prompts, use the prompts exposed by the ForkFlux MCP server directly.
+
+If your assistant does not support MCP prompt surfaces, add command docs from the `commands/` directory into your assistant command system.
 
 Recommended commands:
 
@@ -74,7 +76,7 @@ Configure your MCP client with the ForkFlux MCP server:
 ```json
 {
   "mcpServers": {
-    "forkflux-mcp": {
+    "forkflux": {
       "command": "docker",
       "args": [
         "run",

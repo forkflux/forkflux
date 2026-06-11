@@ -54,7 +54,7 @@ Summary:
 1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
 2. Inside the API container, add roles and agents with the CLI.
 3. Copy agent rules from [rules/forkflux.md](rules/forkflux.md).
-4. Add command docs from the [commands/](commands/) folder to your assistant.
+4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
 5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
 
 > Note: Docker must be running before you start this flow.
@@ -91,18 +91,39 @@ uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
 
-## ⌨️ Slash Commands
+## ⌨️ Automation: MCP Prompts & Slash Commands
 
-ForkFlux ships reusable slash-command specs in [commands/](commands/) that map to MCP tools.
+ForkFlux supports two ways of guiding your AI assistant through handoff workflows, depending on your client capabilities.
 
-### How to set them up
+### Option 1: Native MCP Prompts (Recommended)
+If your AI assistant natively supports the MCP Prompts surface (e.g., Claude Code), the instructions are already exposed by the server.
+- **Setup:** No extra configuration is required beyond registering the ForkFlux MCP server. The prompts will be automatically available in your assistant's context.
+- **Usage:** Prompts will automatically register in your assistant's context workspace. For instance, in Claude Code, you can invoke them directly using auto-complete names like:
+```bash
+/mcp__forkflux__board
+```
 
-1. Open your assistant's custom command directory.
-2. Copy each file from [commands/](commands/) as a slash command definition.
-3. Keep the same command names (for example: `/ff-roles`, `/ff-push`).
-4. Reload your assistant session so new commands are available.
+#### Available MCP prompts
 
-### Available commands
+
+| Prompt  | Short description |
+|---------|---|
+| `/mcp__forkflux__roles` | Lists available target roles for routing handoff jobs. |
+| `/mcp__forkflux__push`  | Packages local context, artifacts, and constraints to publish a new job. |
+| `/mcp__forkflux__board` | Lists available `published` jobs filtered to the current agent role. |
+| `/mcp__forkflux__claim` | Atomically claims a job and fetches its full context to immediately start work. |
+| `/mcp__forkflux__close` | Finalizes the task by updating its status to `completed` or `failed`. |
+
+### Option 2: Reusable Slash Commands (Fallback)
+If your assistant does not support prompt surfaces yet (or you use custom modes in tools like Roo Code / Cline), ForkFlux ships pre-built slash-command definitions in the [`commands/`](commands/) directory that map to the underlying MCP tools.
+
+**How to set them up:**
+1. Open your assistant's custom commands configuration directory.
+2. Copy the configuration files from the [`commands/`](commands/) folder.
+3. Maintain the original command names (e.g., `/ff-roles`, `/ff-push`).
+4. Reload your assistant session to activate the new slash commands.
+
+#### Available commands
 
 | Slash command | File                                               | Short description |
 |---------------|----------------------------------------------------|---|
