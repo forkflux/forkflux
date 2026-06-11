@@ -24,10 +24,9 @@ Initiate handoff only when one of these is true:
 
 ## Critical infrastructure rule
 
-NEVER attempt to use bash, curl, or terminal commands to issue ForkFlux API calls.
+NEVER attempt to use bash, curl, terminal commands, Python scripts, or any code execution tools to discover roles, mock data, or issue ForkFlux API calls.
 
-You MUST exclusively use MCP tools:
-
+You MUST exclusively invoke the native MCP tools provided to you by the environment:
 - `forkflux_list_roles`
 - `forkflux_create_job`
 - `forkflux_change_job_status` (only for terminal closure guidance)
@@ -38,9 +37,23 @@ You MUST exclusively use MCP tools:
 
 Before creating a job, verify you have a valid `target_role_key`.
 
+- **STEP 1:** You MUST call the specific MCP tool named `forkflux_list_roles`. Do NOT write a Python script or use terminal commands to list roles.
+- **CRITICAL STOP:** You MUST stop generating your response immediately after triggering the `forkflux_list_roles` tool. Do not proceed to the next step.
+- **Wait** for the system to return the actual list of roles from the tool.
+- **STEP 2:** Only *after* receiving the real tool output, parse the returned roles, match the exact key from the user intent, and proceed.
+- Never guess, mock, or hallucinate role keys.
+
+## Primary sender flow (roles -> push)
+
+### 1) Tool chaining: role discovery
+
+Before creating a job, verify you have a valid `target_role_key`.
+
 - If the exact key is unknown, **do not ask the user first**.
-- Autonomously call `forkflux_list_roles`.
-- Parse the returned roles, match the correct destination role from user intent, and proceed.
+- **STEP 1:** Call `forkflux_list_roles` to discover available roles.
+- **CRITICAL STOP:** You MUST stop generating your response immediately after calling `forkflux_list_roles`. Do NOT attempt to call `forkflux_create_job` in the same turn.
+- **Wait** for the system to return the actual list of roles.
+- **STEP 2:** Only *after* receiving the real tool output, parse the returned roles, match the exact key, and proceed to job creation.
 - Never guess or hallucinate role keys.
 
 ### 2) Parameter preparation for job creation
