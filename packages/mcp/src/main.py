@@ -122,7 +122,7 @@ async def create_job(
             Include relevant code snippets, error logs, state descriptions, and steps to reproduce.
         target_role_key: The required specialization for this job. MUST be a valid key
             retrieved using the `list_roles` tool (e.g., 'qa_agent', 'security_reviewer').
-        constraints: A list of strict acceptance criteria or execution boundaries the Target Agent must follow.
+        constraints: A list of strict constraints or execution boundaries the Target Agent must follow.
         artifacts: A list of external resources (like S3 URIs, Git commits, or database dumps) attached to this job.
         priority: The urgency of the job.
         parent_job_id: (Optional) The ID of the job that spawned this job, used for tracing the handoff chain.
@@ -224,7 +224,7 @@ async def change_job_status(
 
     Claiming a job automatically transitions it to 'in_progress'.
     Target Agents should use this tool for manual transitions only:
-    1. 'completed': Set this ONLY when you have successfully finished the job and met ALL acceptance criteria.
+    1. 'completed': Set this ONLY when you have successfully finished the job and met ALL constraints.
     2. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
     3. 'cancelled': Set this if the user explicitly asks you to abort.
     """
@@ -263,7 +263,7 @@ def board_prompt() -> str:
          * **Job ID**: Rendered as inline code (e.g., `job_123`) for easy copying.
          * **Priority**: The execution priority value (e.g., 10, 20, 30).
          * **Source / Creator**: Who created the task (if the field is available in the payload).
-         * **Summary**: A brief, truncated snippet of the task's `constraints` or acceptance criteria.
+         * **Summary**: A brief, truncated snippet of the task's `constraints`.
 
     6. Next Step / Tool Chaining: Conclude your response by explicitly telling the user the exact next command to run:
        "Write `/ff-claim <Job ID>` to claim a task and immediately begin working on it."
@@ -296,7 +296,7 @@ def claim_prompt() -> str:
     4. ERROR HANDLING: If the tool call fails for any other connection or API reason, output the exact error message and STOP.
 
     5. FAT CLAIM ANALYSIS:
-       - Upon a successful response, the tool will return the FULL context payload of the job (including Acceptance Criteria, constraints, payload artifacts, and internal guidelines).
+       - Upon a successful response, the tool will return the FULL context payload of the job (including constraints, payload artifacts, and internal guidelines).
        - Read, parse, and analyze this payload thoroughly to build your local execution context.
 
     6. TOOL CHAINING & NEXT STEP:
@@ -309,7 +309,7 @@ def claim_prompt() -> str:
 
        🔒 **Job Claimed**: [Insert the `job_id` as inline code] — [Insert a 1-sentence human-readable summary of the objective].
        🚦 **Status**: Confirmed as `IN_PROGRESS` (API payload value: `in_progress`).
-       📦 **Context Received**: Confirmed that the task payload and acceptance criteria have been successfully unpacked.
+       📦 **Context Received**: Confirmed that the task payload and constraints have been successfully unpacked.
        🚀 **Next Action**: Ask the user: *"Shall I start executing this task now?"*
     """  # noqa: E501
 
@@ -337,7 +337,7 @@ def close_prompt() -> str:
        * CRITICAL: Do NOT use this command to transition a job back to `in_progress` or `published`.
 
     3. STATE GATEKEEPING RULES (Verify before calling the tool):
-       - If status is `completed`: Only call this if you have verified that all code is written, tests pass successfully, and every single acceptance criteria from the job context payload is fully met.
+       - If status is `completed`: Only call this if you have verified that all code is written, tests pass successfully, and every single constraint from the job context payload is fully met.
        - If status is `failed`: Call this if an unrecoverable error occurs, tests persistently fail, environment blockers arise, or constraints cannot be resolved.
        - If status is `cancelled`: Call this if the user explicitly instructs you to abort the execution midway.
 
@@ -354,7 +354,7 @@ def close_prompt() -> str:
        🔄 **Job Closed**: [Insert the `job_id` as inline code]
        🚦 **Final State**: `[completed, failed, or cancelled]`
        📝 **Summary / Error Details**:
-         - (If completed): [Provide a brief 1-2 sentence human-readable summary of what was implemented to meet the acceptance criteria]
+         - (If completed): [Provide a brief 1-2 sentence human-readable summary of what was implemented to meet the constraints]
          - (If failed): [Print the explicit `failure_reason` that was provided to the tool]
     """  # noqa: E501
 
@@ -367,7 +367,7 @@ def push_prompt() -> str:
     """
     return """
     You are an AI Agent operating as a Source Agent within the ForkFlux Coordination Bus protocol.
-    Your goal is to package the current execution context, artifacts, and strict acceptance criteria, and publish them as a new handoff job.
+    Your goal is to package the current execution context, artifacts, and strict constraints, and publish them as a new handoff job.
 
     CRITICAL INFRASTRUCTURE RULE: NEVER attempt to use bash, curl, or terminal commands to issue this API call. You MUST exclusively use the provided ForkFlux MCP tools.
 
@@ -380,7 +380,7 @@ def push_prompt() -> str:
 
     2. PARAMETER PREPARATION (Validate before calling `forkflux_create_job`):
        - `target_role_key`: (String) The exact valid key found via tool chaining.
-       - `constraints`: (list[str] / Array of Strings) Explicit acceptance criteria entries. Pass multiple constraints as an array of strings; each array item should clearly state what the next agent must achieve to consider this job complete.
+       - `constraints`: (list[str] / Array of Strings) Explicit constraint entries. Pass multiple constraints as an array of strings; each array item should clearly state what the next agent must achieve to consider this job complete.
        - `context_payload`: (JSON/Dictionary) A highly detailed, structured JSON object. Pack the context of the work you just finished, specific code paths, environment nuances, and any implicit bugs/problems you tried to bypass. CRITICAL: Do NOT pass a simple flat string or raw text block here. It must be a valid structured JSON map.
        - `priority`: (Integer) Must be exactly one of the allowed protocol enums: 10, 20, 30, or 40.
        - `artifacts`: (Array of Objects) List of generated files, diffs, or logs. Only include real, verified files from the current directory. Do not hallucinate hashes, checksums, or non-existent URIs.
