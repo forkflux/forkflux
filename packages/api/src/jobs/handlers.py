@@ -94,7 +94,7 @@ async def claim_job(
 ):
     try:
         await job_service.claim_job(job_id, current_agent)
-    except (HandoffJobNotFoundError, HandoffJobConflictError):
+    except HandoffJobNotFoundError, HandoffJobConflictError:
         raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path")
 
     entity = await job_service.get_job_with_artifacts(job_id)
