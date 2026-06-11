@@ -266,7 +266,7 @@ def board_prompt() -> str:
          * **Summary**: A brief, truncated snippet of the task's `constraints`.
 
     6. Next Step / Tool Chaining: Conclude your response by explicitly telling the user the exact next command to run:
-       "Write `/ff-claim <Job ID>` to claim a task and immediately begin working on it."
+       "Write `claim <Job ID>` to claim a task and immediately begin working on it."
     """  # noqa: E501
 
 
