@@ -284,7 +284,7 @@ def claim_prompt() -> str:
     Follow these execution steps carefully:
 
     1. PRE-CHECK: Verify that a valid `job_id` is available in the user's request.
-       - If the `job_id` is missing, stop and explicitly ask the user to provide it, or suggest they run the `ff_board` prompt first to pick a task.
+       - If the `job_id` is missing, stop and explicitly ask the user to provide it, or suggest they run the `board` prompt first to pick a task.
 
     2. TOOL CALL: Call the `forkflux_claim_job` MCP tool using the provided `job_id`.
 
@@ -380,7 +380,7 @@ def push_prompt() -> str:
 
     2. PARAMETER PREPARATION (Validate before calling `forkflux_create_job`):
        - `target_role_key`: (String) The exact valid key found via tool chaining.
-       - `constraints`: (String) Explicit acceptance criteria. Clearly state what the next agent must achieve to consider this job complete.
+       - `constraints`: (list[str] / Array of Strings) Explicit acceptance criteria entries. Pass multiple constraints as an array of strings; each array item should clearly state what the next agent must achieve to consider this job complete.
        - `context_payload`: (JSON/Dictionary) A highly detailed, structured JSON object. Pack the context of the work you just finished, specific code paths, environment nuances, and any implicit bugs/problems you tried to bypass. CRITICAL: Do NOT pass a simple flat string or raw text block here. It must be a valid structured JSON map.
        - `priority`: (Integer) Must be exactly one of the allowed protocol enums: 10, 20, 30, or 40.
        - `artifacts`: (Array of Objects) List of generated files, diffs, or logs. Only include real, verified files from the current directory. Do not hallucinate hashes, checksums, or non-existent URIs.
@@ -395,7 +395,7 @@ def push_prompt() -> str:
 
        🚀 **Job Published**: [Insert the newly created `job_id` as inline code]
        🎯 **Target Role**: [Insert the `target_role_key` as inline code]
-       ✅ **Acceptance Criteria**: [Provide a brief 1-2 sentence human-readable summary of the constraints passed to the next agent]
+       ✅ **Constraints**: [Provide a brief 1-2 sentence human-readable summary of the constraints passed to the next agent]
        📦 **Context Packed**: [Briefly summarize what metadata and technical logs you embedded into the `context_payload`]
     """  # noqa: E501
 
@@ -419,7 +419,7 @@ def roles_prompt() -> str:
     2. **Error Handling**: If the tool call fails or encounters a network/coordination bus issue, output the exact error payload or message received. STOP execution immediately. Do NOT guess, improvise, or hallucinate potential roles if the data bus is unreachable.
     3. **Response Parsing & Formatting**: If the tool call returns data successfully, parse the payload. You MUST present the available roles to the user as a polished, human-readable Markdown list. Do NOT just dump raw JSON outputs into the active workspace window.
     4. **Data Highlighting**: For every discovered role, format its `role_key` explicitly using inline code formatting (e.g., `role_key_here`) and append its technical description.
-    5. **Tool Chaining / Next Step Prompting**: End your final output with a natural, proactive call to action. Explicitly remind the user that since they now know the valid target roles, they can proceed to publish their context/handoff job using the `/ff-push` command (or the `ff_push` prompt) and assign it directly to one of these verified keys.
+    5. **Tool Chaining / Next Step Prompting**: End your final output with a natural, proactive call to action. Explicitly remind the user that since they now know the valid target roles, they can proceed to publish their context/handoff job using the `push` prompt and assign it directly to one of these verified keys.
 
     Your response output layout MUST closely resemble the following structure:
 
@@ -428,7 +428,7 @@ def roles_prompt() -> str:
     - `[role_key_2]` — Clear description of what this role does.
 
     ### 💡 Next Step:
-    You can now use `/ff-push` to publish your execution context and assign the task pool item to one of the keys listed above.
+    You can now use the `push` prompt to publish your execution context and assign the task pool item to one of the keys listed above.
     """  # noqa: E501
 
 
