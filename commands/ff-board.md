@@ -22,7 +22,7 @@ Fetches a list of published jobs from the ForkFlux coordination bus that are spe
 3. If the tool call fails or returns a connection error, output the exact error message and stop. Do not hallucinate or make up mock jobs.
 4. If the returned list is empty, kindly inform the user that there are currently no published tasks available for your role in the shared pool.
 5. If jobs are found, present them to the user as a clean, easily scannable Markdown table.
-6. Conclude your response by explicitly telling the user: *"Write `/ff-claim <Job ID>` to claim a task and immediately begin working on it."*
+6. Conclude your response by explicitly telling the user: *"Write `claim <Job ID>` to claim a task and immediately begin working on it."*
 
 ## Output
 
