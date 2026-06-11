@@ -33,7 +33,7 @@ Provide a clear, high-visibility status update block in Markdown:
 
 * 🚀 **Job Published**: Reference the new `job_id`.
 * 🎯 **Target Role**: The `target_role_key` assigned to this job.
-* ✅ **Acceptance Criteria**: A brief 1-2 sentence summary of the constraints you passed to the next agent.
+* ✅ **Constraints**: A brief 1-2 sentence summary of the constraints you passed to the next agent.
 * 📦 **Context Packed**: Briefly mention what key information was packed into the `context_payload` (e.g., "Included test logs and modified file paths").
 
 **Strict Rule:** Keep the user notification concise. Do not dump the raw JSON `context_payload` into the chat unless there was an explicit error that the user needs to debug.
