@@ -53,10 +53,9 @@ Summary:
 
 1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
 2. Inside the API container, add roles and agents with the CLI.
-3. Copy agent rules from [rules/forkflux.md](rules/forkflux.md).
-4. Load reusable agent skills from [skills/](skills/).
-5. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
-6. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+3. Load reusable agent skills from [skills/](skills/).
+4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
+5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
 
 > Note: Docker must be running before you start this flow.
 
