@@ -53,10 +53,9 @@ Summary:
 
 1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
 2. Inside the API container, add roles and agents with the CLI.
-3. Copy agent rules from [rules/forkflux.md](rules/forkflux.md).
-4. Load reusable agent skills from [skills/](skills/).
-5. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
-6. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+3. Load reusable agent skills from [skills/](skills/).
+4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
+5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
 
 > Note: Docker must be running before you start this flow.
 
@@ -146,51 +145,6 @@ You can install ForkFlux sender/receiver playbooks directly from [skills/](skill
 |---|---|---|
 | `forkflux-sender` | [skills/forkflux-sender/SKILL.md](skills/forkflux-sender/SKILL.md) | Source-agent workflow: discover roles, publish handoff jobs, and apply strict output contracts. |
 | `forkflux-receiver` | [skills/forkflux-receiver/SKILL.md](skills/forkflux-receiver/SKILL.md) | Target-agent workflow: list board, claim atomically, and close jobs with terminal-state validation. |
-
-## 🤖 Agent Instructions (ForkFlux Rules)
-
-To make your local AI agent understand how to interact with the ForkFlux bus, install the **ForkFlux Rules** into the instruction file used by your coding assistant.
-
-### Install location by agent
-
-- **Cursor**: add the rules to `.cursorrules` in your project root (or the project rules UI).
-- **Claude Code**: add the rules to `CLAUDE.md` in your project root (or custom system instructions).
-- **Codex**: add the rules to `AGENTS.md` in your project root.
-- **OpenCode**: add the rules to `AGENTS.md` in your project root (or your OpenCode custom instruction surface).
-
-Then copy the rules block below exactly as-is:
-
-<details>
-<summary><b>Click to expand and copy the Agent Rules</b></summary>
-
-```text
-# ForkFlux Coordination Rules
-
-You are connected to the ForkFlux Coordination Bus via MCP.
-
-### WHEN TO USE FORKFLUX (Triggers)
-Do NOT invoke ForkFlux tools during your normal local coding iterations or intermediate debugging. You operate locally until the job is fully ready for the next stage.
-
-Initiate a ForkFlux Handoff ONLY when:
-1. **Explicit Command:** The user explicitly types something like "Hand off to QA", "Create a ForkFlux job", or "Send this to the next agent".
-2. **Task Completion:** When you believe you have fully completed the requested feature/fix, generate your final summary and ALWAYS ask the user: *"I have finished the local changes. Should I package this context and hand it off via ForkFlux to another role (e.g., QA, Reviewer)?"* Do not create the job until the user says yes.
-
----
-
-**When acting as a SOURCE AGENT (Handing off work):**
-1. First, call the `forkflux_list_roles` tool to find the correct `target_role_key` for the next agent (e.g., QA, Backend, Frontend).
-2. Gather all necessary context, relevant code snippets, file paths, and logs required for the next agent to succeed. Do not just link files; pack the actual required context.
-3. Call the `forkflux_create_job` tool. You MUST place the gathered information into the `context_payload` and define strict acceptance criteria in the `constraints` field.
-
-**When acting as a TARGET AGENT (Receiving work):**
-1. Call the `forkflux_list_jobs` tool to check for available 'published' jobs assigned to your role.
-2. Call `forkflux_claim_job` using the job ID.
-   - **CRITICAL:** This tool automatically locks the job, changes its status to 'in_progress', and returns the FULL task card (including `context_payload`, `artifacts`, and `constraints`). You do NOT need to request job details separately.
-3. Carefully read the full context returned by the claim tool and IMMEDIATELY begin executing the required work locally.
-4. Upon completion or failure, call `forkflux_change_job_status` to update the task lifecycle to either 'completed' or 'failed'.
-   - **CRITICAL:** If the task fails, or if you lack the necessary context from the Source Agent to even begin, you MUST transition the status to 'failed' and provide a detailed `failure_reason` (e.g., actual tracebacks, compilation errors, or explicitly state what context is missing).
-```
-</details>
 
 ## 🤝 Contributing & Community
 
