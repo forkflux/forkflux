@@ -77,11 +77,22 @@ class HandoffJobService:
         return created_job.id
 
     async def get_job(self, job_id: int) -> HandoffJobItem:
-        return await self._handoff_job_repo.get(job_id)
+        log = self._logger.bind(method="get_job", job_id=job_id)
+        log.info("operation_started")
+
+        job = await self._handoff_job_repo.get(job_id)
+
+        log.info("operation_completed")
+        return job
 
     async def get_job_with_artifacts(self, job_id: int) -> HandoffJobWithArtifacts:
+        log = self._logger.bind(method="get_job_with_artifacts", job_id=job_id)
+        log.info("operation_started")
+
         job = await self._handoff_job_repo.get(job_id)
         artifacts = await self._job_artifact_repo.list(job_id=job_id)
+
+        log.info("operation_completed", artifact_count=len(artifacts))
         return {"job": job, "artifacts": artifacts}
 
     async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
