@@ -5,6 +5,16 @@ We welcome contributions of all kinds — code, documentation, bug reports, idea
 
 ---
 
+## Before You Contribute
+
+### 1. Code of Conduct
+
+All contributors must adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+### 2. Join the ForkFlux Community
+
+- **Discord:** Join our [Discord](https://discord.gg/wTJVctJwn3).
+
 ## 📌 How to Contribute
 
 ### 1. Report Issues
