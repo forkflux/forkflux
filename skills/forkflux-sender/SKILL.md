@@ -43,19 +43,6 @@ Before creating a job, verify you have a valid `target_role_key`.
 - **STEP 2:** Only *after* receiving the real tool output, parse the returned roles, match the exact key from the user intent, and proceed.
 - Never guess, mock, or hallucinate role keys.
 
-## Primary sender flow (roles -> push)
-
-### 1) Tool chaining: role discovery
-
-Before creating a job, verify you have a valid `target_role_key`.
-
-- If the exact key is unknown, **do not ask the user first**.
-- **STEP 1:** Call `forkflux_list_roles` to discover available roles.
-- **CRITICAL STOP:** You MUST stop generating your response immediately after calling `forkflux_list_roles`. Do NOT attempt to call `forkflux_create_job` in the same turn.
-- **Wait** for the system to return the actual list of roles.
-- **STEP 2:** Only *after* receiving the real tool output, parse the returned roles, match the exact key, and proceed to job creation.
-- Never guess or hallucinate role keys.
-
 ### 2) Parameter preparation for job creation
 
 Prepare and validate the `forkflux_create_job` payload:
