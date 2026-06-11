@@ -75,7 +75,7 @@ Configure your MCP client with the ForkFlux MCP server:
 ```json
 {
   "mcpServers": {
-    "forkflux": {
+    "ff": {
       "command": "docker",
       "args": [
         "run",

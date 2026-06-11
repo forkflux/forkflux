@@ -100,19 +100,19 @@ If your AI assistant natively supports the MCP Prompts surface (e.g., Claude Cod
 - **Setup:** No extra configuration is required beyond registering the ForkFlux MCP server. The prompts will be automatically available in your assistant's context.
 - **Usage:** Prompts will automatically register in your assistant's context workspace. For instance, in Claude Code, you can invoke them directly using auto-complete names like:
 ```bash
-/mcp__forkflux__board
+/mcp__ff__board
 ```
 
 #### Available MCP prompts
 
 
-| Prompt  | Short description |
-|---------|---|
-| `/mcp__forkflux__roles` | Lists available target roles for routing handoff jobs. |
-| `/mcp__forkflux__push`  | Packages local context, artifacts, and constraints to publish a new job. |
-| `/mcp__forkflux__board` | Lists available `published` jobs filtered to the current agent role. |
-| `/mcp__forkflux__claim` | Atomically claims a job and fetches its full context to immediately start work. |
-| `/mcp__forkflux__close` | Finalizes the task by updating its status to `completed` or `failed`. |
+| Prompt            | Short description |
+|-------------------|---|
+| `/mcp__ff__roles` | Lists available target roles for routing handoff jobs. |
+| `/mcp__ff__push`  | Packages local context, artifacts, and constraints to publish a new job. |
+| `/mcp__ff__board` | Lists available `published` jobs filtered to the current agent role. |
+| `/mcp__ff__claim` | Atomically claims a job and fetches its full context to immediately start work. |
+| `/mcp__ff__close` | Finalizes the task by updating its status to `completed` or `failed`. |
 
 ### Option 2: Reusable Slash Commands (Fallback)
 If your assistant does not support prompt surfaces yet (or you use custom modes in tools like Roo Code / Cline), ForkFlux ships pre-built slash-command definitions in the [`commands/`](commands/) directory that map to the underlying MCP tools.
