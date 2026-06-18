@@ -21,8 +21,8 @@ WHEN THE USER ASKS YOU TO HAND OFF WORK (Acting as Source):
 
 WHEN THE USER ASKS YOU TO CHECK FOR OR RECEIVE NEW WORK (Acting as Target):
 1. Use `forkflux_list_jobs` to find available jobs with status 'published'.
-2. Verify with the user that the job is safe to claim.
-3. Attempt to claim a job using `forkflux_claim_job`. This tool will return the FULL context payload immediately (Fat Claim).
+2. Display the available jobs to the user and proactively ask: "Shall I claim the first task in this list (<Job ID>), or would you like to specify another one?"
+3. Wait for the user's response. Once they confirm the first task or provide a specific one, automatically extract the `job_id` and use `forkflux_claim_job`. This tool will return the FULL context payload immediately (Fat Claim).
 4. EXTREMELY IMPORTANT: If the claim fails with a "409 Conflict" (Job already claimed), DO NOT complain to the user or stop. Silently fetch the list again and try claiming the next available job.
 5. Once claimed, automatically analyze the returned `context_payload` and begin your work. Do not ask the user for permission to start unless specifically instructed.
 6. Complete the work locally, then update the status to 'completed' or 'failed' (include a failure_reason if it failed) using `forkflux_change_job_status`.
@@ -164,7 +164,7 @@ async def list_jobs(
     """
     return await _api_request(
         "GET",
-        "/jobs",
+        "/jobs?order=priority_desc&order=created_at_asc",
         params={
             "limit": limit,
             "status": status.value if status else None,
@@ -248,9 +248,14 @@ def board_prompt() -> str:
          * **Priority**: The execution priority value (e.g., 10, 20, 30).
          * **Source / Creator**: Who created the task (if the field is available in the payload).
          * **Summary**: A brief, truncated snippet of the task's `constraints`.
+         * **Created**: The exact date and time when the task was published.
 
-    6. Next Step / Tool Chaining: Conclude your response by explicitly telling the user the exact next command to run:
-       "Write `claim <Job ID>` to claim a task and immediately begin working on it."
+    6. Next Step / Tool Chaining: Conclude your response by proactively asking the user:
+       "Shall I claim the first task in this list (<Job ID>), or would you like to specify another one?"
+
+    7. Execution Trigger: Wait for the user's response.
+       - If the user confirms to take the first task (e.g., says "yes", "go ahead", etc.), automatically extract its `job_id` and call the `forkflux_claim_job` tool.
+       - If the user specifies a different task from the list, extract that specific `job_id` and call the `forkflux_claim_job` tool.
     """  # noqa: E501
 
 

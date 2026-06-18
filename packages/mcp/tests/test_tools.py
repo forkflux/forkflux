@@ -33,7 +33,7 @@ async def test_list_jobs_calls_api_request_with_default_params_and_returns_paylo
 
     mock_api_request.assert_called_once_with(
         "GET",
-        "/jobs",
+        "/jobs?order=priority_desc&order=created_at_asc",
         params={
             "limit": 50,
             "status": "published",

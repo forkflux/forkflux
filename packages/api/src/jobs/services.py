@@ -101,6 +101,7 @@ class HandoffJobService:
             status=filter_params.status.value if filter_params.status is not None else None,
             target_role_id=filter_params.target_role_id,
             limit=filter_params.limit,
+            order=[order.value for order in filter_params.order],
         )
         log.info("operation_started")
 

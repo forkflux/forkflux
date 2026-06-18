@@ -48,22 +48,23 @@ Never dump raw JSON. Parse and present a readable Markdown table with columns:
 - **Priority**
 - **Source / Creator** (if available)
 - **Summary** (brief truncated `constraints` snippet)
+- **Created**: The exact date and time when the task was published.
 
-Conclude exactly with:
-
-`Write claim <Job ID> to claim a task and immediately begin working on it.`
+Conclude by proactively asking the user:
+`Shall I claim the first task in this list (<Job ID>), or would you like to specify another one?`
 
 ### B) Claim flow (`forkflux_claim_job`)
 
-#### Pre-check
+#### Pre-check & Trigger
 
-Verify a valid `job_id` is present.
-
-- If missing, ask user for `job_id` or suggest running board flow first.
+Wait for the user's response after the Board flow.
+- If the user confirms to take the first task (or simply says "yes", "go ahead", etc.), automatically extract its `job_id`.
+- If the user specifies a different task from the list, use that `job_id`.
+- If missing entirely, ask user for a valid `job_id` or suggest running board flow first.
 
 #### Tool call
 
-Call `forkflux_claim_job` with provided `job_id`.
+Call `forkflux_claim_job` with the identified `job_id`.
 
 #### Race-condition handling (409)
 

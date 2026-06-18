@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, TypedDict
 
-from src.jobs.constants import JobPriorityEnum, JobStatusEnum
+from src.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from src.jobs.models import HandoffJob, JobArtifact
 
 
@@ -53,3 +53,4 @@ class HandoffJobFilterParams:
     limit: int
     status: JobStatusEnum | None
     target_role_id: int | None
+    order: list[JobListOrderEnum]
