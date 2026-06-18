@@ -374,6 +374,124 @@ async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
     assert body[1]["id"] == second_job.id
 
 
+async def test_list_jobs_orders_by_priority_desc_then_created_at_asc_when_order_is_repeated(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-order-priority-then-created-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    first_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Priority high earliest",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.HIGH.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+    )
+    third_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Priority high latest",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.HIGH.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 6, 3, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 3, tzinfo=timezone.utc),
+        published_at=datetime(2026, 6, 3, tzinfo=timezone.utc),
+    )
+    second_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Priority normal middle",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.NORMAL.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 6, 2, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        "/api/v1/jobs?order=priority_desc&order=created_at_asc",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [first_expected.id, third_expected.id, second_expected.id]
+
+
+async def test_list_jobs_orders_by_created_at_asc_then_priority_desc_when_order_is_repeated(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-order-created-then-priority-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    first_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Created same day high",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.HIGH.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+    )
+    second_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Created same day normal",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.NORMAL.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+    )
+    third_expected = await HandoffJobFactory.create(
+        db_session,
+        summary="Created next day urgent",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.URGENT.value,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 7, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 7, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 7, 2, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        "/api/v1/jobs?order=created_at_asc&order=priority_desc",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [first_expected.id, second_expected.id, third_expected.id]
+
+
+async def test_list_jobs_returns_422_when_order_contains_invalid_value(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-invalid-order-token"
+    await _create_auth_context(db_session, raw_token)
+
+    response = await client.get(
+        "/api/v1/jobs?order=priority_desc&order=unknown",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["query", "order", 1]
+
+
 async def test_list_jobs_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
     response = await client.get("/api/v1/jobs")
 

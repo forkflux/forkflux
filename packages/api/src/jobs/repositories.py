@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from src.agents.models import AgentIdentity, TargetRole
-from src.jobs.constants import JobStatusEnum
+from src.jobs.constants import JobListOrderEnum, JobStatusEnum
 from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobArtifactCreate, JobEventCreate
 from src.jobs.exceptions import (
     HandoffJobConflictError,
@@ -125,7 +125,20 @@ class HandoffJobRepository:
         if filter_params.target_role_id is not None:
             stmt = stmt.where(HandoffJob.target_role_id == filter_params.target_role_id)
 
-        stmt = stmt.order_by(HandoffJob.created_at.asc()).limit(filter_params.limit)
+        order_clauses = []
+        for order_mode in filter_params.order:
+            if order_mode == JobListOrderEnum.CREATED_AT_ASC:
+                order_clauses.append(HandoffJob.created_at.asc())
+            elif order_mode == JobListOrderEnum.CREATED_AT_DESC:
+                order_clauses.append(HandoffJob.created_at.desc())
+            elif order_mode == JobListOrderEnum.PRIORITY_ASC:
+                order_clauses.append(HandoffJob.priority.asc())
+            elif order_mode == JobListOrderEnum.PRIORITY_DESC:
+                order_clauses.append(HandoffJob.priority.desc())
+
+        order_clauses.append(HandoffJob.id.asc())
+
+        stmt = stmt.order_by(*order_clauses).limit(filter_params.limit)
         result = await self._session.execute(stmt)
 
         return [self._map_row_to_list_item(row) for row in result.all()]

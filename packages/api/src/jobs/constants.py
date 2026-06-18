@@ -17,5 +17,12 @@ class JobPriorityEnum(IntEnum):
     URGENT = 40
 
 
+class JobListOrderEnum(str, Enum):
+    CREATED_AT_ASC = "created_at_asc"
+    CREATED_AT_DESC = "created_at_desc"
+    PRIORITY_ASC = "priority_asc"
+    PRIORITY_DESC = "priority_desc"
+
+
 class JobEventTypeEnum(str, Enum):
     TASK_PUBLISHED = "task_published"
