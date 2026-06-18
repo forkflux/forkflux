@@ -1,4 +1,6 @@
+import asyncio
 import os
+from enum import Enum
 from typing import Annotated, Any
 
 import httpx
@@ -85,6 +87,18 @@ async def _api_request(
         return {"success": False, "error": "Network or Internal Error", "details": str(e)}
 
 
+async def get_dynamic_roles_enum() -> Enum:
+    list_available_roles = await _api_request("GET", "/agents/roles")
+    if list_available_roles["success"]:
+        available_roles = [x["role_key"] for x in list_available_roles["details"]]
+    else:
+        available_roles = []
+    return Enum("TargetRoleEnum", {role: role for role in available_roles})
+
+
+TargetRoleEnum = asyncio.run(get_dynamic_roles_enum())
+
+
 @mcp.tool("forkflux_list_roles")
 async def list_roles():
     """
@@ -103,7 +117,7 @@ async def list_roles():
 async def create_job(
     summary: str,
     context_payload: dict[str, Any],
-    target_role_key: str,
+    target_role_key: TargetRoleEnum,  # type: ignore[valid-type]
     constraints: list[str],
     artifacts: list[JobArtifact],
     priority: JobPriorityEnum,
@@ -120,8 +134,7 @@ async def create_job(
         summary: A concise, human-readable title of the job.
         context_payload: A highly detailed, structured JSON dictionary. Do NOT pass a simple flat string.
             Include relevant code snippets, error logs, state descriptions, and steps to reproduce.
-        target_role_key: The required specialization for this job. MUST be a valid key
-            retrieved using the `list_roles` tool (e.g., 'qa_agent', 'security_reviewer').
+        target_role_key: The required specialization for this job.
         constraints: A list of strict constraints or execution boundaries the Target Agent must follow.
         artifacts: A list of external resources (like S3 URIs, Git commits, or database dumps) attached to this job.
         priority: The urgency of the job.
@@ -135,7 +148,7 @@ async def create_job(
         json_data={
             "summary": summary,
             "context_payload": context_payload,
-            "target_role_key": target_role_key,
+            "target_role_key": target_role_key.value,  # type: ignore[attr-defined]
             "constraints": constraints,
             "artifacts": serialized_artifacts,
             "priority": priority,
