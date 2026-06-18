@@ -32,7 +32,17 @@ ForkFlux acts as a unified delegation protocol. We provide a Shared Job Pool wit
 2. **Claim:** The Target Agent (e.g., a QA agent on a teammate's machine) polls the API, sees the available job, safely claims it, and shifts the status to `In Progress`.
 3. **Execution:** All isolated context is transferred automatically, with zero human intervention required.
 
-## ✨ Key Features (MVP)
+## 🆚 ForkFlux vs. Jira / Linear
+
+A common question we get: *"Is ForkFlux just Jira for AI agents?"* **No. Jira is a task tracker for humans. ForkFlux is a protocol-native coordination bus for agents.**
+
+When teams try to use Jira or Linear comments to pass context between AI agents, it turns into an "ad-hoc data bus." Dumping raw JSONs and terminal logs into ticket comments leads to:
+- **Context Poisoning & Token Waste:** The receiving agent has to "relearn" the context, burning tokens to filter out human noise and irrelevant chat history.
+- **Fragile Workflows:** No strict data schemas, no atomic claims, and no clear state contracts.
+
+ForkFlux acts as a coordination bus. It provides a strict, machine-readable protocol to pass clean states, precise constraints, and artifacts across isolated environments, saving tokens and guaranteeing execution precision.
+
+## ✨ Key Features
 
 * **Structured Handoff:** A direct bridge between local environments for secure job routing with strict context boundaries.
 * **MCP Server & API:** Built-in Model Context Protocol support for seamless integration with local AI agents.
@@ -86,64 +96,22 @@ uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
 uv run python src/cli.py agent revoke-token 1
 ```
 
-## ⌨️ Automation: MCP Prompts, Slash Commands, and Skills
+## ⌨️ Automation: Prompts, Commands & Skills
 
-ForkFlux supports multiple ways of guiding your AI assistant through handoff workflows, depending on your client capabilities.
+ForkFlux natively integrates with your AI workflows. Depending on your assistant's capabilities (like Claude Code, Cursor, or Cline), you can drive the coordination bus using:
 
-### Option 1: Native MCP Prompts (Recommended)
-If your AI assistant natively supports the MCP Prompts surface (e.g., Claude Code), the instructions are already exposed by the server.
-- **Setup:** No extra configuration is required beyond registering the ForkFlux MCP server. The prompts will be automatically available in your assistant's context.
-- **Usage:** Prompts will automatically register in your assistant's context workspace. For instance, in Claude Code, you can invoke them directly using auto-complete names like:
-```bash
-/mcp__ff__board
-```
+* **Native MCP Prompts:** Automatically exposed to your agent's context workspace (e.g., `/mcp__ff__push`, `/mcp__ff__claim`).
+* **Slash Commands:** Drop-in markdown files for custom IDE modes (available in the [`commands/`](commands/) directory).
+* **Reusable Skills:** Pre-built sender/receiver workflows for autonomous agents (available in the [`skills/`](skills/) directory).
 
-#### Available MCP prompts
-
-
-| Prompt            | Short description |
-|-------------------|---|
-| `/mcp__ff__push`  | Packages local context, artifacts, and constraints to publish a new job. |
-| `/mcp__ff__board` | Lists available `published` jobs filtered to the current agent role. |
-| `/mcp__ff__claim` | Atomically claims a job and fetches its full context to immediately start work. |
-| `/mcp__ff__close` | Finalizes the task by updating its status to `completed` or `failed`. |
-
-### Option 2: Reusable Slash Commands (Fallback)
-If your assistant does not support prompt surfaces yet (or you use custom modes in tools like Roo Code / Cline), ForkFlux ships pre-built slash-command definitions in the [`commands/`](commands/) directory that map to the underlying MCP tools.
-
-**How to set them up:**
-1. Open your assistant's custom commands configuration directory.
-2. Copy the configuration files from the [`commands/`](commands/) folder.
-3. Maintain the original command names (e.g., `/ff-board`, `/ff-push`).
-4. Reload your assistant session to activate the new slash commands.
-
-#### Available commands
-
-| Slash command | File                                               | Short description |
-|---------------|----------------------------------------------------|---|
-| `/ff-push`    | [commands/ff-push.md](commands/ff-push.md)         | Packages local context, artifacts, and constraints to publish a new job. |
-| `/ff-board`   | [commands/ff-board.md](commands/ff-board.md)       | Lists available `published` jobs filtered to the current agent role. |
-| `/ff-claim`   | [commands/ff-claim.md](commands/ff-claim.md)       | Atomically claims a job and fetches its full context to immediately start work. |
-| `/ff-close`   | [commands/ff-close.md](commands/ff-close.md) | Finalizes the task by updating its status to `completed` or `failed`. |
-
-These command files are designed to keep agent behavior deterministic and protocol-aligned.
-
-### Option 3: Reusable Skills (for skill-enabled assistants)
-
-You can install ForkFlux sender/receiver playbooks directly from [skills/](skills/).
-
-#### Available skills
-
-| Skill | File | Purpose |
-|---|---|---|
-| `forkflux-sender` | [skills/forkflux-sender/SKILL.md](skills/forkflux-sender/SKILL.md) | Source-agent workflow: discover roles, publish handoff jobs, and apply strict output contracts. |
-| `forkflux-receiver` | [skills/forkflux-receiver/SKILL.md](skills/forkflux-receiver/SKILL.md) | Target-agent workflow: list board, claim atomically, and close jobs with terminal-state validation. |
+> 📚 **See the full [Integration & Automation Guide](INTEGRATION.md)** for detailed setup instructions and a complete list of available commands.
 
 ## 🤝 Contributing & Community
 
 Our global goal is to make ForkFlux the standard for job exchange in AI-native engineering teams.
 
-We welcome Pull Requests, issues, and any ideas on how to improve the agent-to-agent communication protocol. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+* 💬 **Join our Discord:** [https://discord.gg/wTJVctJwn3](https://discord.gg/wTJVctJwn3) - Discuss agent architectures, get direct support from the founders, and share your workflows.
+* 🛠 **Contribute:** We welcome Pull Requests, issues, and any ideas on how to improve the agent-to-agent communication protocol. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
