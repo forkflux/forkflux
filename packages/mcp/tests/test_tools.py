@@ -2,9 +2,12 @@ import json
 from typing import Any
 from unittest.mock import patch
 
+import pytest
 from fastmcp.client import Client
 from fastmcp.client.transports import FastMCPTransport
+from fastmcp.exceptions import ToolError
 from src.constants import JobChangeStatusEnum, JobPriorityEnum
+from src.main import TargetRoleEnum
 from src.schemas import JobArtifact
 
 
@@ -102,7 +105,7 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
             arguments={
                 "summary": "Investigate flaky integration test",
                 "context_payload": {"suite": "jobs", "failing_case": "test_create_job_endpoint"},
-                "target_role_key": "qa_agent",
+                "target_role_key": TargetRoleEnum.qa_agent,
                 "constraints": ["do-not-modify-production-data", "keep-runtime-under-5-minutes"],
                 "artifacts": artifacts_payload,
                 "priority": JobPriorityEnum.HIGH,
@@ -124,6 +127,27 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
         },
     )
     _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_create_job_rejects_invalid_target_role_key_and_does_not_call_api_request(
+    client: Client[FastMCPTransport],
+) -> None:
+    with patch("src.main._api_request") as mock_api_request:
+        with pytest.raises(ToolError, match="target_role_key"):
+            await client.call_tool(
+                "forkflux_create_job",
+                arguments={
+                    "summary": "Investigate flaky integration test",
+                    "context_payload": {"suite": "jobs", "failing_case": "test_create_job_endpoint"},
+                    "target_role_key": "invalid_role",
+                    "constraints": ["do-not-modify-production-data"],
+                    "artifacts": [],
+                    "priority": JobPriorityEnum.HIGH,
+                    "parent_job_id": 42,
+                },
+            )
+
+    mock_api_request.assert_not_called()
 
 
 async def test_get_job_details_calls_api_request_with_expected_contract_and_returns_payload(
