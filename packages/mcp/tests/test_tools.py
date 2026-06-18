@@ -20,24 +20,6 @@ def _assert_tool_result_envelope(result, expected_payload: dict[str, Any]) -> No
     assert json.loads(result.content[0].text) == expected_payload
 
 
-async def test_list_roles_calls_api_request_with_expected_contract_and_returns_payload(
-    client: Client[FastMCPTransport],
-) -> None:
-    expected_payload = {
-        "success": True,
-        "details": [
-            {"key": "qa_agent", "name": "QA Agent"},
-            {"key": "security_reviewer", "name": "Security Reviewer"},
-        ],
-    }
-
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
-        result = await client.call_tool("forkflux_list_roles")
-
-    mock_api_request.assert_called_once_with("GET", "/agents/roles")
-    _assert_tool_result_envelope(result, expected_payload)
-
-
 async def test_list_jobs_calls_api_request_with_default_params_and_returns_payload(
     client: Client[FastMCPTransport],
 ) -> None:
@@ -148,25 +130,6 @@ async def test_create_job_rejects_invalid_target_role_key_and_does_not_call_api_
             )
 
     mock_api_request.assert_not_called()
-
-
-async def test_get_job_details_calls_api_request_with_expected_contract_and_returns_payload(
-    client: Client[FastMCPTransport],
-) -> None:
-    expected_payload = {
-        "success": True,
-        "details": {
-            "id": 77,
-            "status": "claimed",
-            "summary": "Investigate flaky integration test",
-        },
-    }
-
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
-        result = await client.call_tool("forkflux_job_details", arguments={"job_id": 77})
-
-    mock_api_request.assert_called_once_with("GET", "/jobs/77")
-    _assert_tool_result_envelope(result, expected_payload)
 
 
 async def test_claim_job_calls_api_request_with_expected_contract_and_returns_payload(

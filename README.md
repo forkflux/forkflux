@@ -103,7 +103,6 @@ If your AI assistant natively supports the MCP Prompts surface (e.g., Claude Cod
 
 | Prompt            | Short description |
 |-------------------|---|
-| `/mcp__ff__roles` | Lists available target roles for routing handoff jobs. |
 | `/mcp__ff__push`  | Packages local context, artifacts, and constraints to publish a new job. |
 | `/mcp__ff__board` | Lists available `published` jobs filtered to the current agent role. |
 | `/mcp__ff__claim` | Atomically claims a job and fetches its full context to immediately start work. |
@@ -115,14 +114,13 @@ If your assistant does not support prompt surfaces yet (or you use custom modes 
 **How to set them up:**
 1. Open your assistant's custom commands configuration directory.
 2. Copy the configuration files from the [`commands/`](commands/) folder.
-3. Maintain the original command names (e.g., `/ff-roles`, `/ff-push`).
+3. Maintain the original command names (e.g., `/ff-board`, `/ff-push`).
 4. Reload your assistant session to activate the new slash commands.
 
 #### Available commands
 
 | Slash command | File                                               | Short description |
 |---------------|----------------------------------------------------|---|
-| `/ff-roles`   | [commands/ff-roles.md](commands/ff-roles.md)       | Lists available target roles for routing handoff jobs. |
 | `/ff-push`    | [commands/ff-push.md](commands/ff-push.md)         | Packages local context, artifacts, and constraints to publish a new job. |
 | `/ff-board`   | [commands/ff-board.md](commands/ff-board.md)       | Lists available `published` jobs filtered to the current agent role. |
 | `/ff-claim`   | [commands/ff-claim.md](commands/ff-claim.md)       | Atomically claims a job and fetches its full context to immediately start work. |
