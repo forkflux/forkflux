@@ -16,7 +16,6 @@ You are connected to the ForkFlux Coordination Bus, an infrastructure layer for 
 You do not have a fixed role. You must dynamically act as either a Source or a Target based on what the user is asking you to do right now.
 
 WHEN THE USER ASKS YOU TO HAND OFF WORK (Acting as Source):
-- To get all available roles, use `forkflux_list_roles`.
 - When a job requires execution by another agent (e.g., passing code to a QA agent), use `forkflux_create_job`.
 - Provide explicit, strict `constraints` and embed all necessary context in the `context_payload` and all necessary artifacts in the `artifacts`.
 
@@ -99,20 +98,6 @@ async def get_dynamic_roles_enum() -> Enum:
 TargetRoleEnum = asyncio.run(get_dynamic_roles_enum())
 
 
-@mcp.tool("forkflux_list_roles")
-async def list_roles():
-    """
-    Returns a list of available agent roles.
-
-    Use this when you are a Source Agent preparing to publish a new job
-    and need to know which roles (e.g., 'qa', 'refactorer', 'security')
-    are available to handle specific types of jobs.
-
-    CRITICAL: Output the result as a clean, human-readable Markdown list. DO NOT dump raw JSON.
-    """
-    return await _api_request("GET", "/agents/roles")
-
-
 @mcp.tool("forkflux_create_job")
 async def create_job(
     summary: str,
@@ -161,7 +146,7 @@ async def create_job(
 async def list_jobs(
     limit: Annotated[int, Field(default=50, ge=1, le=200)] = 50,
     status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
-    target_role_key: str | None = None,
+    target_role_key: TargetRoleEnum | None = None,  # type: ignore[valid-type]
     my_role_only: bool = True,
 ):
     """
@@ -183,24 +168,10 @@ async def list_jobs(
         params={
             "limit": limit,
             "status": status.value if status else None,
-            "target_role_key": target_role_key,
+            "target_role_key": target_role_key.value if target_role_key else None,  # type: ignore[attr-defined]
             "my_role_only": my_role_only,
         },
     )
-
-
-@mcp.tool("forkflux_job_details")
-async def get_job_details(job_id: Annotated[int, Field(description="The unique numeric ID of the job to retrieve.")]):
-    """
-    Fetches the detailed card and full handoff context for a specific job without claiming it.
-
-    NOTE: You do NOT need to call this after `forkflux_claim_job`, because claiming automatically
-    returns the full context. Use this only if you need to inspect a job before deciding to claim it.
-
-    Args:
-        job_id: The ID of the job.
-    """
-    return await _api_request("GET", f"/jobs/{job_id}")
 
 
 @mcp.tool("forkflux_claim_job")
@@ -387,9 +358,7 @@ def push_prompt() -> str:
     Follow these execution steps carefully:
 
     1. TOOL CHAINING (Role Discovery):
-       - Check if you have a valid, verified `target_role_key` for the destination agent.
-       - CRITICAL: If you do not know the exact string key, DO NOT stop to ask the human user. Autonomously call the `forkflux_list_roles` MCP tool to retrieve the allowed system roles.
-       - Analyze the returned roles, match the correct one based on the user's workflow intent, and proceed. Never guess or hallucinate a role key.
+       - Analyze available target role keys, match the correct one based on the user's workflow intent, and proceed. Never guess or hallucinate a role key.
 
     2. PARAMETER PREPARATION (Validate before calling `forkflux_create_job`):
        - `target_role_key`: (String) The exact valid key found via tool chaining.
@@ -410,38 +379,6 @@ def push_prompt() -> str:
        🎯 **Target Role**: [Insert the `target_role_key` as inline code]
        ✅ **Constraints**: [Provide a brief 1-2 sentence human-readable summary of the constraints passed to the next agent]
        📦 **Context Packed**: [Briefly summarize what metadata and technical logs you embedded into the `context_payload`]
-    """  # noqa: E501
-
-
-@mcp.prompt(name="roles")
-def roles_prompt() -> str:
-    """
-    Return a structured system prompt guiding the AI agent to fetch
-    and format available target execution roles via the ForkFlux Coordination Bus.
-    """
-    return """
-    You are an AI native engineer integrating with the ForkFlux Coordination Bus. Your current task is to discover available target roles for handoff routing.
-
-    CRITICAL SECURITY & METHODOLOGY RULE:
-    - DO NOT attempt to run bash scripts, trigger curl commands, or use terminal utilities to fetch roles.
-    - ALWAYS use the dedicated `forkflux_list_roles` MCP tool provided to you. Running shell execution commands for API interactions violates strict workflow guidelines.
-
-    Please execute this task precisely following these steps:
-
-    1. **Tool Invocation**: Execute the `forkflux_list_roles` MCP tool. Note that this tool does not require any input parameters or arguments.
-    2. **Error Handling**: If the tool call fails or encounters a network/coordination bus issue, output the exact error payload or message received. STOP execution immediately. Do NOT guess, improvise, or hallucinate potential roles if the data bus is unreachable.
-    3. **Response Parsing & Formatting**: If the tool call returns data successfully, parse the payload. You MUST present the available roles to the user as a polished, human-readable Markdown list. Do NOT just dump raw JSON outputs into the active workspace window.
-    4. **Data Highlighting**: For every discovered role, format its `role_key` explicitly using inline code formatting (e.g., `role_key_here`) and append its technical description.
-    5. **Tool Chaining / Next Step Prompting**: End your final output with a natural, proactive call to action. Explicitly remind the user that since they now know the valid target roles, they can proceed to publish their context/handoff job using the `push` prompt and assign it directly to one of these verified keys.
-
-    Your response output layout MUST closely resemble the following structure:
-
-    ### 🎭 Available Target Roles:
-    - `[role_key_1]` — Clear description of what this role does (e.g., QA engineering, Code review).
-    - `[role_key_2]` — Clear description of what this role does.
-
-    ### 💡 Next Step:
-    You can now use the `push` prompt to publish your execution context and assign the task pool item to one of the keys listed above.
     """  # noqa: E501
 
 

@@ -10,13 +10,13 @@ Creates a new handoff job for a target agent to claim. This packages the current
 
 ## Required MCP tools
 
-`forkflux_create_job`, `forkflux_list_roles` (if role key is unknown)
+`forkflux_create_job`
 
 ## Agent instructions
 
 CRITICAL RULE: DO NOT use bash, curl, or terminal commands to execute this API call. ALWAYS use the provided ForkFlux MCP tools.
 
-1. **Tool Chaining (Role Discovery):** Before calling the creation tool, verify that you have a valid `target_role_key`. If you do not know the exact key, DO NOT stop and ask the user. Instead, autonomously call the `forkflux_list_roles` MCP tool to retrieve the allowed keys, select the correct one based on the user's intent, and proceed. Do not guess or hallucinate the role key.
+1. **Tool Chaining (Role Discovery):** Before calling the creation tool, analyze available target role keys, select the correct one based on the user's intent, and proceed. Do not guess or hallucinate the role key.
 2. Prepare the parameters for the `forkflux_create_job` call carefully:
    - `target_role_key`: (String) The exact valid role key retrieved.
    - `constraints`: (String) Explicit acceptance criteria. Clearly state what the target agent must achieve to consider this handoff job complete.

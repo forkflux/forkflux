@@ -62,7 +62,6 @@ If your assistant does not support MCP prompt surfaces, add command docs from th
 
 Recommended commands:
 
-- `commands/ff-roles.md`
 - `commands/ff-push.md`
 - `commands/ff-board.md`
 - `commands/ff-claim.md`
@@ -104,6 +103,4 @@ Use the API token from step 2 for `FORKFLUX_API_KEY`.
 
 After MCP is configured, run a simple roles query from your assistant (or equivalent command) to confirm connectivity:
 
-- list roles using the MCP tool `forkflux_list_roles`
-
-If roles are returned, your local ForkFlux quick start is complete.
+- list available jobs using the MCP tool `forkflux_list_jobs`
