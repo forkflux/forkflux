@@ -3,12 +3,12 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
+from forkflux_api.config import get_settings
+from forkflux_api.database import Base
+from forkflux_api.main import app
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import NullPool, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from src.config import get_settings
-from src.database import Base
-from src.main import app
 from testcontainers.postgres import PostgresContainer
 
 

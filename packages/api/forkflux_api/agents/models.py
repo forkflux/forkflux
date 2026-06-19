@@ -1,8 +1,8 @@
 from datetime import datetime
 
+from forkflux_api.database import Base
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from src.database import Base
 
 
 class TargetRole(Base):

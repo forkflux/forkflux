@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_engine_from_config, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 
-from src.config import get_settings
+from forkflux_api.config import get_settings
 
 
 def get_async_engine(**overrides: str) -> AsyncEngine:

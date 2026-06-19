@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Any
 
+from forkflux_api.database import Base
+from forkflux_api.jobs.constants import JobStatusEnum
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, Enum, ForeignKey, Index, SmallInteger, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from src.database import Base
-from src.jobs.constants import JobStatusEnum
 
 
 class HandoffJob(Base):

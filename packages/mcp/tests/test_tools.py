@@ -6,9 +6,9 @@ import pytest
 from fastmcp.client import Client
 from fastmcp.client.transports import FastMCPTransport
 from fastmcp.exceptions import ToolError
-from src.constants import JobChangeStatusEnum, JobPriorityEnum
-from src.main import TargetRoleEnum
-from src.schemas import JobArtifact
+from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum
+from forkflux_mcp.main import TargetRoleEnum
+from forkflux_mcp.schemas import JobArtifact
 
 
 def _assert_tool_result_envelope(result, expected_payload: dict[str, Any]) -> None:
@@ -28,7 +28,7 @@ async def test_list_jobs_calls_api_request_with_default_params_and_returns_paylo
         "details": [{"id": 11, "status": "published"}],
     }
 
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool("forkflux_list_jobs")
 
     mock_api_request.assert_called_once_with(
@@ -81,7 +81,7 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
         "details": {"id": 101, "status": "published"},
     }
 
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool(
             "forkflux_create_job",
             arguments={
@@ -114,7 +114,7 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
 async def test_create_job_rejects_invalid_target_role_key_and_does_not_call_api_request(
     client: Client[FastMCPTransport],
 ) -> None:
-    with patch("src.main._api_request") as mock_api_request:
+    with patch("forkflux_mcp.main._api_request") as mock_api_request:
         with pytest.raises(ToolError, match="target_role_key"):
             await client.call_tool(
                 "forkflux_create_job",
@@ -140,7 +140,7 @@ async def test_claim_job_calls_api_request_with_expected_contract_and_returns_pa
         "details": {"id": 77, "status": "claimed"},
     }
 
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool("forkflux_claim_job", arguments={"job_id": 77})
 
     mock_api_request.assert_called_once_with("POST", "/jobs/77/claim")
@@ -155,7 +155,7 @@ async def test_change_job_status_in_progress_calls_api_request_with_expected_con
         "details": {"id": 77, "status": "in_progress"},
     }
 
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool(
             "forkflux_change_job_status",
             arguments={
@@ -184,7 +184,7 @@ async def test_change_job_status_failed_calls_api_request_with_failure_reason_an
         },
     }
 
-    with patch("src.main._api_request", return_value=expected_payload) as mock_api_request:
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool(
             "forkflux_change_job_status",
             arguments={

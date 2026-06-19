@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from forkflux_api.jobs.dto import JobArtifactCreate
+from forkflux_api.jobs.exceptions import JobArtifactConflictError
+from forkflux_api.jobs.models import JobArtifact
+from forkflux_api.jobs.repositories import JobArtifactRepository
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.jobs.dto import JobArtifactCreate
-from src.jobs.exceptions import JobArtifactConflictError
-from src.jobs.models import JobArtifact
-from src.jobs.repositories import JobArtifactRepository
 from tests.factories import AgentIdentityFactory, HandoffJobFactory, JobArtifactFactory, TargetRoleFactory
 
 

@@ -1,11 +1,8 @@
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import exists, select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
-from src.agents.exceptions import (
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
+from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentApiTokenNotFoundError,
     AgentIdentityConflictError,
@@ -13,7 +10,10 @@ from src.agents.exceptions import (
     TargetRoleConflictError,
     TargetRoleNotFoundError,
 )
-from src.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from sqlalchemy import exists, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TargetRoleRepository:

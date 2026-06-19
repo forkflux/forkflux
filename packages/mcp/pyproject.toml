@@ -1,11 +1,21 @@
 [project]
 name = "forkflux-mcp"
 version = "0.1.0"
-description = ""
+description = "Model Context Protocol (MCP) adapter for ForkFlux, enabling AI coding assistants to securely publish and claim jobs."
+readme = "README.md"
 requires-python = ">=3.12"
-keywords = []
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "cursor",
+    "claude-code",
+    "coordination-bus",
+    "agentic-workflow",
+    "developer-tools"
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
@@ -18,7 +28,19 @@ classifiers = [
 ]
 
 dependencies = [
-    "fastmcp>=3.4.2",
-    "httpx>=0.28.1",
-    "pydantic>=2.13.4",
+    "fastmcp==3.4.2",
+    "httpx==0.28.1",
+    "pydantic==2.13.4",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "forkflux_mcp/**",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["forkflux_mcp"]

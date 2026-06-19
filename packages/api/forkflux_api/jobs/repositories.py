@@ -2,20 +2,26 @@ from datetime import datetime, timezone
 from typing import cast
 
 import structlog
-from sqlalchemy import Row, Select, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
-from src.agents.models import AgentIdentity, TargetRole
-from src.jobs.constants import JobListOrderEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobArtifactCreate, JobEventCreate
-from src.jobs.exceptions import (
+from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
+from forkflux_api.jobs.dto import (
+    HandoffJobCreate,
+    HandoffJobFilterParams,
+    HandoffJobItem,
+    JobArtifactCreate,
+    JobEventCreate,
+)
+from forkflux_api.jobs.exceptions import (
     HandoffJobConflictError,
     HandoffJobNotFoundError,
     JobArtifactConflictError,
     JobEventConflictError,
 )
-from src.jobs.models import HandoffJob, JobArtifact, JobEvent
+from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
+from sqlalchemy import Row, Select, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 
 class HandoffJobRepository:

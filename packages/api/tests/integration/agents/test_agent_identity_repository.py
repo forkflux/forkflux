@@ -1,9 +1,9 @@
 import pytest
+from forkflux_api.agents.dto import AgentIdentityCreate
+from forkflux_api.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
+from forkflux_api.agents.models import AgentIdentity
+from forkflux_api.agents.respositories import AgentIdentityRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.dto import AgentIdentityCreate
-from src.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
-from src.agents.models import AgentIdentity
-from src.agents.respositories import AgentIdentityRepository
 from tests.factories import AgentIdentityFactory, TargetRoleFactory
 
 

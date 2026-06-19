@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.dto import HandoffJobCreate, HandoffJobFilterParams
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
+from forkflux_api.jobs.models import HandoffJob
+from forkflux_api.jobs.repositories import HandoffJobRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.models import AgentIdentity, TargetRole
-from src.jobs.constants import JobPriorityEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams
-from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
-from src.jobs.models import HandoffJob
-from src.jobs.repositories import HandoffJobRepository
 from tests.factories import AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
 
@@ -410,7 +410,9 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
     )
 
     all_items = await repository.list(
-        filter_params=HandoffJobFilterParams(limit=200, status=JobStatusEnum.PUBLISHED, target_role_id=None)
+        filter_params=HandoffJobFilterParams(
+            limit=200, status=JobStatusEnum.PUBLISHED, target_role_id=None, order=[JobListOrderEnum.CREATED_AT_ASC]
+        )
     )
 
     assert [item.job_details.id for item in all_items] == [oldest_job.id, newest_job.id]
@@ -481,6 +483,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
             limit=200,
             status=JobStatusEnum.PUBLISHED,
             target_role_id=reviewer_role.id,
+            order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
 
@@ -531,7 +534,9 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
             first_job = created_job
 
     items = await repository.list(
-        filter_params=HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=None)
+        filter_params=HandoffJobFilterParams(
+            limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=None, order=[JobListOrderEnum.CREATED_AT_ASC]
+        )
     )
 
     assert first_job is not None

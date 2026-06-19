@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
 import structlog
-from src.agents.models import AgentIdentity
-from src.jobs.constants import JobEventTypeEnum, JobStatusEnum
-from src.jobs.dto import (
+from forkflux_api.agents.models import AgentIdentity
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
+from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
     HandoffJobItem,
@@ -11,9 +11,9 @@ from src.jobs.dto import (
     JobArtifactCreate,
     JobEventCreate,
 )
-from src.jobs.exceptions import HandoffJobConflictError
-from src.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from src.jobs.schemas import HandoffJobCreateRequest
+from forkflux_api.jobs.exceptions import HandoffJobConflictError
+from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
+from forkflux_api.jobs.schemas import HandoffJobCreateRequest
 
 
 class HandoffJobService:

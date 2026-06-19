@@ -1,30 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
-from src.agents.models import AgentIdentity, TargetRole
-from src.dependencies import get_current_agent, verify_token
-from src.jobs.api_exceptions import (
+from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.dependencies import get_current_agent, verify_token
+from forkflux_api.jobs.api_exceptions import (
     HandoffJobClaimValidationError,
     HandoffJobIdentityValidationError,
     HandoffJobStatusValidationError,
 )
-from src.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
-from src.jobs.dependencies import (
+from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.dependencies import (
     get_handoff_job_service,
     validate_parent_job,
     validate_target_role,
     validate_target_role_query_param,
 )
-from src.jobs.dto import HandoffJobFilterParams
-from src.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
-from src.jobs.helpers import handoff_job_to_response_model
-from src.jobs.schemas import (
+from forkflux_api.jobs.dto import HandoffJobFilterParams
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
+from forkflux_api.jobs.helpers import handoff_job_to_response_model
+from forkflux_api.jobs.schemas import (
     HandoffJobChangeStatusRequest,
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobListItem,
     HandoffJobWithArtifactsItem,
 )
-from src.jobs.services import HandoffJobService
+from forkflux_api.jobs.services import HandoffJobService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_token)])
 

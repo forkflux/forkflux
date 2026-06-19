@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Any
 
+from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 from pydantic import BaseModel, ConfigDict
-from src.jobs.constants import JobPriorityEnum, JobStatusEnum
 
 
 class JobArtifact(BaseModel):

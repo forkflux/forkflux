@@ -1,11 +1,11 @@
 import hashlib
 from datetime import datetime, timezone
 
+from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.models import HandoffJob, JobEvent
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.jobs.constants import JobPriorityEnum, JobStatusEnum
-from src.jobs.models import HandoffJob, JobEvent
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
 
 

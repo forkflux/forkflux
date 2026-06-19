@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from src.agents.dto import AgentIdentityCreate
-from src.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
-from src.agents.services import AgentIdentityService
+from forkflux_api.agents.dto import AgentIdentityCreate
+from forkflux_api.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
+from forkflux_api.agents.services import AgentIdentityService
 
 
 async def test_agent_identity_service_init_sets_repository_and_logger() -> None:
@@ -53,7 +53,7 @@ async def test_agent_identity_service_get_by_id_propagates_not_found_error() -> 
 
 async def test_agent_identity_service_create_agent_delegates_and_returns_identity() -> None:
     dto = AgentIdentityCreate(agent_label="agent-1", role_id=101, tool_family="forkflux")
-    expected_identity = object()
+    expected_identity = Mock(id=123)
     repository = Mock()
     repository.create = AsyncMock(return_value=expected_identity)
     service = AgentIdentityService(agent_identity_repo=repository, trace_id="trace-123")

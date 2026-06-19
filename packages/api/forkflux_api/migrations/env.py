@@ -1,31 +1,57 @@
+import logging.config
 import pathlib
 import sys
-from logging.config import fileConfig
 from typing import TYPE_CHECKING
 
 import alembic_postgresql_enum  # noqa: F401
 
 # Import all models so that Base.metadata is populated for autogenerate.
-import src.agents.models  # noqa: F401
-import src.jobs.models  # noqa: F401
+import forkflux_api.agents.models  # noqa: F401
+import forkflux_api.jobs.models  # noqa: F401
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from src.config import get_settings
-from src.database import Base, get_async_engine
-
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
-config = context.config
-
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+from forkflux_api.config import get_settings
+from forkflux_api.database import Base, get_async_engine
 
 target_metadata = Base.metadata
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.base import Connection
+
+
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "generic": {
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt": "%H:%M:%S",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "generic",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "alembic": {
+                "level": "INFO",
+                "handlers": ["console"],
+                "propagate": False,
+            },
+            "sqlalchemy.engine": {
+                "level": "WARNING",
+                "handlers": ["console"],
+                "propagate": False,
+            },
+        },
+    }
+)
 
 
 def run_migrations_offline() -> None:

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, TypedDict
 
-from src.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
-from src.jobs.models import HandoffJob, JobArtifact
+from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.models import HandoffJob, JobArtifact
 
 
 @dataclass(slots=True)

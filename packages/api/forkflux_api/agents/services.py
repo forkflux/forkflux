@@ -2,9 +2,9 @@ import hashlib
 import secrets
 
 import structlog
-from src.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
-from src.agents.models import AgentApiToken, AgentIdentity, TargetRole
-from src.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
 
 
 class TargetRoleService:

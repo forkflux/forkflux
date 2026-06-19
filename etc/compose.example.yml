@@ -1,6 +1,6 @@
 services:
   migrate:
-    image: ghcr.io/forkflux/forkflux-api:dev
+    image: ghcr.io/forkflux/forkflux-api:latest
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     environment:
@@ -10,7 +10,7 @@ services:
         condition: service_healthy
 
   api:
-    image: ghcr.io/forkflux/forkflux-api:dev
+    image: ghcr.io/forkflux/forkflux-api:latest
     ports:
       - "8000:8000"
     environment:

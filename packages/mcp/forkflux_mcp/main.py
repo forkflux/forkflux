@@ -7,8 +7,8 @@ import httpx
 from fastmcp import FastMCP
 from pydantic import Field
 
-from src.constants import JobChangeStatusEnum, JobPriorityEnum, JobStatusEnum
-from src.schemas import JobArtifact
+from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_mcp.schemas import JobArtifact
 
 FORKFLUX_INSTRUCTIONS = """
 You are connected to the ForkFlux Coordination Bus, an infrastructure layer for decentralized AI agents to securely hand off jobs across isolated machines.
