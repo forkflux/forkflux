@@ -25,6 +25,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
+[project.urls]
+Homepage = "https://github.com/forkflux/forkflux"
+Repository = "https://github.com/forkflux/forkflux"
+Issues = "https://github.com/forkflux/forkflux/issues"
 
 dependencies = [
     "alembic==1.18.4",
