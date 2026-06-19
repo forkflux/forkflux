@@ -1,10 +1,16 @@
 import asyncio
+import logging
+import os
 import pathlib
 import sys
 from functools import wraps
 from uuid import uuid4
 
+import structlog
 import typer
+import uvicorn
+from alembic import command
+from alembic.config import Config
 from rich.console import Console
 from rich.table import Table
 
@@ -24,6 +30,8 @@ from forkflux_api.database import session_manager
 app = typer.Typer(help="ForkFlux Management CLI")
 console = Console()
 
+_CLI_LOGGING_CONFIGURED = False
+
 agents_role_app = typer.Typer(help="Agents role management")
 agent_app = typer.Typer(help="Agents management")
 
@@ -31,9 +39,65 @@ app.add_typer(agents_role_app, name="agents-role")
 app.add_typer(agent_app, name="agent")
 
 
+def _configure_cli_logging() -> None:
+    """Suppress INFO logs for CLI-invoked services, keep WARNING/ERROR visible."""
+    global _CLI_LOGGING_CONFIGURED
+
+    if _CLI_LOGGING_CONFIGURED:
+        return
+
+    logging.basicConfig(level=logging.WARNING, force=True)
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING))
+
+    _CLI_LOGGING_CONFIGURED = True
+
+
+def apply_migrations() -> None:
+    console.print("Apply database migrations")
+    current_dir = os.path.dirname(__file__)
+    alembic_cfg = Config(toml_file="../pyproject.toml")
+    alembic_cfg.set_main_option("script_location", os.path.join(current_dir, "migrations"))
+    command.upgrade(alembic_cfg, "head")
+
+
+@app.command()
+def serve(host: str = "0.0.0.0", port: int = 8080) -> None:  # noqa: S104
+    apply_migrations()
+
+    console.print("Starting server...", style="bold green")
+    uvicorn.run(
+        "forkflux_api.main:app",
+        host=host,
+        port=port,
+        forwarded_allow_ips="*",
+        workers=2,
+        loop="none" if sys.platform == "win32" else "auto",
+    )
+
+
+@app.command()
+def init() -> None:
+    apply_migrations()
+
+    asyncio.run(_init_async())
+
+
+async def _init_async() -> None:
+    _configure_cli_logging()
+
+    console.print("Lets add 2 roles - developer and QA")
+    await add_role.__wrapped__(role_key="developer", role_label="Developer")
+    await add_role.__wrapped__(role_key="qa", role_label="QA")
+
+    console.print("Lets add 2 agents - agent-1 and agent-2")
+    await add_agent.__wrapped__(agent_label="agent-1", role_key="developer")
+    await add_agent.__wrapped__(agent_label="agent-2", role_key="qa")
+
+
 @agents_role_app.command("list")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def list_roles():
+async def list_roles() -> None:
+    _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:
@@ -48,10 +112,11 @@ async def list_roles():
 
 @agents_role_app.command("add")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def add_role(role_key: str, role_label: str):
+async def add_role(role_key: str, role_label: str) -> None:
     """
     Adds a new role with the specified key and label.
     """
+    _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:
@@ -66,7 +131,8 @@ async def add_role(role_key: str, role_label: str):
 
 @agent_app.command("list")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def list_agents():
+async def list_agents() -> None:
+    _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:
@@ -85,10 +151,11 @@ async def list_agents():
 
 @agent_app.command("add")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def add_agent(agent_label: str, role_key: str, tool_family: str | None = None):
+async def add_agent(agent_label: str, role_key: str, tool_family: str | None = None) -> None:
     """
     Adds a new agent with the specified label, role, and tool family (optional).
     """
+    _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:
@@ -124,10 +191,11 @@ async def add_agent(agent_label: str, role_key: str, tool_family: str | None = N
 
 @agent_app.command("revoke-token")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def agent_revoke_token(agent_id: int):
+async def agent_revoke_token(agent_id: int) -> None:
     """
     Revokes the token associated with a specified agent.
     """
+    _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:

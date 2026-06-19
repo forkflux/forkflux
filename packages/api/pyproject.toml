@@ -48,7 +48,7 @@ dev = [
 ]
 
 [project.scripts]
-forkflux = "forkflux.cli:app"
+forkflux = "forkflux_api.cli:app"
 
 [build-system]
 requires = ["hatchling"]
