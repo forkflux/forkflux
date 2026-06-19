@@ -60,7 +60,7 @@ def apply_migrations() -> None:
     command.upgrade(alembic_cfg, "head")
 
 
-@app.command()
+@app.command(help="Run the server")
 def serve(host: str = "0.0.0.0", port: int = 8080) -> None:  # noqa: S104
     apply_migrations()
 
@@ -75,7 +75,7 @@ def serve(host: str = "0.0.0.0", port: int = 8080) -> None:  # noqa: S104
     )
 
 
-@app.command()
+@app.command(help="Initialize the database and add some example data")
 def init() -> None:
     apply_migrations()
 
