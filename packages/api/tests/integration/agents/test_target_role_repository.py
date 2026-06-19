@@ -1,9 +1,9 @@
 import pytest
+from forkflux_api.agents.dto import TargetRoleCreate
+from forkflux_api.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
+from forkflux_api.agents.models import TargetRole
+from forkflux_api.agents.respositories import TargetRoleRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.dto import TargetRoleCreate
-from src.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
-from src.agents.models import TargetRole
-from src.agents.respositories import TargetRoleRepository
 from tests.factories import TargetRoleFactory
 
 

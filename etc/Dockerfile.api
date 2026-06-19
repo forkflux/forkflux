@@ -2,10 +2,11 @@ FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install only API runtime dependencies into an isolated virtualenv.
-COPY packages/api/pyproject.toml /app/packages/api/pyproject.toml
-RUN uv venv /opt/venv
-RUN uv pip install --python /opt/venv/bin/python /app/packages/api
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
+    UV_COMPILE_BYTECODE=1
+
+COPY uv.lock packages/api/pyproject.toml ./
+RUN uv sync --frozen --no-install-project
 
 
 FROM python:3.14-slim-bookworm AS runtime
@@ -20,9 +21,8 @@ RUN groupadd --system appuser \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY packages/api/src /app/src
-COPY packages/api/alembic.ini /app/alembic.ini
-COPY packages/api/alembic /app/alembic
+COPY packages/api/forkflux_api /app/forkflux_api
+COPY packages/api/pyproject.toml /app/pyproject.toml
 
 RUN chown -R appuser:appuser /app /opt/venv
 
@@ -30,4 +30,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000", "src.main:app"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000", "forkflux_api.main:app"]

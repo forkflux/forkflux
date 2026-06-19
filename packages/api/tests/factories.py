@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 from itertools import count
 from typing import Any, TypeVar
 
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
 from polyfactory import AsyncPersistenceProtocol
 from polyfactory.factories.sqlalchemy_factory import SQLAASyncPersistence, SQLAlchemyFactory
 from polyfactory.fields import Use
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.models import AgentApiToken, AgentIdentity, TargetRole
-from src.jobs.constants import JobPriorityEnum, JobStatusEnum
-from src.jobs.models import HandoffJob, JobArtifact, JobEvent
 
 T = TypeVar("T")
 

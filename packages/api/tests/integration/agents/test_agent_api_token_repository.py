@@ -1,9 +1,9 @@
 import pytest
+from forkflux_api.agents.dto import AgentApiTokenCreate
+from forkflux_api.agents.exceptions import AgentApiTokenConflictError, AgentApiTokenNotFoundError
+from forkflux_api.agents.models import AgentApiToken
+from forkflux_api.agents.respositories import AgentApiTokenRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.dto import AgentApiTokenCreate
-from src.agents.exceptions import AgentApiTokenConflictError, AgentApiTokenNotFoundError
-from src.agents.models import AgentApiToken
-from src.agents.respositories import AgentApiTokenRepository
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
 
 

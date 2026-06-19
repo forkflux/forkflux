@@ -2,10 +2,11 @@ FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install only MCP runtime dependencies into an isolated virtualenv.
-COPY packages/mcp/pyproject.toml /app/packages/mcp/pyproject.toml
-RUN uv venv /opt/venv
-RUN uv pip install --python /opt/venv/bin/python /app/packages/mcp
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
+    UV_COMPILE_BYTECODE=1
+
+COPY uv.lock packages/mcp/pyproject.toml ./
+RUN uv sync --frozen --no-install-project
 
 
 FROM python:3.14-slim-bookworm AS runtime
@@ -20,10 +21,10 @@ RUN groupadd --system --gid 10001 appgroup \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY packages/mcp/src /app/src
+COPY packages/mcp/forkflux_mcp /app/forkflux_mcp
 
 RUN chown -R appuser:appgroup /app /opt/venv
 
 USER appuser
 
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "forkflux_mcp.main"]

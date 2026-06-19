@@ -2,11 +2,11 @@ from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from src.jobs.constants import JobEventTypeEnum, JobPriorityEnum, JobStatusEnum
-from src.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobEventCreate
-from src.jobs.exceptions import HandoffJobConflictError
-from src.jobs.schemas import HandoffJobCreateRequest, JobArtifact
-from src.jobs.services import HandoffJobService
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobEventCreate
+from forkflux_api.jobs.exceptions import HandoffJobConflictError
+from forkflux_api.jobs.schemas import HandoffJobCreateRequest, JobArtifact
+from forkflux_api.jobs.services import HandoffJobService
 
 
 async def test_handoff_job_service_get_job_delegates_and_returns_job() -> None:
@@ -67,7 +67,9 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
 
 
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
-    filter_params = HandoffJobFilterParams(limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=1)
+    filter_params = HandoffJobFilterParams(
+        limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=1, order=[JobListOrderEnum.CREATED_AT_ASC]
+    )
     expected_jobs = [Mock(), Mock()]
 
     repository = Mock()

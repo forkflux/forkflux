@@ -4,9 +4,9 @@ from uuid import uuid4
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from src.agents.handlers import router as agents_router
-from src.exceptions import BaseValidationError
-from src.jobs.handlers import router as jobs_router
+from forkflux_api.agents.handlers import router as agents_router
+from forkflux_api.exceptions import BaseValidationError
+from forkflux_api.jobs.handlers import router as jobs_router
 
 
 def create_app() -> FastAPI:

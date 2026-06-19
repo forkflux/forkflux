@@ -23,7 +23,7 @@ def _mock_asyncio_run(coro: Coroutine[object, object, object]) -> type[Enum]:
 
 
 with patch("asyncio.run", side_effect=_mock_asyncio_run):
-    from src.main import mcp
+    from forkflux_mcp.main import mcp
 
 
 @pytest_asyncio.fixture

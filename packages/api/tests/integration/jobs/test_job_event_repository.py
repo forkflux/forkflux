@@ -1,10 +1,10 @@
 import pytest
+from forkflux_api.jobs.constants import JobStatusEnum
+from forkflux_api.jobs.dto import JobEventCreate
+from forkflux_api.jobs.exceptions import JobEventConflictError
+from forkflux_api.jobs.models import JobEvent
+from forkflux_api.jobs.repositories import JobEventRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.jobs.constants import JobStatusEnum
-from src.jobs.dto import JobEventCreate
-from src.jobs.exceptions import JobEventConflictError
-from src.jobs.models import JobEvent
-from src.jobs.repositories import JobEventRepository
 from tests.factories import AgentIdentityFactory, HandoffJobFactory, JobEventFactory, TargetRoleFactory
 
 

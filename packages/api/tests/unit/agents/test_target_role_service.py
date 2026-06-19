@@ -1,9 +1,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from src.agents.dto import TargetRoleCreate
-from src.agents.exceptions import TargetRoleNotFoundError
-from src.agents.services import TargetRoleService
+from forkflux_api.agents.dto import TargetRoleCreate
+from forkflux_api.agents.exceptions import TargetRoleNotFoundError
+from forkflux_api.agents.services import TargetRoleService
 
 
 async def test_target_role_service_init_sets_repository_and_logger() -> None:

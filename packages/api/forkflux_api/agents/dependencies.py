@@ -1,8 +1,8 @@
 from fastapi import Depends, Request
+from forkflux_api.agents.respositories import TargetRoleRepository
+from forkflux_api.agents.services import TargetRoleService
+from forkflux_api.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.respositories import TargetRoleRepository
-from src.agents.services import TargetRoleService
-from src.database import get_session
 
 
 def get_trace_id(request: Request) -> str:

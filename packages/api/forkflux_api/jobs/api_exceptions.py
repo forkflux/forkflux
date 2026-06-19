@@ -1,4 +1,4 @@
-from src.exceptions import BaseValidationError
+from forkflux_api.exceptions import BaseValidationError
 
 
 class ParentJobValidationError(BaseValidationError):

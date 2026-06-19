@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from src.main import _api_request
+from forkflux_mcp.main import _api_request
 
 
 def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespace):
@@ -21,8 +21,8 @@ def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespa
 
 
 async def test_api_request_returns_success_payload_and_forwards_request_args(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("src.main.API_URL", "http://api.example.test")
-    monkeypatch.setattr("src.main.API_KEY", "test-key")
+    monkeypatch.setattr("forkflux_mcp.main.API_URL", "http://api.example.test")
+    monkeypatch.setattr("forkflux_mcp.main.API_KEY", "test-key")
 
     response = SimpleNamespace(
         is_success=True,

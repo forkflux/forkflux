@@ -10,16 +10,16 @@ from rich.table import Table
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
-from src.agents.exceptions import (
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
+from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentIdentityConflictError,
     TargetRoleConflictError,
     TargetRoleNotFoundError,
 )
-from src.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
-from src.agents.services import AgentApiTokenService, AgentIdentityService, TargetRoleService
-from src.database import session_manager
+from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
+from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService, TargetRoleService
+from forkflux_api.database import session_manager
 
 app = typer.Typer(help="ForkFlux Management CLI")
 console = Console()

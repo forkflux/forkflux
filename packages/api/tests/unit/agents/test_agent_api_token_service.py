@@ -2,9 +2,9 @@ import hashlib
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from src.agents.dto import AgentApiTokenCreate
-from src.agents.exceptions import AgentApiTokenNotFoundError
-from src.agents.services import AgentApiTokenService
+from forkflux_api.agents.dto import AgentApiTokenCreate
+from forkflux_api.agents.exceptions import AgentApiTokenNotFoundError
+from forkflux_api.agents.services import AgentApiTokenService
 
 
 async def test_agent_api_token_service_init_sets_repository_and_logger() -> None:
@@ -18,7 +18,7 @@ async def test_agent_api_token_service_init_sets_repository_and_logger() -> None
 
 
 async def test_agent_api_token_service_get_token_delegates_and_returns_token() -> None:
-    expected_token = object()
+    expected_token = Mock(id=777, agent_id=17)
     repository = Mock()
     repository.get = AsyncMock(return_value=expected_token)
     service = AgentApiTokenService(agent_api_token_repo=repository, trace_id="trace-123")
@@ -47,7 +47,7 @@ async def test_agent_api_token_service_create_token_delegates_and_returns_token(
     repository = Mock()
     repository.create = AsyncMock(return_value=object())
     service = AgentApiTokenService(agent_api_token_repo=repository, trace_id="trace-123")
-    monkeypatch.setattr("src.agents.services.secrets.token_urlsafe", lambda _: "raw-token-123")
+    monkeypatch.setattr("forkflux_api.agents.services.secrets.token_urlsafe", lambda _: "raw-token-123")
 
     token = await service.create_token(dto=dto)
 

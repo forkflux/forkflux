@@ -1,10 +1,10 @@
 import hashlib
 
+from forkflux_api.agents.exceptions import AgentIdentityNotFoundError
+from forkflux_api.dependencies import get_agent_identity_service
+from forkflux_api.main import app
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.agents.exceptions import AgentIdentityNotFoundError
-from src.dependencies import get_agent_identity_service
-from src.main import app
 from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
 
 

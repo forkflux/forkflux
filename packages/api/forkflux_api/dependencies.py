@@ -5,11 +5,11 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.exceptions import AgentApiTokenNotFoundError, AgentIdentityNotFoundError
-from src.agents.models import AgentIdentity
-from src.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository
-from src.agents.services import AgentApiTokenService, AgentIdentityService
-from src.database import get_session
+from forkflux_api.agents.exceptions import AgentApiTokenNotFoundError, AgentIdentityNotFoundError
+from forkflux_api.agents.models import AgentIdentity
+from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository
+from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService
+from forkflux_api.database import get_session
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
