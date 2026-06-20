@@ -52,17 +52,25 @@ ForkFlux acts as a coordination bus. It provides a strict, machine-readable prot
 
 ## 🚀 Quick Start
 
-Use the full guide in [QUICK_START.md](QUICK_START.md).
+The fastest path is to run the API with `uvx`, initialize example roles and agents, then connect your assistant through the MCP server.
 
-Summary:
+Initialize the database and sample agents:
 
-1. Start the API with `uvx forkflux-api forkflux init` and `uvx forkflux-api forkflux serve`, or install it with `pip install forkflux-api` and run `forkflux init` / `forkflux serve`.
-2. Save the API token printed by `forkflux init`, or create custom roles and agents with the `forkflux agents-role` and `forkflux agent` commands.
-3. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`. The recommended MCP setup runs the server through `uvx`.
-4. Load reusable agent skills from [skills/](skills/).
-5. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
+```bash
+uvx --from forkflux-api forkflux init
+```
 
-Docker remains supported through [etc/compose.example.yml](etc/compose.example.yml), but it is optional for local quickstart.
+Then start the API server in a terminal you keep open:
+
+```bash
+uvx --from forkflux-api forkflux serve
+```
+
+`forkflux init` applies migrations and creates example roles and agents. Save one of the API tokens printed by this command.
+
+Next, configure your assistant with the ForkFlux MCP server and verify connectivity with `forkflux_list_jobs`.
+
+For the complete setup guide, including MCP configuration, `pip`, custom roles and agents, slash commands, skills, and optional Docker usage, see [QUICK_START.md](QUICK_START.md).
 
 ## 🧰 API CLI Commands
 
@@ -71,9 +79,14 @@ The API package includes a Typer-based CLI defined in `packages/api/forkflux_api
 Run the CLI without installing it globally:
 
 ```bash
-uvx forkflux-api forkflux --help
-uvx forkflux-api forkflux init
-uvx forkflux-api forkflux serve
+uvx --from forkflux-api forkflux --help
+uvx --from forkflux-api forkflux init
+```
+
+Start the API server in a terminal you keep open:
+
+```bash
+uvx --from forkflux-api forkflux serve
 ```
 
 Or install the package in your current Python environment:
@@ -82,6 +95,11 @@ Or install the package in your current Python environment:
 pip install forkflux-api
 forkflux --help
 forkflux init
+```
+
+Start the API server in a terminal you keep open:
+
+```bash
 forkflux serve
 ```
 
@@ -109,33 +127,13 @@ forkflux agent add "Cursor QA Bot" qa --tool_family cursor
 forkflux agent revoke-token 1
 ```
 
-If you are using `uvx` instead of an installed CLI, prefix each command with `uvx forkflux-api`, for example `uvx forkflux-api forkflux agent list`.
+If you are using `uvx` instead of an installed CLI, prefix each command with `uvx --from forkflux-api`, for example `uvx --from forkflux-api forkflux agent list`.
 
 ## 🔌 MCP Server
 
 ForkFlux agents connect to the API through the ForkFlux MCP server. The recommended setup runs the MCP server with `uvx` and passes the API connection details through environment variables:
 
-```json
-{
-  "mcpServers": {
-    "ff": {
-      "command": "uvx",
-      "args": [
-        "forkflux-mcp",
-        "python",
-        "-m",
-        "forkflux_mcp.main"
-      ],
-      "env": {
-        "FORKFLUX_API_KEY": "<API_KEY_FROM_THE_API_CLI>",
-        "FORKFLUX_API_URL": "http://127.0.0.1:8080/api/v1"
-      }
-    }
-  }
-}
-```
-
-Use Docker for the MCP server only if your MCP client or deployment environment requires it. See [QUICK_START.md](QUICK_START.md) for the full Docker example.
+See [QUICK_START.md](QUICK_START.md) for the full MCP client configuration. Use Docker for the MCP server only if your MCP client or deployment environment requires it.
 
 ## ⌨️ Automation: Prompts, Commands & Skills
 
