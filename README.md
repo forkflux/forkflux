@@ -1,6 +1,6 @@
 # ForkFlux 🐜
 
-**Coordination layer for AI agents across isolated developer local environments (devices)**
+**Coordination layer for AI agents to handoff structured work across isolated developer environments without copy-pasting context, sharing Markdown files through Git, or using Jira comments as a data bus.**
 
 > 🎥 **ForkFlux in Action:**
 
@@ -10,15 +10,15 @@
 
 ## 📝 About the Project
 
-**ForkFlux** is an infrastructure-grade coordination layer designed for engineering teams running decentralized AI agents (Cursor, Claude Code, Codex) across isolated local environments.
+**ForkFlux** is an infrastructure-grade coordination layer for engineering teams running decentralized AI agents such as Cursor, Claude Code, and Codex.
 
-We help engineering teams hand off jobs from one AI agent to another without the need for manual copy-pasting, chat threads, or hacking together Jira comments.
+It gives agents a shared, machine-readable job pool so teams can route work between isolated local environments without manual context transfer, chat threads, or Jira comments as a data bus.
 
 ## ⚠️ The Problem (The Handoff Chaos)
 
-Today, AI agents are incredibly good at writing code or running tests, but they operate in complete silos on individual developer machines or isolated accounts. When a job requires collaboration and needs to move from one agent to another (e.g., from Dev to QA), chaos ensues:
+AI agents can write code, run tests, and review changes, but they usually operate in silos on individual developer machines or isolated accounts. When work needs to move from one agent to another, for example from Dev to QA, teams fall back to fragile manual routing:
 
-* Engineers act as a "manual router": copy-pasting execution context and logs into Slack.
+* Engineers act as a "manual router" by copy-pasting execution context and logs into Slack.
 * Teams create temporary Markdown files and toss them back and forth via Git.
 * People abuse Jira or Linear tickets as an ad-hoc data bus.
 
@@ -26,10 +26,10 @@ This manual context transfer leads to coordination overhead, lost logs, and wast
 
 ## 💡 The Solution (ForkFlux Architecture)
 
-ForkFlux acts as a unified delegation protocol. We provide a Shared Job Pool with a strict schema:
+ForkFlux provides a unified delegation protocol with a strict shared job schema:
 
-1. **Publish:** The Source Agent (e.g., a developer's Cursor) publishes a job to the Coordination Bus via our MCP Server. It sets clear Acceptance Criteria and attaches payload artifacts.
-2. **Claim:** The Target Agent (e.g., a QA agent on a teammate's machine) polls the API, sees the available job, safely claims it, and shifts the status to `In Progress`.
+1. **Publish:** The Source Agent (e.g., a developer's Cursor) publishes a job to the Coordination Bus through the MCP server. It sets clear acceptance criteria and attaches payload artifacts.
+2. **Claim:** The Target Agent (e.g., a QA agent on a teammate's machine) polls the API, sees the available job, safely claims it, and shifts the status to `in_progress`.
 3. **Execution:** All isolated context is transferred automatically, with zero human intervention required.
 
 ## 🆚 ForkFlux vs. Jira / Linear
@@ -40,7 +40,7 @@ When teams try to use Jira or Linear comments to pass context between AI agents,
 - **Context Poisoning & Token Waste:** The receiving agent has to "relearn" the context, burning tokens to filter out human noise and irrelevant chat history.
 - **Fragile Workflows:** No strict data schemas, no atomic claims, and no clear state contracts.
 
-ForkFlux acts as a coordination bus. It provides a strict, machine-readable protocol to pass clean states, precise constraints, and artifacts across isolated environments, saving tokens and guaranteeing execution precision.
+ForkFlux provides a strict, machine-readable protocol for passing clean state, precise constraints, and artifacts across isolated environments. Agents receive the context they need without rereading noisy human conversation.
 
 ## ✨ Key Features
 
@@ -50,51 +50,113 @@ ForkFlux acts as a coordination bus. It provides a strict, machine-readable prot
 * **Atomic Claims:** Race condition protection when claiming jobs in a multi-agent environment (returns `409 Conflict` if another agent has already claimed the job).
 * **No Shared Workspace:** Agents do not need a shared workspace or cloud IDE; everything is routed via API through the decentralized bus.
 
+## 🧱 Architecture at a Glance
+
+ForkFlux is a small monorepo with two runtime packages:
+
+| Package | Purpose |
+|---------|---------|
+| `forkflux-api` | Stateful coordination bus. Stores jobs, lifecycle status, roles, agents, and API tokens. Includes the `forkflux` CLI for initialization and management. |
+| `forkflux-mcp` | MCP server for AI assistants. Exposes agent-facing tools for publishing, listing, claiming, and closing jobs through the API. |
+
+The API owns durable state. The MCP server is a thin assistant-facing adapter that forwards tool calls to the API.
+
 ## 🚀 Quick Start
 
-Use the full guide in [QUICK_START.md](QUICK_START.md).
+The fastest path is to run the API with `uvx`, initialize example roles and agents, then connect your assistant through the MCP server.
 
-Summary:
+Initialize the database and sample agents:
 
-1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
-2. Inside the API container, add roles and agents with the CLI.
-3. Load reusable agent skills from [skills/](skills/).
-4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
-5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+```bash
+uvx --from forkflux-api forkflux init
+```
 
-> Note: Docker must be running before you start this flow.
+Then start the API server in a terminal you keep open:
+
+```bash
+uvx --from forkflux-api forkflux serve
+```
+
+`forkflux init` applies migrations and creates example roles and agents. Save one of the API tokens printed by this command.
+
+Next, configure your assistant with the ForkFlux MCP server and verify connectivity with `forkflux_list_jobs`.
+
+For the complete setup guide, including MCP configuration, `pip`, custom roles and agents, slash commands, skills, and optional Docker usage, see [QUICK_START.md](QUICK_START.md).
 
 ## 🧰 API CLI Commands
 
-The API package includes a Typer-based CLI defined in `packages/api/src/cli.py`.
+The API package includes a Typer-based CLI defined in `packages/api/forkflux_api/cli.py`.
 
-Run commands from `packages/api`:
+| Command | Purpose |
+|---------|---------|
+| `forkflux init` | Apply migrations and create example roles and agents. |
+| `forkflux serve` | Start the API server. |
+| `forkflux agents-role list` | List available target roles. |
+| `forkflux agents-role add <role_key> <role_label>` | Create a new target role. |
+| `forkflux agent list` | List registered agents. |
+| `forkflux agent add <agent_label> <role_key> [tool_family]` | Create an agent and generate its API token. |
+| `forkflux agent revoke-token <agent_id>` | Revoke an agent token. |
 
-```bash
-uv run python src/cli.py --help
-```
-
-### Role commands
-
-- `agents-role list` — list available target roles.
-- `agents-role add <role_key> <role_label>` — create a new target role.
-
-```bash
-uv run python src/cli.py agents-role list
-uv run python src/cli.py agents-role add qa "QA Engineer"
-```
-
-### Agent commands
-
-- `agent list` — list registered agents.
-- `agent add <agent_label> <role_key> [tool_family]` — create an agent and generate its API token.
-- `agent revoke-token <agent_id>` — revoke an agent token.
+Run the CLI without installing it globally:
 
 ```bash
-uv run python src/cli.py agent list
-uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
-uv run python src/cli.py agent revoke-token 1
+uvx --from forkflux-api forkflux --help
+uvx --from forkflux-api forkflux init
 ```
+
+Start the API server in a terminal you keep open:
+
+```bash
+uvx --from forkflux-api forkflux serve
+```
+
+Or install the package in your current Python environment:
+
+```bash
+pip install forkflux-api
+forkflux --help
+forkflux init
+```
+
+Start the API server in a terminal you keep open:
+
+```bash
+forkflux serve
+```
+
+`forkflux init` applies migrations and creates example roles and agents. `forkflux serve` starts the API server.
+
+Role commands:
+
+```bash
+forkflux agents-role list
+forkflux agents-role add qa "QA Engineer"
+```
+
+Agent commands:
+
+```bash
+forkflux agent list
+forkflux agent add "Cursor QA Bot" qa --tool_family cursor
+forkflux agent revoke-token 1
+```
+
+If you are using `uvx` instead of an installed CLI, prefix each command with `uvx --from forkflux-api`, for example `uvx --from forkflux-api forkflux agent list`.
+
+## 🔌 MCP Server
+
+ForkFlux agents connect to the API through the ForkFlux MCP server. The recommended setup runs the MCP server with `uvx` and passes the API connection details through environment variables.
+
+See [QUICK_START.md](QUICK_START.md) for the full MCP client configuration. Use Docker for the MCP server only if your MCP client or deployment environment requires it.
+
+The MCP server exposes these assistant-facing tools:
+
+| Tool | Purpose |
+|------|---------|
+| `forkflux_create_job` | Publish a structured handoff job with constraints, context, artifacts, priority, and target role. |
+| `forkflux_list_jobs` | List jobs available in the shared ForkFlux job pool. |
+| `forkflux_claim_job` | Atomically claim a published job and receive its full context payload. |
+| `forkflux_change_job_status` | Close claimed work as `completed`, `failed`, or `cancelled`. |
 
 ## ⌨️ Automation: Prompts, Commands & Skills
 
@@ -103,6 +165,8 @@ ForkFlux natively integrates with your AI workflows. Depending on your assistant
 * **Native MCP Prompts:** Automatically exposed to your agent's context workspace (e.g., `/mcp__ff__push`, `/mcp__ff__claim`).
 * **Slash Commands:** Drop-in markdown files for custom IDE modes (available in the [`commands/`](commands/) directory).
 * **Reusable Skills:** Pre-built sender/receiver workflows for autonomous agents (available in the [`skills/`](skills/) directory).
+
+Use MCP prompts when your assistant supports prompt surfaces, slash commands when your IDE has a command system, and skills when you want reusable sender/receiver workflows across agents.
 
 > 📚 **See the full [Integration & Automation Guide](INTEGRATION.md)** for detailed setup instructions and a complete list of available commands.
 
@@ -115,4 +179,4 @@ Our global goal is to make ForkFlux the standard for job exchange in AI-native e
 
 ## 📄 License
 
-ForkFlux operates on a hybrid **Open Core** model. The base coordination bus, API, and all features required for fast integration and your first successful automated handoff are provided as Open Source (Apache 2.0 – see [LICENSE](LICENSE)).
+ForkFlux is licensed under Apache-2.0. See [LICENSE](LICENSE) for the full license text.
