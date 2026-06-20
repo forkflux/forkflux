@@ -16,7 +16,6 @@ wheels/
 .env
 local.yml
 docker_data
-.tmp
 
 AGENTS.md
 .aiginore

@@ -52,14 +52,14 @@ class Settings(BaseSettings):
             return value.__str__()
 
         scheme = urlsplit(value).scheme
-        if scheme in {"sqlite", "sqlite+aiosqlite"}:
+        if scheme == "sqlite+aiosqlite":
             return value
 
         if scheme.startswith("postgresql"):
             PostgresDsn(value)
             return value
 
-        raise ValueError("Unsupported database URL scheme. Use sqlite(+aiosqlite) or postgresql(+driver).")
+        raise ValueError("Unsupported database URL scheme. Use sqlite+aiosqlite or postgresql(+driver).")
 
 
 @lru_cache()

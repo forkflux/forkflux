@@ -20,6 +20,12 @@ class HandoffJob(Base):
         CheckConstraint("jsonb_typeof(context_payload) = 'object'", name="chk_payload_is_object").ddl_if(
             dialect="postgresql"
         ),
+        CheckConstraint(
+            "json_valid(constraints) AND json_type(constraints) = 'array'", name="chk_constraints_is_array"
+        ).ddl_if(dialect="sqlite"),
+        CheckConstraint(
+            "json_valid(context_payload) AND json_type(context_payload) = 'object'", name="chk_payload_is_object"
+        ).ddl_if(dialect="sqlite"),
         Index("idx_handoff_job_status_created", "status", text("created_at DESC")),
         Index(
             "idx_handoff_job_assignee_status",

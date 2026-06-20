@@ -32,7 +32,12 @@ def upgrade() -> None:
     is_postgresql = bind.dialect.name == "postgresql"
     id_type = _id_type()
 
-    job_status_enum = sa.Enum(*JOB_STATUS_VALUES, name="job_status", native_enum=False)
+    job_status_enum = sa.Enum(
+        *JOB_STATUS_VALUES,
+        name="job_status",
+        native_enum=False,
+        create_constraint=not is_postgresql,
+    )
     pg_job_status_enum = postgresql.ENUM(*JOB_STATUS_VALUES, name="job_status", create_type=False)
     job_status_type = pg_job_status_enum if is_postgresql else job_status_enum
     json_type = sa.JSON().with_variant(sa.dialects.postgresql.JSONB(astext_type=sa.Text()), "postgresql")
@@ -45,6 +50,17 @@ def upgrade() -> None:
         handoff_job_constraints = [
             sa.CheckConstraint("jsonb_typeof(constraints) = 'array'", name="chk_constraints_is_array"),
             sa.CheckConstraint("jsonb_typeof(context_payload) = 'object'", name="chk_payload_is_object"),
+        ]
+    elif bind.dialect.name == "sqlite":
+        handoff_job_constraints = [
+            sa.CheckConstraint(
+                "json_valid(constraints) AND json_type(constraints) = 'array'",
+                name="chk_constraints_is_array",
+            ),
+            sa.CheckConstraint(
+                "json_valid(context_payload) AND json_type(context_payload) = 'object'",
+                name="chk_payload_is_object",
+            ),
         ]
 
     op.create_table(
