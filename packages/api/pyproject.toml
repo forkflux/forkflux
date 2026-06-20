@@ -25,12 +25,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
-[project.urls]
-Homepage = "https://github.com/forkflux/forkflux"
-Repository = "https://github.com/forkflux/forkflux"
-Issues = "https://github.com/forkflux/forkflux/issues"
 
 dependencies = [
+    "aiosqlite==0.22.1",
     "alembic==1.18.4",
     "alembic-postgresql-enum==1.10.0",
     "asyncpg==0.31.0",
@@ -50,6 +47,11 @@ dev = [
     "polyfactory==3.3.0",
     "testcontainers[postgres]==4.14.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/forkflux/forkflux"
+Repository = "https://github.com/forkflux/forkflux"
+Issues = "https://github.com/forkflux/forkflux/issues"
 
 [project.scripts]
 forkflux = "forkflux_api.cli:app"

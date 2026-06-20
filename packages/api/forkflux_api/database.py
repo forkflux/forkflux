@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_engine_from_config, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, declared_attr
+from sqlalchemy.types import TypeDecorator
 
 from forkflux_api.config import get_settings
 
@@ -42,3 +45,26 @@ class Base(DeclarativeBase):
         return cls.__name__.lower()
 
     __abstract__ = True
+
+
+class UTCDateTime(TypeDecorator[datetime]):
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc)
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc)
