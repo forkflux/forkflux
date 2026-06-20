@@ -56,23 +56,36 @@ Use the full guide in [QUICK_START.md](QUICK_START.md).
 
 Summary:
 
-1. Create your compose file from [etc/compose.example.yml](etc/compose.example.yml) and start the stack.
-2. Inside the API container, add roles and agents with the CLI.
-3. Load reusable agent skills from [skills/](skills/).
-4. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
-5. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`.
+1. Start the API with `uvx forkflux-api forkflux init` and `uvx forkflux-api forkflux serve`, or install it with `pip install forkflux-api` and run `forkflux init` / `forkflux serve`.
+2. Save the API token printed by `forkflux init`, or create custom roles and agents with the `forkflux agents-role` and `forkflux agent` commands.
+3. Configure the ForkFlux MCP server with your `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`. The recommended MCP setup runs the server through `uvx`.
+4. Load reusable agent skills from [skills/](skills/).
+5. Use MCP prompts if your assistant supports them, or install slash commands from [commands/](commands/) as a fallback.
 
-> Note: Docker must be running before you start this flow.
+Docker remains supported through [etc/compose.example.yml](etc/compose.example.yml), but it is optional for local quickstart.
 
 ## 🧰 API CLI Commands
 
-The API package includes a Typer-based CLI defined in `packages/api/src/cli.py`.
+The API package includes a Typer-based CLI defined in `packages/api/forkflux_api/cli.py`.
 
-Run commands from `packages/api`:
+Run the CLI without installing it globally:
 
 ```bash
-uv run python src/cli.py --help
+uvx forkflux-api forkflux --help
+uvx forkflux-api forkflux init
+uvx forkflux-api forkflux serve
 ```
+
+Or install the package in your current Python environment:
+
+```bash
+pip install forkflux-api
+forkflux --help
+forkflux init
+forkflux serve
+```
+
+`forkflux init` applies migrations and creates example roles and agents. `forkflux serve` starts the API server.
 
 ### Role commands
 
@@ -80,8 +93,8 @@ uv run python src/cli.py --help
 - `agents-role add <role_key> <role_label>` — create a new target role.
 
 ```bash
-uv run python src/cli.py agents-role list
-uv run python src/cli.py agents-role add qa "QA Engineer"
+forkflux agents-role list
+forkflux agents-role add qa "QA Engineer"
 ```
 
 ### Agent commands
@@ -91,10 +104,38 @@ uv run python src/cli.py agents-role add qa "QA Engineer"
 - `agent revoke-token <agent_id>` — revoke an agent token.
 
 ```bash
-uv run python src/cli.py agent list
-uv run python src/cli.py agent add "Cursor QA Bot" qa --tool_family cursor
-uv run python src/cli.py agent revoke-token 1
+forkflux agent list
+forkflux agent add "Cursor QA Bot" qa --tool_family cursor
+forkflux agent revoke-token 1
 ```
+
+If you are using `uvx` instead of an installed CLI, prefix each command with `uvx forkflux-api`, for example `uvx forkflux-api forkflux agent list`.
+
+## 🔌 MCP Server
+
+ForkFlux agents connect to the API through the ForkFlux MCP server. The recommended setup runs the MCP server with `uvx` and passes the API connection details through environment variables:
+
+```json
+{
+  "mcpServers": {
+    "ff": {
+      "command": "uvx",
+      "args": [
+        "forkflux-mcp",
+        "python",
+        "-m",
+        "forkflux_mcp.main"
+      ],
+      "env": {
+        "FORKFLUX_API_KEY": "<API_KEY_FROM_THE_API_CLI>",
+        "FORKFLUX_API_URL": "http://127.0.0.1:8080/api/v1"
+      }
+    }
+  }
+}
+```
+
+Use Docker for the MCP server only if your MCP client or deployment environment requires it. See [QUICK_START.md](QUICK_START.md) for the full Docker example.
 
 ## ⌨️ Automation: Prompts, Commands & Skills
 
