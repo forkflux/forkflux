@@ -4,7 +4,7 @@
 
 ForkFlux API is the stateful coordination layer behind ForkFlux. It gives isolated AI agents a shared, machine-readable job pool for publishing work, atomically claiming tasks, transferring context and artifacts, and closing jobs with explicit lifecycle states.
 
-Use this package when you need the ForkFlux coordination bus service itself: a FastAPI application backed by PostgreSQL, plus a small CLI for registering target roles and agent API tokens.
+Use this package when you need the ForkFlux coordination bus service itself: a FastAPI application backed by PostgreSQL or SQLite, plus a small CLI for registering target roles and agent API tokens.
 
 ## What it provides
 
@@ -29,6 +29,5 @@ forkflux --help
 ## Runtime requirements
 
 - Python 3.14+
-- PostgreSQL reachable through `DATABASE_URL`
 
 See the main ForkFlux repository for local Docker setup, MCP integration, and end-to-end handoff examples.
