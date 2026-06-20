@@ -26,16 +26,17 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Distributed Computing",
 ]
-[project.urls]
-Homepage = "https://github.com/forkflux/forkflux"
-Repository = "https://github.com/forkflux/forkflux"
-Issues = "https://github.com/forkflux/forkflux/issues"
 
 dependencies = [
     "fastmcp==3.4.2",
     "httpx==0.28.1",
     "pydantic==2.13.4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/forkflux/forkflux"
+Repository = "https://github.com/forkflux/forkflux"
+Issues = "https://github.com/forkflux/forkflux/issues"
 
 [build-system]
 requires = ["hatchling"]
