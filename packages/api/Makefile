@@ -1,4 +1,4 @@
-.PHONY: linters test alembic-upgrade alembic-revision run
+.PHONY: linters test alembic-upgrade alembic-revision run changelog
 
 linters:
 	@pre-commit run --all-files -c .pre-commit-config.yaml
@@ -14,3 +14,6 @@ alembic-revision:
 
 run:
 	@uvicorn src.main:app --reload
+
+changelog:
+	@git cliff --unreleased -o CHANGELOG.md
