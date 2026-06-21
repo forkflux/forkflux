@@ -63,25 +63,23 @@ The API owns durable state. The MCP server is a thin assistant-facing adapter th
 
 ## 🚀 Quick Start
 
-The fastest path is to run the API with `uvx`, initialize example roles and agents, then connect your assistant through the MCP server.
+The fastest local demo path is to run the API CLI `quickstart` command. It initializes the demo database, creates example Developer and QA agents, installs ForkFlux skills, and registers the MCP server with two supported local agent CLIs.
 
-Initialize the database and sample agents:
+Use this path when you want to try ForkFlux locally. It is intended for demo/evaluation only, not production setup.
 
 ```bash
-uvx --from forkflux-api forkflux init
+uvx --from forkflux-api forkflux quickstart
 ```
 
-Then start the API server in a terminal you keep open:
+The command expects at least two supported CLIs to be available locally: Codex, Claude Code, OpenCode, or Hermes. After it finishes, start the API server in a terminal you keep open:
 
 ```bash
 uvx --from forkflux-api forkflux serve
 ```
 
-`forkflux init` applies migrations and creates example roles and agents. Save one of the API tokens printed by this command.
+Then open the connected assistants and verify connectivity with `forkflux_list_jobs`.
 
-Next, configure your assistant with the ForkFlux MCP server and verify connectivity with `forkflux_list_jobs`.
-
-For the complete setup guide, including MCP configuration, `pip`, custom roles and agents, slash commands, skills, and optional Docker usage, see [QUICK_START.md](QUICK_START.md).
+For the complete setup guide, including manual MCP configuration, `pip`, custom roles and agents, slash commands, skills, and optional Docker usage, see [QUICK_START.md](QUICK_START.md).
 
 ## 🧰 API CLI Commands
 
@@ -89,6 +87,7 @@ The API package includes a Typer-based CLI defined in `packages/api/forkflux_api
 
 | Command | Purpose |
 |---------|---------|
+| `forkflux quickstart` | Configure a local demo: apply migrations, create example agents, install skills, and register MCP servers with supported local CLIs. |
 | `forkflux init` | Apply migrations and create example roles and agents. |
 | `forkflux serve` | Start the API server. |
 | `forkflux agents-role list` | List available target roles. |
@@ -101,10 +100,16 @@ Run the CLI without installing it globally:
 
 ```bash
 uvx --from forkflux-api forkflux --help
+uvx --from forkflux-api forkflux quickstart
+```
+
+For manual setup, initialize the database and sample agents yourself:
+
+```bash
 uvx --from forkflux-api forkflux init
 ```
 
-Start the API server in a terminal you keep open:
+Then start the API server in a terminal you keep open:
 
 ```bash
 uvx --from forkflux-api forkflux serve
@@ -115,8 +120,10 @@ Or install the package in your current Python environment:
 ```bash
 pip install forkflux-api
 forkflux --help
-forkflux init
+forkflux quickstart
 ```
+
+For manual setup, run `forkflux init` instead of `forkflux quickstart`.
 
 Start the API server in a terminal you keep open:
 
@@ -125,6 +132,8 @@ forkflux serve
 ```
 
 `forkflux init` applies migrations and creates example roles and agents. `forkflux serve` starts the API server.
+
+`forkflux quickstart` is only for local demo/evaluation. Use the manual commands when you need explicit control over roles, agents, tokens, MCP client configuration, or deployment settings.
 
 Role commands:
 
