@@ -65,6 +65,14 @@ async def _init_async() -> tuple[str, str]:
     developer_token = await add_agent.__wrapped__(agent_label="agent-1", role_key="developer")
     qa_token = await add_agent.__wrapped__(agent_label="agent-2", role_key="qa")
 
+    if developer_token is None:
+        console.print("Failed to create token for agent-1 (developer)", style="bold red")
+        raise typer.Exit(code=1)
+
+    if qa_token is None:
+        console.print("Failed to create token for agent-2 (qa)", style="bold red")
+        raise typer.Exit(code=1)
+
     return developer_token, qa_token
 
 
@@ -72,7 +80,7 @@ def _check_cli_version(command_name: str) -> bool:
     try:
         subprocess.run([command_name, "--version"], capture_output=True, text=True, check=True)  # noqa: S603
         return True
-    except subprocess.CalledProcessError:
+    except FileNotFoundError, subprocess.CalledProcessError:
         return False
 
 
@@ -183,9 +191,13 @@ def quickstart() -> None:
 
     console.print("Installing skills...")
     if "codex" in installed_clis or "opencode" in installed_clis:
-        _download_github_folder("forkflux", "forkflux", "skills", ".agents/skills")
+        is_agents_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".agents/skills")
+        if not is_agents_skills_downloaded:
+            console.print("Failed to install skills for Codex/OpenCode", style="bold red")
     if "claude" in installed_clis:
-        _download_github_folder("forkflux", "forkflux", "skills", ".claude/skills")
+        is_claude_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".claude/skills")
+        if not is_claude_skills_downloaded:
+            console.print("Failed to install skills for Claude", style="bold red")
     if "hermes" in installed_clis:
         subprocess.run(  # noqa: S603
             ["hermes", "skills", "tap", "add", "forkflux/forkflux"],  # noqa: S607
