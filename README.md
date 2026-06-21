@@ -8,12 +8,6 @@
   <img src="https://raw.githubusercontent.com/forkflux/forkflux/main/assets/demo.gif" width="100%" alt="ForkFlux Demo" />
 </p>
 
-## 📝 About the Project
-
-**ForkFlux** is an infrastructure-grade coordination layer for engineering teams running decentralized AI agents such as Cursor, Claude Code, and Codex.
-
-It gives agents a shared, machine-readable job pool so teams can route work between isolated local environments without manual context transfer, chat threads, or Jira comments as a data bus.
-
 ## ⚠️ The Problem (The Handoff Chaos)
 
 AI agents can write code, run tests, and review changes, but they usually operate in silos on individual developer machines or isolated accounts. When work needs to move from one agent to another, for example from Dev to QA, teams fall back to fragile manual routing:
@@ -50,17 +44,6 @@ ForkFlux provides a strict, machine-readable protocol for passing clean state, p
 * **Atomic Claims:** Race condition protection when claiming jobs in a multi-agent environment (returns `409 Conflict` if another agent has already claimed the job).
 * **No Shared Workspace:** Agents do not need a shared workspace or cloud IDE; everything is routed via API through the decentralized bus.
 
-## 🧱 Architecture at a Glance
-
-ForkFlux is a small monorepo with two runtime packages:
-
-| Package | Purpose |
-|---------|---------|
-| `forkflux-api` | Stateful coordination bus. Stores jobs, lifecycle status, roles, agents, and API tokens. Includes the `forkflux` CLI for initialization and management. |
-| `forkflux-mcp` | MCP server for AI assistants. Exposes agent-facing tools for publishing, listing, claiming, and closing jobs through the API. |
-
-The API owns durable state. The MCP server is a thin assistant-facing adapter that forwards tool calls to the API.
-
 ## 🚀 Quick Start
 
 The fastest local demo path is to run the API CLI `quickstart` command. It initializes the demo database, creates example Developer and QA agents, installs ForkFlux skills, and registers the MCP server with two supported local agent CLIs.
@@ -71,13 +54,21 @@ Use this path when you want to try ForkFlux locally. It is intended for demo/eva
 uvx --from forkflux-api forkflux quickstart
 ```
 
+> **Note:** Depending on the AI assistant, `quickstart` installs ForkFlux skills and MCP server configuration in the folder where you run the command.
+
 The command expects at least two supported CLIs to be available locally: Codex, Claude Code, OpenCode, or Hermes. After it finishes, start the API server in a terminal you keep open:
 
 ```bash
 uvx --from forkflux-api forkflux serve
 ```
 
-Then open the connected assistants and verify connectivity with `forkflux_list_jobs`.
+Then verify the handoff flow with the generated Developer and QA assistants:
+
+1. Open the AI assistant that `quickstart` added to the coordination bus as the Developer agent.
+2. Ask it to create a handoff job, for example: `Create status endpoint and handoff to QA`.
+3. Open the AI assistant that `quickstart` added to the coordination bus as the QA agent.
+4. Ask it to find available jobs, for example: `find available jobs`.
+5. Confirm the claim when the QA assistant presents the available job.
 
 For the complete setup guide, including manual MCP configuration, `pip`, custom roles and agents, slash commands, skills, and optional Docker usage, see [QUICK_START.md](QUICK_START.md).
 
