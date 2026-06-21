@@ -16,4 +16,4 @@ run:
 	@uvicorn src.main:app --reload
 
 changelog:
-	@git cliff --unreleased -o CHANGELOG.md
+	@git cliff --unreleased --prepend CHANGELOG.md

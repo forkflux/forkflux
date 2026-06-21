@@ -7,4 +7,4 @@ test:
 	@python -m pytest -vs tests/
 
 changelog:
-	@git cliff --unreleased -o CHANGELOG.md
+	@git cliff --unreleased --prepend CHANGELOG.md

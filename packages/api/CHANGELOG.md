@@ -1,6 +1,12 @@
-# Changelog
+## [0.2.0] - 2026-06-21
 
-All notable changes to this package will be documented in this file.
+### 🐛 Bug Fixes
+
+- Handle skill download failures in quickstart
+
+### 🚀 Features
+
+- Add quickstart cli command
 
 ## [0.1.0] - 2026-06-20
 
