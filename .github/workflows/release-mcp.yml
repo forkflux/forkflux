@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: none
+  id-token: write
 
 jobs:
   release-mcp:
@@ -94,3 +94,18 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Set version in server.json
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/mcp/server.json
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish

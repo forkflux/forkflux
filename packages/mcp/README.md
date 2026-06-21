@@ -31,3 +31,5 @@ export FORKFLUX_API_KEY="your-agent-api-key"
 ## License
 
 Apache-2.0. See the project repository for full license details.
+
+<!-- mcp-name: io.github.forkflux/forkflux-mcp -->
