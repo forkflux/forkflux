@@ -1,6 +1,6 @@
 [project]
 name = "forkflux-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Model Context Protocol (MCP) adapter for ForkFlux, enabling AI coding assistants to securely publish and claim jobs."
 readme = "README.md"
 requires-python = ">=3.12"
