@@ -1,6 +1,8 @@
 ## ForkFlux Quick Start
 
-This guide gets a local ForkFlux API running and connects it to your AI agent through the ForkFlux MCP server. Docker is optional; the default path uses Python package runners.
+This guide gets a local ForkFlux API running and connects it to your AI agents through the ForkFlux MCP server. Docker is optional; the default path uses Python package runners.
+
+For the fastest local demo, use `forkflux quickstart`. It is designed for trying ForkFlux locally: it creates example Developer and QA agents, installs skills, and registers MCP servers with supported local agent CLIs. For a controlled setup, use the manual path below.
 
 ## Prerequisites
 
@@ -10,17 +12,47 @@ Required:
 - `uvx` for the default no-install flow.
 - An MCP-compatible assistant.
 
+Required for the automated local demo:
+
+- At least two supported CLIs installed locally: Codex, Claude Code, OpenCode, or Hermes.
+
 Optional:
 
 - `pip` if you prefer installing the API package into your current Python environment.
 - Docker if you prefer containerized API or MCP execution.
 - Repository checkout if you want local skills, slash commands, or Docker Compose files.
 
-## 1) Start the ForkFlux API
+## 1) Choose your setup path
 
-Choose one of the following options.
+Choose the automated demo path if you want to try ForkFlux quickly with local agent CLIs. Choose the manual path if you want to configure tokens, roles, MCP settings, or workflow helpers yourself.
 
-### Option A: Run with `uvx`
+### Option A: Automated local demo with `quickstart`
+
+Use `quickstart` when you have at least two supported CLIs installed and want a demo environment with minimal manual configuration.
+
+This command is for local demo/evaluation only. It modifies local assistant CLI configuration and installs ForkFlux workflow skills for supported tools.
+
+```bash
+uvx --from forkflux-api forkflux quickstart
+```
+
+The command:
+
+- applies database migrations
+- creates the example `developer` and `qa` roles
+- creates `agent-1` and `agent-2`
+- installs ForkFlux sender/receiver skills for supported CLIs
+- registers the ForkFlux MCP server with two detected local CLIs
+
+After `quickstart` finishes, start the API server in a terminal you keep open:
+
+```bash
+uvx --from forkflux-api forkflux serve
+```
+
+Then skip to [Quick verification](#4-quick-verification).
+
+### Option B: Manual setup with `uvx`
 
 Use `uvx` when you want to run the API without installing it globally.
 
@@ -36,7 +68,7 @@ Then start the API server in a terminal you keep open:
 uvx --from forkflux-api forkflux serve
 ```
 
-### Option B: Install with `pip`
+### Option C: Manual setup with `pip`
 
 Use `pip` when you want the `forkflux` CLI available in your current Python environment.
 
@@ -60,9 +92,11 @@ The default initialization creates:
 - `developer` role with `agent-1`
 - `qa` role with `agent-2`
 
-`forkflux serve` starts the API server. By default, the CLI serves on `http://127.0.0.1:8080`, and the API base URL for MCP clients is `http://127.0.0.1:8080/api/v1`.
+`forkflux serve` starts the API server. By default, the CLI serves on `http://127.0.0.1:8000`, and the API base URL for MCP clients is `http://127.0.0.1:8000/api/v1`.
 
 ## 2) Add custom roles and agents when needed
+
+Skip this step if you used `forkflux quickstart`; it creates the demo Developer and QA agents automatically.
 
 If the example roles from `forkflux init` are enough, skip this step. To add your own role and agent, run:
 
@@ -82,6 +116,8 @@ uvx --from forkflux-api forkflux agent add "Cursor QA Bot" qa
 
 ## 3) Add the MCP server configuration
 
+Skip this step if you used `forkflux quickstart`; it registers MCP servers automatically for two supported local CLIs.
+
 Configure your MCP client with the ForkFlux MCP server. The recommended configuration runs the server through `uvx`:
 
 ```json
@@ -98,7 +134,7 @@ Configure your MCP client with the ForkFlux MCP server. The recommended configur
       ],
       "env": {
         "FORKFLUX_API_KEY": "<API_KEY_FROM_THE_PREVIOUS_STEP>",
-        "FORKFLUX_API_URL": "http://127.0.0.1:8080/api/v1"
+        "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
       }
     }
   }
@@ -116,6 +152,8 @@ After MCP is configured, run a simple query from your assistant to confirm conne
 If the call succeeds, your assistant is connected to the ForkFlux coordination bus.
 
 ## 5) Optional workflow helpers
+
+Skip this step if you used `forkflux quickstart`; it installs the ForkFlux skills automatically for supported local CLIs.
 
 After the API and MCP server are connected, you can add workflow helpers for your assistant.
 

@@ -33,6 +33,7 @@ dependencies = [
     "asyncpg==0.31.0",
     "fastapi==0.137.2",
     "gunicorn==26.0.0",
+    "httpx==0.28.1",
     "pydantic==2.13.4",
     "pydantic-settings==2.14.1",
     "sqlalchemy==2.0.51",
@@ -43,7 +44,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx==0.28.1",
     "polyfactory==3.3.0",
     "testcontainers[postgres]==4.14.2",
 ]
