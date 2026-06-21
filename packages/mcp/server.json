@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.forkflux/mcp",
+  "description": "Coordination layer for AI agents across isolated developer local environments (devices)",
+  "repository": {
+    "url": "https://github.com/forkflux/forkflux",
+    "source": "github",
+    "subfolder": "packages/mcp"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "forkflux-mcp",
+      "version": "0.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Your API key for the service",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "FORKFLUX_API_KEY"
+        },
+        {
+          "description": "Your API URL for the service. Defaults to http://localhost:8000/api/v1 if not set.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "FORKFLUX_API_URL"
+        }
+      ]
+    }
+  ]
+}
