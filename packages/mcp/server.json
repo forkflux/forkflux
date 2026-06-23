@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.forkflux/mcp",
+  "name": "io.github.forkflux/forkflux-mcp",
   "description": "Coordination layer for AI agents across isolated developer local environments (devices)",
   "repository": {
     "url": "https://github.com/forkflux/forkflux",
