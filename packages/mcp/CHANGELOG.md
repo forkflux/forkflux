@@ -1,3 +1,9 @@
+## [0.1.2] - 2026-06-23
+
+### 🐛 Bug Fixes
+
+- Mcp standalone package
+
 ## [0.1.1] - 2026-06-21
 
 ### 🏗️ Build System
