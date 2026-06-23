@@ -1,3 +1,9 @@
+## [0.2.1] - 2026-06-23
+
+### 🐛 Bug Fixes
+
+- Env name in quickstart command
+
 ## [0.2.0] - 2026-06-21
 
 ### 🐛 Bug Fixes
