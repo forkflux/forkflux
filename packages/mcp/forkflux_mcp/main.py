@@ -387,5 +387,9 @@ def push_prompt() -> str:
     """  # noqa: E501
 
 
-if __name__ == "__main__":
+def main() -> None:
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

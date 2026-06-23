@@ -38,6 +38,9 @@ Homepage = "https://github.com/forkflux/forkflux"
 Repository = "https://github.com/forkflux/forkflux"
 Issues = "https://github.com/forkflux/forkflux/issues"
 
+[project.scripts]
+forkflux-mcp = "forkflux_mcp.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
