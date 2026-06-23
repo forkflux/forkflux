@@ -108,4 +108,4 @@ jobs:
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/mcp/server.json
 
       - name: Publish server to MCP Registry
-        run: cd packages/mcp && ./mcp-publisher publish
+        run: ./mcp-publisher publish packages/mcp/server.json
