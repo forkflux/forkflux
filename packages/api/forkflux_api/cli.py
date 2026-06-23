@@ -126,7 +126,7 @@ def _add_mcp_server(cli_name: str, token: str, role_name: str) -> None:
 
     console.print(f"Adding MCP server to the {cli_display_name} CLI with {role_name} token...")
     subprocess.run(  # noqa: S603
-        [cli_name, "mcp", "add", "ff", "--env", f"FORKFLUX_TOKEN={token}", "--", "uvx", "forkflux-mcp"],  # noqa: S607
+        [cli_name, "mcp", "add", "ff", "--env", f"FORKFLUX_API_KEY={token}", "--", "uvx", "forkflux-mcp"],  # noqa: S607
         check=True,
     )
     console.print(f"{cli_display_name} CLI is connected to the ForkFlux bus as a {role_name}", style="green")
