@@ -1,6 +1,7 @@
 ---
 title: Skills
 description: Install and use ForkFlux reusable skills for deterministic sender and receiver agent workflows.
+sidebar_position: 3
 ---
 
 # Skills
@@ -15,8 +16,8 @@ Skills sit above the ForkFlux MCP tools. The MCP server provides the actual oper
 
 | Skill | Best for | Primary MCP tools |
 |---|---|---|
-| [`forkflux-sender`](https://github.com/forkflux/forkflux/skills/forkflux-sender/SKILL.md) | Source agents that package context and publish handoff jobs. | `forkflux_create_job`, `forkflux_change_job_status` |
-| [`forkflux-receiver`](https://github.com/forkflux/forkflux/skills/forkflux-receiver/SKILL.md) | Target agents that discover, claim, execute, and close jobs. | `forkflux_list_jobs`, `forkflux_claim_job`, `forkflux_change_job_status` |
+| [`forkflux-sender`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md) | Source agents that package context and publish handoff jobs. | `forkflux_create_job`, `forkflux_change_job_status` |
+| [`forkflux-receiver`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md) | Target agents that discover, claim, execute, and close jobs. | `forkflux_list_jobs`, `forkflux_claim_job`, `forkflux_change_job_status` |
 
 ## Prerequisites
 
@@ -51,14 +52,14 @@ npx skills add forkflux/forkflux
 
 You can also install or copy the skill files from the repository:
 
-- [`skills/forkflux-sender/SKILL.md`](https://github.com/forkflux/forkflux/skills/forkflux-sender/SKILL.md)
-- [`skills/forkflux-receiver/SKILL.md`](https://github.com/forkflux/forkflux/skills/forkflux-receiver/SKILL.md)
+- [`skills/forkflux-sender/SKILL.md`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md)
+- [`skills/forkflux-receiver/SKILL.md`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md)
 
 After installation, reload or restart your assistant session so the new skills are available in context.
 
 ## Sender skill
 
-Use [`forkflux-sender`](https://github.com/forkflux/forkflux/skills/forkflux-sender/SKILL.md) when a source agent needs to hand work to another role.
+Use [`forkflux-sender`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md) when a source agent needs to hand work to another role.
 
 The sender skill helps the agent:
 
@@ -92,7 +93,7 @@ The skill intentionally avoids dumping the raw `context_payload` into chat.
 
 ## Receiver skill
 
-Use [`forkflux-receiver`](https://github.com/forkflux/forkflux/skills/forkflux-receiver/SKILL.md) when a target agent needs to pick up work from the coordination bus.
+Use [`forkflux-receiver`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md) when a target agent needs to pick up work from the coordination bus.
 
 The receiver skill helps the agent:
 
@@ -127,8 +128,8 @@ ForkFlux supports three workflow-helper layers. Choose the one that matches your
 | Helper | Use when | Setup |
 |---|---|---|
 | MCP prompts | Your assistant exposes MCP prompt surfaces. | No extra setup beyond the ForkFlux MCP server. |
-| Slash commands | Your assistant supports custom command files but not MCP prompts. | Copy files from [`commands/`](https://github.com/forkflux/forkflux/commands/). |
-| Skills | Your assistant supports reusable skills or playbooks. | Install [`forkflux-sender`](https://github.com/forkflux/forkflux/skills/forkflux-sender/SKILL.md) and [`forkflux-receiver`](https://github.com/forkflux/forkflux/skills/forkflux-receiver/SKILL.md). |
+| Slash commands | Your assistant supports custom command files but not MCP prompts. | Copy files from [`commands/`](https://github.com/forkflux/forkflux//blob/maincommands/). |
+| Skills | Your assistant supports reusable skills or playbooks. | Install [`forkflux-sender`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md) and [`forkflux-receiver`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md). |
 
 You can combine these helpers, but avoid invoking multiple helper layers for the same action in one turn. For example, do not run a slash command and a skill that both try to claim the same job.
 
