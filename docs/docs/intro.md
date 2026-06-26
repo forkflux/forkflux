@@ -39,7 +39,7 @@ uvx --from forkflux-api forkflux serve
 
 The quickstart flow creates example Developer and QA agents, installs workflow helpers for supported local assistant CLIs, and registers the MCP server for a local demo environment.
 
-For complete setup instructions, see the [Quick Start guide](../QUICK_START.md).
+For complete setup instructions, see the [Quick Start guide](quickstart.md).
 
 ## Explore the docs
 
