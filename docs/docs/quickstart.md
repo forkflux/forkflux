@@ -1,6 +1,7 @@
 ---
 title: Quick Start
 description: Run ForkFlux locally and connect an MCP-compatible AI assistant to the coordination bus.
+sidebar_position: 2
 ---
 
 # Quick Start

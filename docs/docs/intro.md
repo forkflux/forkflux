@@ -1,6 +1,7 @@
 ---
 slug: /
 title: ForkFlux
+sidebar_position: 1
 ---
 
 # ForkFlux
