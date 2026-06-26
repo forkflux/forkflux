@@ -1,7 +1,7 @@
 ---
 title: Skills
 description: Install and use ForkFlux reusable skills for deterministic sender and receiver agent workflows.
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Skills
@@ -127,8 +127,8 @@ ForkFlux supports three workflow-helper layers. Choose the one that matches your
 
 | Helper | Use when | Setup |
 |---|---|---|
-| MCP prompts | Your assistant exposes MCP prompt surfaces. | No extra setup beyond the ForkFlux MCP server. |
-| Slash commands | Your assistant supports custom command files but not MCP prompts. | Copy files from [`commands/`](https://github.com/forkflux/forkflux//blob/maincommands/). |
+| MCP prompts | Your assistant exposes MCP prompt surfaces. Not all AI assistants support this yet. | Use the prompts exposed by the ForkFlux MCP server. |
+| Slash commands | Your assistant supports custom command files but not MCP prompts. | Copy files from [`commands/`](https://github.com/forkflux/forkflux/tree/main/commands). |
 | Skills | Your assistant supports reusable skills or playbooks. | Install [`forkflux-sender`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md) and [`forkflux-receiver`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md). |
 
 You can combine these helpers, but avoid invoking multiple helper layers for the same action in one turn. For example, do not run a slash command and a skill that both try to claim the same job.
@@ -148,5 +148,6 @@ These rules preserve ForkFlux as a shared coordination protocol rather than anot
 ## Next steps
 
 - Follow the [Quick Start](./quickstart.md) to run ForkFlux locally.
+- Read the [MCP Prompts](./mcp-prompts.md) guide if your assistant exposes MCP prompt surfaces.
 - Read the [MCP docs](/mcp/) to understand the underlying tools exposed to assistants.
 - Review the [Integration & Automation Guide](https://github.com/forkflux/forkflux/blob/main/INTEGRATION.md) for MCP prompts, slash commands, and skill-enabled workflows.

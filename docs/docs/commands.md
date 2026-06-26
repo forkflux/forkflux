@@ -1,7 +1,7 @@
 ---
 title: Commands
 description: Install and use ForkFlux slash command helpers for deterministic publish, board, claim, and close workflows.
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # Commands
@@ -201,7 +201,7 @@ ForkFlux supports three workflow-helper layers. Choose the one that matches your
 
 | Helper | Use when | Setup |
 |---|---|---|
-| MCP prompts | Your assistant exposes MCP prompt surfaces. | No extra setup beyond the ForkFlux MCP server. |
+| MCP prompts | Your assistant exposes MCP prompt surfaces. Not all AI assistants support this yet. | Use the prompts exposed by the ForkFlux MCP server. |
 | Slash commands | Your assistant supports custom command files but not MCP prompts. | Copy files from [`commands/`](https://github.com/forkflux/forkflux/tree/main/commands). |
 | Skills | Your assistant supports reusable skills or playbooks. | Install [`forkflux-sender`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-sender/SKILL.md) and [`forkflux-receiver`](https://github.com/forkflux/forkflux/blob/main/skills/forkflux-receiver/SKILL.md). |
 
@@ -210,6 +210,7 @@ You can combine these helpers in one environment, but avoid invoking multiple he
 ## Next steps
 
 - Follow the [Quick Start](./quickstart.md) to run ForkFlux locally.
+- Read the [MCP Prompts](./mcp-prompts.md) guide if your assistant exposes MCP prompt surfaces.
 - Read the [Skills](./skills.md) guide if your assistant supports reusable playbooks.
 - Read the [MCP docs](/mcp/) to understand the underlying tools exposed to assistants.
 - Review the [Integration & Automation Guide](https://github.com/forkflux/forkflux/blob/main/INTEGRATION.md) for MCP prompts, slash commands, and skill-enabled workflows.
