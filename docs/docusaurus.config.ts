@@ -121,7 +121,7 @@ const config: Config = {
       appId: 'B59BOY5381',
       apiKey: '0f89879687452cc869902f79cd4fbb51',
       indexName: 'docs',
-      contextualSearch: true,
+      contextualSearch: false,
     },
   } satisfies Preset.ThemeConfig,
 };
