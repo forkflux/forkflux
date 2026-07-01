@@ -109,11 +109,7 @@ After the API is reachable, configure each assistant's MCP server with the hoste
     "ff": {
       "command": "uvx",
       "args": [
-        "--from",
-        "forkflux-mcp",
-        "python",
-        "-m",
-        "forkflux_mcp.main"
+        "forkflux-mcp"
       ],
       "env": {
         "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
