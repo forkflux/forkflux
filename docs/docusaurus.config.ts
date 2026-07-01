@@ -35,25 +35,6 @@ const config: Config = {
     locales: ['en'],
   },
 
-  plugins: [
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'api',
-        path: 'api_docs',
-        routeBasePath: 'api',
-      },
-    ],
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'mcp',
-        path: 'mcp_docs',
-        routeBasePath: 'mcp',
-      },
-    ],
-  ],
-
   presets: [
     [
       'classic',
@@ -84,8 +65,6 @@ const config: Config = {
         src: 'img/logo.png',
       },
       items: [
-        {to: '/mcp', label: 'MCP', position: 'left'},
-        {to: '/api', label: 'API', position: 'left'},
         {
           href: 'https://github.com/forkflux/forkflux',
           label: 'GitHub',
@@ -100,12 +79,8 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'API Docs',
-              to: '/api/',
-            },
-            {
-              label: 'MCP Docs',
-              to: '/mcp/',
+              label: 'Docs',
+              to: '/',
             },
           ],
         },
