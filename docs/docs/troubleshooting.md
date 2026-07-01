@@ -120,11 +120,7 @@ Use the recommended MCP server configuration:
     "ff": {
       "command": "uvx",
       "args": [
-        "--from",
-        "forkflux-mcp",
-        "python",
-        "-m",
-        "forkflux_mcp.main"
+        "forkflux-mcp"
       ],
       "env": {
         "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
