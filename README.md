@@ -27,9 +27,12 @@ ForkFlux replaces manual routing with a strict, machine-readable handoff protoco
 # What it is NOT
 
 ❌ NOT another AI assistant, extension, or LLM wrapper.
+
 ❌ NOT a local agent framework running on a single machine.
+
 ❌ NOT a shared memory for local AI assistants.
-🔗 IT IS an infrastructure-grade data stream to pass clean context from a developer's local AI agent to a QA engineer's AI agent on another device.
+
+🔗 IT IS an infrastructure-grade data stream to pass clean context from a developer's local AI agent to another engineer's AI agent on another device.
 
 ## How it works
 
