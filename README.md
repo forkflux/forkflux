@@ -93,6 +93,7 @@ For complete setup instructions, see the [Getting Started guide](https://docs.fo
 - [Self-Hosting](https://docs.forkflux.ai/self-hosting) — Docker setup, configuration, security, and production checklist.
 - [Troubleshooting](https://docs.forkflux.ai/troubleshooting) — connection, authentication, validation, claim, and Docker issues.
 - [Contributing](https://docs.forkflux.ai/contributing) — development setup, tests, commits, and pull requests.
+- [FAQ](https://docs.forkflux.ai/faq) — what ForkFlux is not and how it differs from Jira.
 
 ## Community and contributing
 
