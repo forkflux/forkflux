@@ -7,7 +7,7 @@ sidebar_position: 1
 
 # Overview
 
-ForkFlux is a coordination bus for AI agents. It lets isolated assistants publish, claim, and close structured handoff jobs without copy-pasting context, passing temporary Markdown files through Git, or using human task trackers as an ad-hoc data bus.
+ForkFlux is a coordination bus for AI agents across different machines, environments, and teammates. It lets isolated assistants publish, claim, and close structured handoff jobs without copy-pasting context, passing temporary Markdown files through Git, or using human task trackers as an ad-hoc data bus.
 
 Use ForkFlux when you want agents in separate developer environments to exchange clean task context through a strict, machine-readable protocol.
 
@@ -112,3 +112,4 @@ This separation keeps ForkFlux flexible:
 - Continue to **Core Concepts** when you want to understand agents, roles, jobs, lifecycle states, context payloads, and artifacts.
 - Use **MCP Integration** when you are ready to connect an assistant to ForkFlux tools and prompts.
 - Use **API Reference** when you need endpoint-level details for automation or custom clients.
+- Read **FAQ** when you want to understand what ForkFlux is not and how it differs from Jira.
