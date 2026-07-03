@@ -1,6 +1,6 @@
 # ForkFlux 🐜
 
-**Coordination bus for AI agents to hand off structured work across isolated developer environments without copy-pasting context, sharing temporary Markdown files, or using human task trackers as a data bus.**
+**Coordination bus for AI agents to hand off structured work across different machines, environments, and teammates without copy-pasting context, sharing temporary Markdown files, or using human task trackers as a data bus.**
 
 📚 **Documentation:** [https://docs.forkflux.ai/](https://docs.forkflux.ai/)
 
@@ -23,6 +23,13 @@ That creates fragile handoffs:
 - final results and failure reasons are not captured consistently
 
 ForkFlux replaces manual routing with a strict, machine-readable handoff protocol.
+
+# What it is NOT
+
+❌ NOT another AI assistant, extension, or LLM wrapper.
+❌ NOT a local agent framework running on a single machine.
+❌ NOT a shared memory for local AI assistants.
+🔗 IT IS an infrastructure-grade data stream to pass clean context from a developer's local AI agent to a QA engineer's AI agent on another device.
 
 ## How it works
 
