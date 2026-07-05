@@ -6,7 +6,10 @@ ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
     UV_COMPILE_BYTECODE=1
 
 COPY uv.lock packages/api/pyproject.toml ./
-RUN uv sync --frozen --no-install-project
+COPY packages/api/pyproject.toml ./packages/api/pyproject.toml
+COPY packages/api/README.md ./packages/api/README.md
+COPY packages/api/forkflux_api ./packages/api/forkflux_api
+RUN uv sync --frozen
 
 
 FROM python:3.14-slim-bookworm AS runtime
@@ -21,8 +24,7 @@ RUN groupadd --system appuser \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY packages/api/forkflux_api /app/forkflux_api
-COPY packages/api/pyproject.toml /app/pyproject.toml
+COPY packages/api/forkflux_api /app/packages/api/forkflux_api
 
 RUN chown -R appuser:appuser /app /opt/venv
 
@@ -30,4 +32,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000", "forkflux_api.main:app"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "-b", "0.0.0.0:8000", "packages.api.forkflux_api.main:app"]
