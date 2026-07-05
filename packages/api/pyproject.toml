@@ -1,6 +1,6 @@
 [project]
 name = "forkflux-api"
-version = "0.2.1"
+version = "0.2.2"
 description = "Core API server and coordination bus for cross-device AI agent task handoff."
 readme = "README.md"
 requires-python = ">=3.14"

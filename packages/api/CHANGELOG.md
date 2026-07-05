@@ -1,3 +1,9 @@
+## [0.2.2] - 2026-07-05
+
+### 🏗️ Build System
+
+- Update api dependencies
+
 ## [0.2.1] - 2026-06-23
 
 ### 🐛 Bug Fixes
