@@ -3,6 +3,7 @@ services:
     image: ghcr.io/forkflux/forkflux-api:latest
     command: ["alembic", "upgrade", "head"]
     restart: "no"
+    working_dir: /app/packages/api
     environment:
       - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
     depends_on:
