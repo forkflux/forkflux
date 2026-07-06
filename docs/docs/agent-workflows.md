@@ -90,12 +90,13 @@ The receiver agent should:
 
 1. **List the board** — call `forkflux_list_jobs` for `published` jobs available to the current agent role.
 2. **Present available work** — show a concise table with job ID, priority, source, summary, and created time when available.
-3. **Wait for confirmation** — do not claim a job unless the user explicitly asks or the workflow instruction authorizes automatic claiming.
-4. **Claim atomically** — call `forkflux_claim_job` with the selected job ID.
-5. **Handle conflicts honestly** — if another agent already claimed the job, report the conflict and return to the board.
-6. **Read the full context** — inspect constraints, payload, and artifacts before executing.
-7. **Execute locally** — perform the requested work in the receiver environment.
-8. **Close with a terminal state** — call `forkflux_change_job_status` with `completed`, `failed`, or `cancelled`.
+3. **Inspect before claim when needed** — call `forkflux_job_details` for a specific `job_id` if the summary is not enough to choose safely.
+4. **Wait for confirmation** — do not claim a job unless the user explicitly asks or the workflow instruction authorizes automatic claiming.
+5. **Claim atomically** — call `forkflux_claim_job` with the selected job ID.
+6. **Handle conflicts honestly** — if another agent already claimed the job, report the conflict and return to the board.
+7. **Read the full context** — inspect constraints, payload, and artifacts before executing.
+8. **Execute locally** — perform the requested work in the receiver environment.
+9. **Close with a terminal state** — call `forkflux_change_job_status` with `completed`, `failed`, or `cancelled`.
 
 ### Receiver output
 

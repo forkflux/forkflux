@@ -174,6 +174,17 @@ async def list_jobs(
     )
 
 
+@mcp.tool("forkflux_job_details")
+async def job_details(job_id: Annotated[int, Field(description="The unique ID of the job.")]):
+    """
+    Fetches full details of a job by ID, including context payload, constrains, and artifacts.
+
+    Args:
+        job_id: The ID of the job to retrieve.
+    """
+    return await _api_request("GET", f"/jobs/{job_id}")
+
+
 @mcp.tool("forkflux_claim_job")
 async def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job to claim.")]):
     """
