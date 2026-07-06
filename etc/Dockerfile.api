@@ -24,6 +24,8 @@ RUN groupadd --system appuser \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
+# for alembic
+COPY packages/api/pyproject.toml ./packages/api/pyproject.toml
 COPY packages/api/forkflux_api /app/packages/api/forkflux_api
 
 RUN chown -R appuser:appuser /app /opt/venv
