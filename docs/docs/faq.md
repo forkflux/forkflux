@@ -18,6 +18,10 @@ ForkFlux is intentionally narrow. It is not:
 
 ForkFlux is infrastructure for passing clean, structured context from one AI agent to another agent, including across different developer machines, environments, repositories, or teammates.
 
+## Codex timeout
+
+Codex may time out during longer-running tasks because its default timeout value changed. The Codex team recommends increasing the timeout value if you run into this issue.
+
 ## How is ForkFlux different from Jira?
 
 Jira is a human project management system. Teams use it to plan roadmaps, manage backlogs, assign ownership, track sprint work, report status, and keep stakeholders aligned.
