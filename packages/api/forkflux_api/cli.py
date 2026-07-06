@@ -54,7 +54,7 @@ def _configure_cli_logging() -> None:
     _CLI_LOGGING_CONFIGURED = True
 
 
-async def _init_async() -> tuple[str, str]:
+async def _apply_fixtures() -> tuple[str, str]:
     _configure_cli_logging()
 
     console.print("Lets add 2 roles - developer and QA")
@@ -66,11 +66,11 @@ async def _init_async() -> tuple[str, str]:
     qa_token = await add_agent.__wrapped__(agent_label="agent-2", role_key="qa")
 
     if developer_token is None:
-        console.print("Failed to create token for agent-1 (developer)", style="bold red")
+        console.print("Failed to create API key for agent-1 (developer)", style="bold red")
         raise typer.Exit(code=1)
 
     if qa_token is None:
-        console.print("Failed to create token for agent-2 (qa)", style="bold red")
+        console.print("Failed to create API key for agent-2 (qa)", style="bold red")
         raise typer.Exit(code=1)
 
     return developer_token, qa_token
@@ -155,11 +155,9 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:  # noqa: S104
     )
 
 
-@app.command(help="Initialize the database and add some example data")
+@app.command(help="Initialize the database")
 def init() -> None:
     _apply_migrations()
-
-    asyncio.run(_init_async())
 
 
 @app.command(help="Initialize the database, add some example data, add skills and MCP server")
@@ -187,7 +185,7 @@ def quickstart() -> None:
         return
 
     _apply_migrations()
-    developer_token, qa_token = asyncio.run(_init_async())
+    developer_token, qa_token = asyncio.run(_apply_fixtures())
 
     console.print("Installing skills...")
     if "codex" in installed_clis or "opencode" in installed_clis:
@@ -300,7 +298,7 @@ async def add_agent(agent_label: str, role_key: str, tool_family: str | None = N
             )
             console.print(f"Agent {new_agent.agent_label} created successfully")
         except AgentIdentityConflictError:
-            console.print("Can't create new agent", style="bold red")
+            console.print("Can't create a new agent", style="bold red")
             return None
 
         try:
@@ -309,10 +307,10 @@ async def add_agent(agent_label: str, role_key: str, tool_family: str | None = N
             new_token = await AgentApiTokenService(agent_api_token_repo=token_repo, trace_id=trace_id).create_token(
                 dto=token_dto
             )
-            console.print(f"Token {new_token} for agent {new_agent.agent_label} created successfully")
+            console.print(f"API key {new_token} for agent {new_agent.agent_label} created successfully")
             return new_token
         except AgentApiTokenConflictError:
-            console.print("Can't create new token", style="bold red")
+            console.print("Can't create a new API key", style="bold red")
             return None
 
 
@@ -328,7 +326,7 @@ async def agent_revoke_token(agent_id: int) -> None:
     async with session_manager() as session:
         token_repo = AgentApiTokenRepository(session=session, trace_id=trace_id)
         await AgentApiTokenService(agent_api_token_repo=token_repo, trace_id=trace_id).revoke_token(agent_id=agent_id)
-        console.print(f"Token for agent {agent_id} revoked successfully")
+        console.print(f"API key for agent {agent_id} revoked successfully")
 
 
 if __name__ == "__main__":
