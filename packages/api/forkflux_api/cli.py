@@ -262,6 +262,11 @@ async def delete_role(role_key: str) -> None:
     _configure_cli_logging()
     trace_id = str(uuid4())
 
+    delete = typer.confirm("Are you sure you want to delete it?")
+    if not delete:
+        console.print("Aborting...", style="bold red")
+        raise typer.Abort()
+
     async with session_manager() as session:
         try:
             repo = TargetRoleRepository(session=session, trace_id=trace_id)
