@@ -8,10 +8,11 @@ from forkflux_api.agents.exceptions import (
     AgentIdentityConflictError,
     AgentIdentityNotFoundError,
     TargetRoleConflictError,
+    TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
-from sqlalchemy import exists, select, update
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,6 +61,24 @@ class TargetRoleRepository:
             raise TargetRoleConflictError from err
 
         return target_role
+
+    async def delete(self, role_key: str) -> None:
+        log = self._logger.bind(method="delete", role_key=role_key)
+        try:
+            result = await self._session.execute(delete(TargetRole).where(TargetRole.role_key == role_key))
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise TargetRoleInUseError from err
+
+        deleted_count = result.rowcount or 0  # type: ignore[attr-defined]
+
+        if deleted_count == 0:
+            log.info("target_role_delete_miss")
+            raise TargetRoleNotFoundError
+
+        await self._session.flush()
+
+        log.info("target_role_deleted")
 
 
 class AgentApiTokenRepository:

@@ -82,3 +82,14 @@ async def test_target_role_service_is_role_exists_returns_false() -> None:
 
     repository.exists.assert_awaited_once_with("nonexistent")
     assert result is False
+
+
+async def test_target_role_service_delete_role_delegates_and_returns_none() -> None:
+    repository = Mock()
+    repository.delete = AsyncMock(return_value=None)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    result = await service.delete_role("frontend_engineer")
+
+    repository.delete.assert_awaited_once_with("frontend_engineer")
+    assert result is None

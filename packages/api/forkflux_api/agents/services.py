@@ -48,6 +48,15 @@ class TargetRoleService:
         log.info("operation_completed")
         return role
 
+    async def delete_role(self, role_key: str) -> None:
+        log = self._logger.bind(method="delete_role", role_key=role_key)
+        log.info("operation_started")
+
+        await self._target_role_repo.delete(role_key)
+
+        log.info("operation_completed")
+        return None
+
 
 class AgentApiTokenService:
     def __init__(self, agent_api_token_repo: AgentApiTokenRepository, trace_id: str) -> None:

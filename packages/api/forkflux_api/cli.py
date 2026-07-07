@@ -23,6 +23,7 @@ from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentIdentityConflictError,
     TargetRoleConflictError,
+    TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
 from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
@@ -251,6 +252,31 @@ async def add_role(role_key: str, role_label: str) -> None:
             console.print(f"Role {new_role.role_key} created successfully")
         except TargetRoleConflictError:
             console.print(f"Role with key {role_key} already exists", style="bold red")
+
+
+@agents_role_app.command("delete")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def delete_role(role_key: str) -> None:
+    """
+    Deletes a role by key.
+    """
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    delete = typer.confirm(f"Are you sure you want to delete role '{role_key}'?")
+    if not delete:
+        console.print("Aborting...", style="bold red")
+        raise typer.Abort()
+
+    async with session_manager() as session:
+        try:
+            repo = TargetRoleRepository(session=session, trace_id=trace_id)
+            await TargetRoleService(target_role_repo=repo, trace_id=trace_id).delete_role(role_key=role_key)
+            console.print(f"Role {role_key} deleted successfully")
+        except TargetRoleInUseError:
+            console.print(f"Role with key {role_key} is in use and cannot be deleted", style="bold red")
+        except TargetRoleNotFoundError:
+            console.print(f"Role with key {role_key} not found", style="bold red")
 
 
 @agent_app.command("list")
