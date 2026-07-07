@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 The ForkFlux CLI manages the API server, database migrations, roles, agents, API tokens, and jobs.
 
-Use this page as a command reference when you need to operate ForkFlux manually. If you want the shortest path to a working demo, start with the [Getting Started guide](./getting-started.md).
+Use this page as a command reference when you need to operate ForkFlux manually. If you want the shortest path to a working demo, start with the [Quickstart guide](quickstart.md).
 
 ## Running the CLI
 
