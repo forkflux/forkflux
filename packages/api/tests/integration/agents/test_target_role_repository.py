@@ -108,3 +108,24 @@ async def test_target_role_repository_create_raises_conflict_for_duplicate_role_
 
     with pytest.raises(TargetRoleConflictError):
         await repository.create(dto)
+
+
+async def test_target_role_repository_delete_removes_role_by_role_key(db_session: AsyncSession) -> None:
+    created_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="operator",
+        role_label="Operator",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    await repository.delete(role_key="operator")
+
+    deleted_role = await db_session.get(TargetRole, created_role.id)
+    assert deleted_role is None
+
+
+async def test_target_role_repository_delete_raises_not_found_for_missing_role_key(db_session: AsyncSession) -> None:
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    with pytest.raises(TargetRoleNotFoundError):
+        await repository.delete(role_key="does-not-exist")
