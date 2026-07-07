@@ -1,3 +1,15 @@
+## [0.3.0] - 2026-07-07
+
+### ⚙️ Miscellaneous Tasks
+
+- Add role delete confirmation
+- Handle foreign-key conflicts on role delete
+
+### 🚀 Features
+
+- Add cli command delete role
+- Add cli jobs commands
+
 ## [0.2.2] - 2026-07-05
 
 ### 🏗️ Build System
