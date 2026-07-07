@@ -13,6 +13,7 @@ from forkflux_api.jobs.dto import (
 )
 from forkflux_api.jobs.exceptions import (
     HandoffJobConflictError,
+    HandoffJobHasChildrenError,
     HandoffJobNotFoundError,
     JobArtifactConflictError,
     JobEventConflictError,
@@ -148,6 +149,27 @@ class HandoffJobRepository:
         result = await self._session.execute(stmt)
 
         return [self._map_row_to_list_item(row) for row in result.all()]
+
+    async def delete(self, job_id: int) -> None:
+        log = self._logger.bind(method="delete", job_id=job_id)
+
+        handoff_job = await self._session.get(HandoffJob, job_id)
+        if handoff_job is None:
+            raise HandoffJobNotFoundError
+
+        child_exists = await self._session.scalar(
+            select(HandoffJob.id).where(HandoffJob.parent_job_id == job_id).limit(1)
+        )
+        if child_exists is not None:
+            log.warning("delete_blocked_has_child_jobs")
+            raise HandoffJobHasChildrenError
+
+        await self._session.delete(handoff_job)
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise HandoffJobConflictError from err
 
 
 class JobArtifactRepository:

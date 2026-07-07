@@ -110,6 +110,14 @@ class HandoffJobService:
         log.info("operation_completed", jobs_count=len(jobs))
         return jobs
 
+    async def delete_job(self, job_id: int) -> None:
+        log = self._logger.bind(method="delete_job", job_id=job_id)
+        log.info("operation_started")
+
+        await self._handoff_job_repo.delete(job_id=job_id)
+
+        log.info("operation_completed")
+
     async def claim_job(self, job_id: int, agent: AgentIdentity) -> None:
         log = self._logger.bind(method="claim_job", job_id=job_id, agent_id=agent.id, agent_role_id=agent.role_id)
         log.info("operation_started")

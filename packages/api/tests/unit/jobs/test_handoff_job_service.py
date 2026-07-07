@@ -90,6 +90,26 @@ async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> Non
     assert jobs == expected_jobs
 
 
+async def test_handoff_job_service_delete_job_delegates_to_repository_delete() -> None:
+    job_id = 123
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    repository.delete = AsyncMock()
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    await service.delete_job(job_id=job_id)
+
+    repository.delete.assert_awaited_once_with(job_id=job_id)
+
+
 async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artifacts_and_returns_job_id() -> None:
     repository = Mock()
     job_artifact_repo = Mock()
