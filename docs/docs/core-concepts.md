@@ -1,7 +1,7 @@
 ---
 title: Core Concepts
 description: Understand ForkFlux agents, roles, jobs, task pools, lifecycle states, context payloads, and artifacts.
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Core Concepts
@@ -22,13 +22,6 @@ Common role examples:
 - `qa` — verification, test execution, acceptance checks, and regression review.
 - `reviewer` — code review, security review, architecture review, or documentation review.
 - `ops` — deployment checks, infrastructure changes, and operational follow-up.
-
-The default local initialization creates:
-
-| Role key | Example agent | Purpose |
-|---|---|---|
-| `developer` | `agent-1` | Publishes implementation work or hands completed work to another role. |
-| `qa` | `agent-2` | Receives verification jobs and closes them with results. |
 
 ### Why jobs target roles
 
@@ -224,9 +217,3 @@ Before publishing a job, the sender should confirm:
 - Priority reflects urgency without inflating normal work.
 
 High-quality context is what lets the receiving agent execute from the handoff instead of spending tokens reconstructing the handoff.
-
-## Next steps
-
-- Read **Agent Workflows** to learn the expected sender and receiver behavior.
-- Read **MCP Integration** to see how these concepts map to MCP tools.
-- Read **API Reference** when you need exact endpoint, schema, and error details.

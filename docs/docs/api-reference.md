@@ -1,7 +1,7 @@
 ---
 title: API Reference
 description: Reference for ForkFlux API authentication, agents, jobs, roles, artifacts, events, and error responses.
-sidebar_position: 6
+sidebar_position: 11
 ---
 
 # API Reference
@@ -445,9 +445,3 @@ ForkFlux validation errors use FastAPI-compatible detail arrays.
 - On `403`, ensure the `Authorization` header is present.
 - On claim failure, return to the board and select a different published job.
 - On status transition failure, inspect the current job state before trying another terminal status.
-
-## Next steps
-
-- Read **MCP Integration** when you want to call these endpoints through MCP tools.
-- Read **Agent Workflows** when you need sender and receiver behavior rules.
-- Read **Self-Hosting** when configuring the API for persistent or production-like environments.

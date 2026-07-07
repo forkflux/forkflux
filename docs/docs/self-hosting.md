@@ -1,7 +1,7 @@
 ---
 title: Self-Hosting
 description: Run ForkFlux with Docker, configure storage and MCP clients, harden security, and prepare for production-like deployments.
-sidebar_position: 8
+sidebar_position: 12
 ---
 
 # Self-Hosting
@@ -24,36 +24,6 @@ The example Compose setup defines three services:
 | `migrate` | Runs Alembic migrations before the API starts. |
 | `api` | Serves the ForkFlux API on `http://127.0.0.1:8000`. |
 
-### Start with Docker Compose
-
-Copy the example Compose file:
-
-```bash
-cp etc/compose.example.yml compose.yml
-```
-
-Review and edit credentials before starting the stack. The example uses development credentials and should not be used unchanged for shared or production deployments.
-
-Start the services:
-
-```bash
-docker compose -f compose.yml up -d
-```
-
-The example maps:
-
-- API: `http://127.0.0.1:8000`
-- PostgreSQL: `127.0.0.1:5432`
-- API base URL for clients: `http://127.0.0.1:8000/api/v1`
-
-Verify the API health endpoint:
-
-```bash
-curl -i http://127.0.0.1:8000/api/v1/health
-```
-
-A healthy API returns `204 No Content`.
-
 ### Example Compose structure
 
 The example uses `ghcr.io/forkflux/forkflux-api:latest` for both the migration and API containers:
@@ -64,6 +34,7 @@ services:
     image: ghcr.io/forkflux/forkflux-api:latest
     command: ["alembic", "upgrade", "head"]
     restart: "no"
+    working_dir: /app/packages/api
     environment:
       - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
     depends_on:
@@ -98,6 +69,30 @@ services:
 ```
 
 Use this as a starting point, not as a final production manifest.
+
+### Start with Docker Compose
+
+Review and edit credentials before starting the stack. The example uses development credentials and should not be used unchanged for shared or production deployments.
+
+Start the services:
+
+```bash
+docker compose -f compose.yml up -d
+```
+
+The example maps:
+
+- API: `http://127.0.0.1:8000`
+- PostgreSQL: `127.0.0.1:5432`
+- API base URL for clients: `http://127.0.0.1:8000/api/v1`
+
+Verify the API health endpoint:
+
+```bash
+curl -i http://127.0.0.1:8000/api/v1/health
+```
+
+A healthy API returns `204 No Content`.
 
 ### Configure MCP clients for a hosted API
 
@@ -237,57 +232,3 @@ If sensitive data is needed, pass a safe reference and require human approval or
 - Monitor failed jobs and repeated validation errors; they may indicate misconfigured agents.
 - Keep API and MCP images updated.
 - Pin image tags in production instead of using `latest` without review.
-
-## Production checklist
-
-Use this checklist before running ForkFlux for a shared team or production-like workflow.
-
-### Deployment
-
-- [ ] API is deployed behind HTTPS.
-- [ ] API base URL is stable and reachable from all agent environments.
-- [ ] PostgreSQL is used for shared deployments.
-- [ ] Database storage is persistent.
-- [ ] Database migrations run before API startup.
-- [ ] API health checks are configured.
-- [ ] Container image tags are pinned and reviewed.
-
-### Configuration
-
-- [ ] `DATABASE_URL` uses production credentials and the correct driver.
-- [ ] `FORKFLUX_API_URL` in each MCP client points to the hosted API base path ending in `/api/v1`.
-- [ ] Each assistant has its own `FORKFLUX_API_KEY`.
-- [ ] Example credentials from the Compose file have been replaced.
-- [ ] Role keys match your team workflow, such as `developer`, `qa`, `reviewer`, or `ops`.
-
-### Security
-
-- [ ] Tokens are stored outside Git.
-- [ ] Token rotation and revocation process is documented.
-- [ ] Database is not publicly exposed.
-- [ ] Backups are enabled and restore has been tested.
-- [ ] Sensitive data handling rules are documented for agents and humans.
-- [ ] Human approval is required for destructive or production-impacting work.
-
-### Agent workflow
-
-- [ ] Sender agents validate target roles before publishing.
-- [ ] Receiver agents list only their role's published jobs.
-- [ ] Claim conflicts are handled by returning to the board.
-- [ ] Jobs are closed with `completed`, `failed`, or `cancelled`.
-- [ ] Failed jobs include useful failure reasons.
-- [ ] Workflow helpers are installed consistently across supported assistants.
-
-### Observability and maintenance
-
-- [ ] API logs are collected by your deployment platform.
-- [ ] Failed jobs are reviewed regularly.
-- [ ] Old or unused agent tokens are revoked.
-- [ ] Dependencies and images are updated on a defined cadence.
-- [ ] Documentation for your internal roles, agents, and handoff patterns is kept current.
-
-## Next steps
-
-- Read **Troubleshooting** for common connection, authentication, validation, and lifecycle issues.
-- Read **API Reference** when integrating custom automation with the hosted API.
-- Read **Contributing** when you want to improve the deployment examples or production guidance.
