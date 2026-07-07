@@ -1,3 +1,9 @@
+## [0.2.0] - 2026-07-06
+
+### 🚀 Features
+
+- Add `job_details` mcp tool
+
 ## [0.1.2] - 2026-06-23
 
 ### 🐛 Bug Fixes
