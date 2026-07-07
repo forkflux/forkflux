@@ -8,6 +8,11 @@ class HandoffJobNotFoundError(Exception):
     msg = "Handoff job not found."
 
 
+class HandoffJobHasChildrenError(Exception):
+    code = "handoff_job.has_children"
+    msg = "Handoff job cannot be deleted because it has child jobs."
+
+
 class JobArtifactConflictError(Exception):
     code = "job_artifact.conflict"
     msg = "Job artifact conflicts with existing data constraints."

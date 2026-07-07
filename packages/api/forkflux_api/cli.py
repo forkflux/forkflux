@@ -22,6 +22,7 @@ from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, Ta
 from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentIdentityConflictError,
+    AgentIdentityNotFoundError,
     TargetRoleConflictError,
     TargetRoleInUseError,
     TargetRoleNotFoundError,
@@ -29,6 +30,12 @@ from forkflux_api.agents.exceptions import (
 from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
 from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService, TargetRoleService
 from forkflux_api.database import session_manager
+from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
+from forkflux_api.jobs.dto import HandoffJobFilterParams
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobHasChildrenError, HandoffJobNotFoundError
+from forkflux_api.jobs.helpers import handoff_job_to_response_model
+from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
+from forkflux_api.jobs.services import HandoffJobService
 
 app = typer.Typer(help="ForkFlux Management CLI")
 console = Console()
@@ -37,9 +44,11 @@ _CLI_LOGGING_CONFIGURED = False
 
 agents_role_app = typer.Typer(help="Agents role management")
 agent_app = typer.Typer(help="Agents management")
+job_app = typer.Typer(help="Jobs management")
 
 app.add_typer(agents_role_app, name="agents-role")
 app.add_typer(agent_app, name="agent")
+app.add_typer(job_app, name="job")
 
 
 def _configure_cli_logging() -> None:
@@ -353,6 +362,158 @@ async def agent_revoke_token(agent_id: int) -> None:
         token_repo = AgentApiTokenRepository(session=session, trace_id=trace_id)
         await AgentApiTokenService(agent_api_token_repo=token_repo, trace_id=trace_id).revoke_token(agent_id=agent_id)
         console.print(f"API key for agent {agent_id} revoked successfully")
+
+
+@job_app.command("list")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target_role_key: str | None = None) -> None:
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        target_role_id: int | None = None
+        if target_role_key is not None and target_role_key.strip() != "":
+            try:
+                role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
+                role = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_by_role_key(
+                    target_role_key
+                )
+                target_role_id = role.id
+            except TargetRoleNotFoundError:
+                console.print(f"Role with key {target_role_key} not found", style="bold red")
+                return
+
+        handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
+        job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
+        job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        jobs = await HandoffJobService(
+            handoff_job_repo=handoff_job_repo,
+            job_artifact_repo=job_artifact_repo,
+            job_event_repo=job_event_repo,
+            trace_id=trace_id,
+        ).list_jobs(
+            HandoffJobFilterParams(
+                limit=limit,
+                status=status,
+                target_role_id=target_role_id,
+                order=[JobListOrderEnum.CREATED_AT_ASC],
+            )
+        )
+
+    table = Table("ID", "Summary", "Status", "Priority", "Source", "Assignee", "Target role", "Created at")
+    for job in jobs:
+        table.add_row(
+            str(job.job_details.id),
+            job.job_details.summary,
+            job.job_details.status.value,
+            str(job.job_details.priority),
+            job.source_agent_label,
+            job.assignee_agent_label or "-",
+            job.target_role_key,
+            job.job_details.created_at.isoformat(),
+        )
+    console.print(table)
+
+
+@job_app.command("details")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def job_details(job_id: int) -> None:
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
+        job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
+        job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+
+        try:
+            job = await HandoffJobService(
+                handoff_job_repo=handoff_job_repo,
+                job_artifact_repo=job_artifact_repo,
+                job_event_repo=job_event_repo,
+                trace_id=trace_id,
+            ).get_job_with_artifacts(job_id=job_id)
+        except HandoffJobNotFoundError:
+            console.print(f"Job with id {job_id} not found", style="bold red")
+            return
+
+    response_model = handoff_job_to_response_model(entity=job)
+    console.print_json(response_model.model_dump_json(indent=2))
+
+
+@job_app.command("delete")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def delete_job(job_id: int) -> None:
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    delete = typer.confirm(f"Are you sure you want to delete job '{job_id}'?")
+    if not delete:
+        console.print("Aborting...", style="bold red")
+        raise typer.Abort()
+
+    async with session_manager() as session:
+        handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
+        job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
+        job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+
+        try:
+            await HandoffJobService(
+                handoff_job_repo=handoff_job_repo,
+                job_artifact_repo=job_artifact_repo,
+                job_event_repo=job_event_repo,
+                trace_id=trace_id,
+            ).delete_job(job_id=job_id)
+        except HandoffJobNotFoundError:
+            console.print(f"Job with id {job_id} not found", style="bold red")
+            return
+        except HandoffJobHasChildrenError:
+            console.print(f"Job with id {job_id} has child jobs and cannot be deleted", style="bold red")
+            return
+        except HandoffJobConflictError:
+            console.print(f"Cannot delete job {job_id}", style="bold red")
+            return
+
+    console.print(f"Job {job_id} deleted successfully")
+
+
+@job_app.command("change-status")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def change_job_status(
+    job_id: int, status: JobStatusEnum, agent_id: int, failure_reason: str | None = None
+) -> None:
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        try:
+            agent_repo = AgentIdentityRepository(session=session, trace_id=trace_id)
+            agent = await AgentIdentityService(agent_identity_repo=agent_repo, trace_id=trace_id).get_by_id(
+                agent_identity_id=agent_id
+            )
+        except AgentIdentityNotFoundError:
+            console.print(f"Agent with id {agent_id} not found", style="bold red")
+            return
+
+        handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
+        job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
+        job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+
+        try:
+            await HandoffJobService(
+                handoff_job_repo=handoff_job_repo,
+                job_artifact_repo=job_artifact_repo,
+                job_event_repo=job_event_repo,
+                trace_id=trace_id,
+            ).change_job_status(job_id=job_id, status=status, agent=agent, failure_reason=failure_reason)
+        except HandoffJobNotFoundError:
+            console.print(f"Job with id {job_id} not found", style="bold red")
+            return
+        except HandoffJobConflictError:
+            console.print(f"Cannot change status for job {job_id}", style="bold red")
+            return
+
+    console.print(f"Job {job_id} status changed to {status.value} successfully")
 
 
 if __name__ == "__main__":

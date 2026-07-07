@@ -4,11 +4,17 @@ import pytest
 from forkflux_api.agents.models import AgentIdentity, TargetRole
 from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.dto import HandoffJobCreate, HandoffJobFilterParams
-from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
-from forkflux_api.jobs.models import HandoffJob
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobHasChildrenError, HandoffJobNotFoundError
+from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
 from forkflux_api.jobs.repositories import HandoffJobRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
+from tests.factories import (
+    AgentIdentityFactory,
+    HandoffJobFactory,
+    JobArtifactFactory,
+    JobEventFactory,
+    TargetRoleFactory,
+)
 
 
 async def test_handoff_job_repository_init_sets_session_and_logger(db_session: AsyncSession) -> None:
@@ -545,3 +551,89 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
     assert items[0].target_role_key == target_role.role_key
     assert items[0].source_agent_label == source_agent.agent_label
     assert items[0].assignee_agent_label == assignee_agent.agent_label
+
+
+async def test_handoff_job_repository_delete_removes_job_and_cascades_related_rows(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-delete-target-role",
+        role_label="Handoff delete target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-delete-source-role",
+        role_label="Handoff delete source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-delete-source-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+    job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    artifact = await JobArtifactFactory.create(
+        db_session,
+        job_id=job.id,
+    )
+    event = await JobEventFactory.create(
+        db_session,
+        job_id=job.id,
+        actor_agent_id=source_agent.id,
+    )
+
+    await repository.delete(job_id=job.id)
+
+    deleted_job = await db_session.get(HandoffJob, job.id)
+    deleted_artifact_id = await db_session.get(JobArtifact, artifact.id, populate_existing=True)
+    deleted_event_id = await db_session.get(JobEvent, event.id, populate_existing=True)
+
+    assert deleted_job is None
+    assert deleted_artifact_id is None
+    assert deleted_event_id is None
+
+
+async def test_handoff_job_repository_delete_raises_has_children_when_child_jobs_exist(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-delete-children-target-role",
+        role_label="Handoff delete children target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-delete-children-source-role",
+        role_label="Handoff delete children source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-delete-children-source-agent",
+        role_id=source_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+    parent_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    child_job = await HandoffJobFactory.create(
+        db_session,
+        parent_job_id=parent_job.id,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    with pytest.raises(HandoffJobHasChildrenError):
+        await repository.delete(job_id=parent_job.id)
+
+    persisted_parent_job = await db_session.get(HandoffJob, parent_job.id)
+    persisted_child_job = await db_session.get(HandoffJob, child_job.id)
+
+    assert persisted_parent_job is not None
+    assert persisted_child_job is not None
