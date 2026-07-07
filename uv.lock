@@ -554,7 +554,7 @@ wheels = [
 
 [[package]]
 name = "forkflux-api"
-version = "0.2.2"
+version = "0.3.0"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "aiosqlite" },

@@ -1,67 +1,87 @@
 ---
 title: MCP Integration
-description: Configure the ForkFlux MCP server, authenticate agents, and use the MCP tools for publish, list, inspect, claim, and close workflows.
-sidebar_position: 5
+description: Install and configure the ForkFlux MCP server, authenticate agent clients, and understand the MCP tools exposed to assistants.
+sidebar_position: 7
 ---
 
 # MCP Integration
 
-ForkFlux agents connect to the coordination bus through the ForkFlux MCP server. The MCP server translates assistant tool calls into authenticated ForkFlux API requests and returns structured responses that agents can use in their workflows.
+ForkFlux MCP connects MCP-compatible assistants to a ForkFlux API instance. The MCP server runs next to the assistant, reads an agent token from the environment, and translates assistant tool calls into authenticated ForkFlux API requests.
 
-Use this page when you need to configure an MCP-compatible assistant manually, understand how agent authentication works, or map workflow steps to the underlying MCP tools.
+Use this page when you need to:
 
-## Setup
+- install the ForkFlux MCP server
+- configure an MCP client such as Claude Code, Cursor, VS Code, Cline, or another assistant
+- understand authentication and runtime options
+- see which ForkFlux MCP tools are available
 
-You need three pieces before an assistant can use ForkFlux through MCP:
+If you need to create a local demo environment first, see [Getting Started](getting-started.md). If you need to host the API, database, or production configuration, see [Self-Hosting](self-hosting.md).
 
-1. A running ForkFlux API server.
-2. An agent API token created by the ForkFlux API.
-3. An MCP client configuration that starts the ForkFlux MCP server with the API URL and token.
+## Requirements
 
-### Fast local setup
+Before you configure an assistant, you need:
 
-For local evaluation, the fastest path is the zero-config quickstart:
+| Requirement | Description |
+|---|---|
+| ForkFlux API URL | The API base URL the MCP server can reach, including `/api/v1`. Local default: `http://127.0.0.1:8000/api/v1`. |
+| Agent API token | A ForkFlux token for the assistant identity. Use one token per assistant so job ownership and role filtering stay auditable. |
+| MCP-compatible client | An assistant or IDE that can start local MCP servers over stdio. |
+| Python runtime | Python 3.12+ when running `forkflux-mcp` through `uvx` or an installed package. |
 
-```bash
-uvx --from forkflux-api forkflux quickstart
-uvx --from forkflux-api forkflux serve
+:::tip
+
+The MCP server is stateless. It can run locally on each agent machine while all agents point to the same shared ForkFlux API.
+
+:::
+
+## Installation options
+
+ForkFlux supports three common MCP server launch patterns.
+
+### Run with Docker
+
+Use Docker only when your MCP client or deployment environment requires containerized tooling.
+
+```json
+{
+  "mcpServers": {
+    "ff": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--network",
+        "host",
+        "-e",
+        "FORKFLUX_API_URL",
+        "-e",
+        "FORKFLUX_API_KEY",
+        "ghcr.io/forkflux/forkflux-mcp:latest"
+      ],
+      "env": {
+        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+        "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+      }
+    }
+  }
+}
 ```
 
-The quickstart flow creates example roles and agents, installs workflow helpers for supported local CLIs, and registers MCP servers automatically when possible.
+If the container cannot reach the API through `127.0.0.1`, set `FORKFLUX_API_URL` to an address reachable from inside Docker, such as a host gateway or hosted API URL.
 
-### Manual setup with `uvx`
+## Configuration
 
-Use this path when you want explicit control without installing the ForkFlux CLI globally.
+Every MCP client needs the same two environment variables:
 
-Initialize the API database and sample agents:
+| Variable | Required | Default | Description |
+|---|---:|---|---|
+| `FORKFLUX_API_KEY` | yes | none | Agent bearer token used for every ForkFlux API request. |
+| `FORKFLUX_API_URL` | no | `http://localhost:8000/api/v1` | Base URL for the ForkFlux API. Include `/api/v1`. |
 
-```bash
-uvx --from forkflux-api forkflux init
-```
+### Standard client configuration
 
-Start the API server in a terminal you keep open:
-
-```bash
-uvx --from forkflux-api forkflux serve
-```
-
-The `init` command prints API tokens for generated agents. Save the token for the agent you want to connect through MCP.
-
-### Manual setup with an installed CLI
-
-Use this path when you want the `forkflux` command available in your current Python environment.
-
-```bash
-pip install forkflux-api
-forkflux init
-forkflux serve
-```
-
-By default, `forkflux serve` starts the API on `http://127.0.0.1:8000`. MCP clients should use `http://127.0.0.1:8000/api/v1` as the API base URL.
-
-## Client configuration
-
-Configure each MCP-compatible assistant with the ForkFlux MCP server. The recommended local configuration runs the MCP server through `uvx`:
+Use this shape for clients that accept MCP server JSON:
 
 ```json
 {
@@ -80,52 +100,22 @@ Configure each MCP-compatible assistant with the ForkFlux MCP server. The recomm
 }
 ```
 
-Replace `<AGENT_API_TOKEN>` with the token printed by `forkflux init` or `forkflux agent add`.
+Replace `<AGENT_API_TOKEN>` with the token for the assistant you are configuring.
 
-### Environment variables
+### Command-based client configuration
 
-The MCP server reads these environment variables:
+Some clients provide a command for registering MCP servers. Use the same command, args, and environment values:
 
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `FORKFLUX_API_URL` | No | `http://localhost:8000/api/v1` | Base URL for the ForkFlux API. |
-| `FORKFLUX_API_KEY` | Yes | none | Bearer token for the current ForkFlux agent. |
-
-Use one token per agent identity. If you configure two assistants with the same token, ForkFlux sees both assistants as the same agent.
-
-### Docker-based MCP server
-
-Use Docker for the MCP server only when your MCP client or deployment environment requires it.
-
-```json
-{
-  "mcpServers": {
-    "ff": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "--network",
-        "host",
-        "-e",
-        "FORKFLUX_API_URL",
-        "-e",
-        "FORKFLUX_API_KEY",
-        "ghcr.io/forkflux/forkflux-mcp:dev"
-      ],
-      "env": {
-        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
-        "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
-      }
-    }
-  }
-}
+```bash
+claude mcp add ff \
+  --env FORKFLUX_API_KEY=<AGENT_API_TOKEN> \
+  --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 \
+  -- uvx forkflux-mcp
 ```
 
-If your Docker environment cannot reach the host through `127.0.0.1`, set `FORKFLUX_API_URL` to the reachable host address for your platform.
+Other CLIs use similar syntax. Keep the server name short, for example `ff`, so tools and prompts are easy to identify in the assistant UI.
 
-### Setup the MCP using client command
+## Client-specific notes
 
 <details>
     <summary>Claude Code</summary>
@@ -484,17 +474,9 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
     ```
 </details>
 
-### Verify the client connection
+## Authentication model
 
-After configuring the MCP server, restart or reload the assistant so it discovers the available tools. Then ask the assistant to list available ForkFlux jobs.
-
-The assistant should call `forkflux_list_jobs`. If the call succeeds and returns either a list or an empty board, the client is connected.
-
-## Authentication
-
-ForkFlux MCP authentication is token-based. The MCP server sends every API request with an Authorization bearer token derived from `FORKFLUX_API_KEY`.
-
-Conceptually, each request uses this header:
+ForkFlux MCP authentication is token-based. The MCP server reads `FORKFLUX_API_KEY` and sends it to the API as a bearer token:
 
 ```text
 Authorization: Bearer <AGENT_API_TOKEN>
@@ -505,129 +487,55 @@ The API uses the token to identify:
 - the current agent
 - the agent's role
 - whether the token is active
-- which jobs the agent can list or claim through role-aware filtering
+- which jobs the agent can list, inspect, claim, or close
 
-### Create an agent token
+Token handling rules:
 
-The default initialization creates example agents and prints their tokens:
-
-```bash
-uvx --from forkflux-api forkflux init
-```
-
-To create a custom role and agent with an installed CLI:
-
-```bash
-forkflux agents-role add qa "QA Engineer"
-forkflux agent add "Cursor QA Bot" qa
-```
-
-With `uvx`, prefix the commands:
-
-```bash
-uvx --from forkflux-api forkflux agents-role add qa "QA Engineer"
-uvx --from forkflux-api forkflux agent add "Cursor QA Bot" qa
-```
-
-The `agent add` command returns an API token. Store it securely and pass it to the MCP server as `FORKFLUX_API_KEY`.
-
-### Token handling rules
-
-- Treat agent tokens as credentials.
-- Do not commit tokens to Git.
 - Use one token per assistant identity.
-- Revoke tokens when an agent should no longer access ForkFlux.
-- Rotate tokens if they are exposed in logs, screenshots, or shared configuration.
+- Do not commit tokens to Git.
+- Do not reuse one token across multiple agents unless you intentionally want them to share the same identity.
+- Rotate or revoke tokens that appear in logs, screenshots, or shared config files.
 
-To revoke a token for an agent:
+## Available tools
 
-```bash
-forkflux agent revoke-token <agent_id>
-```
+The MCP server exposes a small tool set that maps to the ForkFlux job lifecycle.
 
-## Tool workflow
-
-The MCP server exposes a small tool set that maps directly to the ForkFlux job lifecycle.
-
-```text
-forkflux_create_job
-  │
-  ▼
-published job in the task pool
-  │
-  ▼
-forkflux_list_jobs
-  │
-  ▼
-forkflux_job_details
-  │
-  ▼
-forkflux_claim_job
-  │
-  ▼
-in_progress job with full context payload
-  │
-  ▼
-forkflux_change_job_status
-  │
-  ▼
-completed | failed | cancelled
-```
-
-### Sender-side flow
-
-Sender agents normally call `forkflux_create_job` through a prompt, skill, or command.
-
-Before creating a job, the sender should validate:
-
-- target role key
-- concise job summary
-- concrete acceptance criteria in `constraints`
-- structured JSON in `context_payload`
-- priority value: `10`, `20`, `30`, or `40`
-- real artifact references, if any
-
-### Receiver-side flow
-
-Receiver agents normally use this sequence:
-
-1. Call `forkflux_list_jobs` with `status` set to `published` and `my_role_only` set to `true`.
-2. Present the board to the user as a readable table.
-3. Optionally call `forkflux_job_details` to inspect one job before claiming it.
-4. Call `forkflux_claim_job` only after selecting a specific job.
-5. Execute from the returned context payload.
-6. Call `forkflux_change_job_status` with a terminal status.
-
-### Error handling
-
-Agents should surface exact MCP tool errors and stop instead of inventing state.
-
-Important cases:
-
-- `401` means the API key is missing, wrong, revoked, or not accepted by the API.
-- `400` or `422` means the payload is invalid or failed API validation.
-- `409` during claim means another agent already claimed the job.
-- Network errors usually mean the API URL is wrong, the API server is stopped, or the MCP server cannot reach the API.
-
-## Tool reference
+| Tool | Purpose | Main caller |
+|---|---|---|
+| `forkflux_create_job` | Publish a structured handoff job for another role. | Sender agent |
+| `forkflux_list_jobs` | List jobs available in the shared job pool. | Receiver agent |
+| `forkflux_job_details` | Retrieve full details for one job without changing ownership. | Sender or receiver agent |
+| `forkflux_claim_job` | Atomically claim a published job and receive its full context. | Receiver agent |
+| `forkflux_change_job_status` | Close claimed work as completed, failed, or cancelled. | Receiver agent |
 
 ### `forkflux_create_job`
 
-Publishes a new handoff job to the coordination bus.
+Publishes a new handoff job.
 
-Use this tool when a sender agent needs another role to execute, verify, review, document, or continue work.
+Use this tool when the current assistant needs another role to execute, verify, review, document, or continue work.
 
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `summary` | string | yes | Concise human-readable title for the job. |
-| `context_payload` | object | yes | Detailed structured JSON context. Do not pass a flat string. |
-| `target_role_key` | enum/string | yes | Role key that should receive the job. |
+| `context_payload` | object | yes | Structured JSON context. Do not pass a flat string. |
+| `target_role_key` | enum/string | yes | Role key that should receive the job. Available values come from the API's configured roles. |
 | `constraints` | array of strings | yes | Acceptance criteria and execution boundaries. |
-| `artifacts` | array | yes | Supporting artifact references. Use an empty array when none exist. |
+| `artifacts` | array of objects | yes | Supporting artifact references. Use an empty array when none exist. |
 | `priority` | enum/integer | yes | `10` low, `20` normal, `30` high, or `40` urgent. |
 | `parent_job_id` | integer or null | no | Optional parent job for tracing a handoff chain. |
 
-Typical result: a created job record with status `published`.
+Artifact objects use this shape:
+
+```json
+{
+  "type": "diff",
+  "uri": "git://example/repo/commit/abc123",
+  "checksum": null,
+  "metadata_json": {
+    "description": "Implementation diff for review"
+  }
+}
+```
 
 ### `forkflux_list_jobs`
 
@@ -642,73 +550,36 @@ Use this tool when a receiver agent needs to inspect available work for its role
 | `target_role_key` | enum/string or null | `null` | Explicit role filter. Usually omitted when `my_role_only` is true. |
 | `my_role_only` | boolean | `true` | Filters jobs to the current agent's role. |
 
-The MCP implementation orders jobs by priority descending and creation time ascending so urgent older jobs appear first.
-
-Agents should summarize results as a Markdown table and avoid dumping raw JSON payloads into chat.
-
-### `forkflux_claim_job`
-
-Atomically claims a published job and returns its full context payload.
-
-Use this tool when a receiver agent is ready to take ownership of one specific job.
-
-| Argument | Type | Required | Description |
-|---|---|---:|---|
-| `job_id` | integer | yes | Unique ID of the job to claim. |
-
-On success, the job moves to `in_progress`, and the current agent becomes the assignee.
-
-If the tool returns a conflict, another agent already claimed the job. The receiver should return to the board and choose another job.
+The implementation orders jobs by priority descending and creation time ascending.
 
 ### `forkflux_job_details`
 
 Returns full details for one job, including context payload and artifacts.
 
-Use this tool when a receiver agent needs to inspect a specific job before claiming it, or when a sender needs to review job data by ID.
-
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `job_id` | integer | yes | Unique ID of the job to retrieve. |
 
-This tool does not change ownership or status. It is read-only and maps to the API `GET /jobs/{job_id}` handler.
+This tool is read-only. It does not claim the job or change status.
+
+### `forkflux_claim_job`
+
+Atomically claims a published job and returns its full context payload.
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `job_id` | integer | yes | Unique ID of the job to claim. |
+
+On success, the job moves to `in_progress`, and the current agent becomes the assignee. If the API returns a conflict, another agent has already claimed the job.
 
 ### `forkflux_change_job_status`
 
 Updates the lifecycle status of a claimed job.
 
-Use this tool when the receiver is closing work after execution.
-
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `job_id` | integer | yes | Unique ID of the claimed job. |
-| `status` | enum | yes | Target status: `completed`, `failed`, or `cancelled` for normal closure. |
+| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. |
 | `failure_reason` | string or null | required for `failed` | Detailed failure reason when the job cannot be completed. |
 
-The tool enum also includes `in_progress`, but normal agent workflows should not use this tool to move a job into progress. Claiming already performs that transition.
-
-Use terminal statuses as follows:
-
-| Status | Use when |
-|---|---|
-| `completed` | All constraints are met and verification is complete. |
-| `failed` | Work cannot be completed because of an unrecoverable error, persistent test failure, environment blocker, or unmet constraint. |
-| `cancelled` | The user explicitly aborts the job. |
-
-### MCP prompts exposed by the server
-
-The MCP server also exposes workflow prompts that call the tools with stricter instructions:
-
-| Prompt | Purpose |
-|---|---|
-| `push` | Package context and publish a handoff job. |
-| `board` | List published jobs available to the current role. |
-| `claim` | Claim a specific job and unpack the full context payload. |
-| `close` | Close a job with a terminal status. |
-
-Prompt invocation names depend on the MCP client. Use the prompt names shown by your assistant.
-
-## Next steps
-
-- Read **API Reference** when you need endpoint-level request and response details.
-- Read **Agent Workflows** when you need prompt, skill, or command behavior guidance.
-- Read **Troubleshooting** when the MCP client cannot connect, authenticate, or list jobs.
+The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition.
