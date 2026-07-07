@@ -23,6 +23,11 @@ class TargetRoleConflictError(Exception):
     msg = "Target role already exists."
 
 
+class TargetRoleInUseError(Exception):
+    code = "target_role.in_use"
+    msg = "Target role is in use and cannot be deleted."
+
+
 class TargetRoleNotFoundError(Exception):
     code = "target_role.not_found"
     msg = "Target role not found."

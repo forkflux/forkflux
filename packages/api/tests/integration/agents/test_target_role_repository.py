@@ -1,10 +1,10 @@
 import pytest
 from forkflux_api.agents.dto import TargetRoleCreate
-from forkflux_api.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
+from forkflux_api.agents.exceptions import TargetRoleConflictError, TargetRoleInUseError, TargetRoleNotFoundError
 from forkflux_api.agents.models import TargetRole
 from forkflux_api.agents.respositories import TargetRoleRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import TargetRoleFactory
+from tests.factories import AgentIdentityFactory, TargetRoleFactory
 
 
 async def test_target_role_repository_init_sets_session_and_logger(db_session: AsyncSession) -> None:
@@ -129,3 +129,19 @@ async def test_target_role_repository_delete_raises_not_found_for_missing_role_k
 
     with pytest.raises(TargetRoleNotFoundError):
         await repository.delete(role_key="does-not-exist")
+
+
+async def test_target_role_repository_delete_raises_in_use_when_role_referenced(db_session: AsyncSession) -> None:
+    role = await TargetRoleFactory.create(
+        db_session,
+        role_key="operator",
+        role_label="Operator",
+    )
+    await AgentIdentityFactory.create(
+        db_session,
+        role_id=role.id,
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    with pytest.raises(TargetRoleInUseError):
+        await repository.delete(role_key="operator")

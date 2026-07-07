@@ -23,6 +23,7 @@ from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentIdentityConflictError,
     TargetRoleConflictError,
+    TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
 from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
@@ -262,7 +263,7 @@ async def delete_role(role_key: str) -> None:
     _configure_cli_logging()
     trace_id = str(uuid4())
 
-    delete = typer.confirm("Are you sure you want to delete it?")
+    delete = typer.confirm(f"Are you sure you want to delete role '{role_key}'?")
     if not delete:
         console.print("Aborting...", style="bold red")
         raise typer.Abort()
@@ -272,6 +273,8 @@ async def delete_role(role_key: str) -> None:
             repo = TargetRoleRepository(session=session, trace_id=trace_id)
             await TargetRoleService(target_role_repo=repo, trace_id=trace_id).delete_role(role_key=role_key)
             console.print(f"Role {role_key} deleted successfully")
+        except TargetRoleInUseError:
+            console.print(f"Role with key {role_key} is in use and cannot be deleted", style="bold red")
         except TargetRoleNotFoundError:
             console.print(f"Role with key {role_key} not found", style="bold red")
 
