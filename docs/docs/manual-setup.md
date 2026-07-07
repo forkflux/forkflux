@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 Manual setup gives you full control over the ForkFlux coordination bus: database initialization, role names, agent identities, API tokens, MCP client configuration, and workflow helper installation.
 
-Use this page when you want more control than the zero-config flow in [Getting Started](getting-started.md), when your assistant is not detected by `forkflux quickstart`, or when you are preparing a shared environment.
+Use this page when you want more control than the zero-config flow in [Quickstart](quickstart.md), when your assistant is not detected by `forkflux quickstart`, or when you are preparing a shared environment.
 
 ## Prerequisites
 

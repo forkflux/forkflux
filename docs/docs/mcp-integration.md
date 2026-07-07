@@ -15,7 +15,7 @@ Use this page when you need to:
 - understand authentication and runtime options
 - see which ForkFlux MCP tools are available
 
-If you need to create a local demo environment first, see [Getting Started](getting-started.md). If you need to host the API, database, or production configuration, see [Self-Hosting](self-hosting.md).
+If you need to create a local demo environment first, see [Quickstart](quickstart.md). If you need to host the API, database, or production configuration, see [Self-Hosting](self-hosting.md).
 
 ## Requirements
 
