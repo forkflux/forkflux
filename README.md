@@ -96,17 +96,24 @@ For complete setup instructions, see the [Getting Started guide](https://docs.fo
 
 ## Documentation
 
-- [Overview](https://docs.forkflux.ai/) — what ForkFlux is and why the coordination bus model matters.
-- [Getting Started](https://docs.forkflux.ai/getting-started) — quickstart, first handoff, and zero-config setup.
-- [Core Concepts](https://docs.forkflux.ai/core-concepts) — agents, roles, jobs, lifecycle states, context, and artifacts.
-- [Agent Workflows](https://docs.forkflux.ai/agent-workflows) — sender and receiver workflows, MCP prompts, skills, commands, and escalation.
-- [MCP Integration](https://docs.forkflux.ai/mcp-integration) — client configuration, authentication, tool workflow, and tool reference.
-- [API Reference](https://docs.forkflux.ai/api-reference) — endpoints, schemas, artifacts, events, and errors.
-- [Guides](https://docs.forkflux.ai/guides) — cross-device handoff, multi-repo handoff, long-running tasks, and context patterns.
-- [Self-Hosting](https://docs.forkflux.ai/self-hosting) — Docker setup, configuration, security, and production checklist.
-- [Troubleshooting](https://docs.forkflux.ai/troubleshooting) — connection, authentication, validation, claim, and Docker issues.
-- [Contributing](https://docs.forkflux.ai/contributing) — development setup, tests, commits, and pull requests.
-- [FAQ](https://docs.forkflux.ai/faq) — what ForkFlux is not and how it differs from Jira.
+Start with the [documentation home](https://docs.forkflux.ai/) or jump directly to the page you need:
+
+| Page | What you will find |
+|---|---|
+| [Overview](https://docs.forkflux.ai/) | What ForkFlux is, why agent handoffs need a coordination bus, and how the API and MCP server fit together. |
+| [Quickstart](https://docs.forkflux.ai/quickstart) | Run ForkFlux locally, complete your first agent handoff, and use the zero-config demo path. |
+| [Manual Setup](https://docs.forkflux.ai/manual-setup) | Initialize storage, create roles and agents, configure MCP, install skills, and run a handoff manually. |
+| [Core Concepts](https://docs.forkflux.ai/core-concepts) | Agents, roles, jobs, task pools, lifecycle states, context payloads, constraints, and artifacts. |
+| [Agent Workflows](https://docs.forkflux.ai/agent-workflows) | Standard sender and receiver workflows, lifecycle steps, workflow helpers, and human escalation points. |
+| [CLI](https://docs.forkflux.ai/cli) | ForkFlux CLI commands, arguments, options, and examples. |
+| [MCP Integration](https://docs.forkflux.ai/mcp-integration) | MCP server installation, client configuration, authentication, and available tools. |
+| [Skills](https://docs.forkflux.ai/skills) | Available ForkFlux skills, installation options, and when to use skills instead of prompts or commands. |
+| [Commands](https://docs.forkflux.ai/commands) | Slash command files, assistant compatibility, installation, and usage examples. |
+| [MCP Prompts](https://docs.forkflux.ai/mcp-prompts) | Available MCP prompts and prompt-driven handoff workflows. |
+| [API Reference](https://docs.forkflux.ai/api-reference) | Authentication, agents, jobs, roles, artifacts, events, schemas, and error responses. |
+| [Self-Hosting](https://docs.forkflux.ai/self-hosting) | Docker setup, configuration, security guidance, and production-like deployment notes. |
+| [FAQ](https://docs.forkflux.ai/faq) | Common questions about what ForkFlux is, what it is not, and how it differs from Jira. |
+| [Contributing](https://docs.forkflux.ai/contributing) | How to report bugs, suggest features, make changes, and submit pull requests. |
 
 ## Community and contributing
 
