@@ -1,0 +1,24 @@
+{
+  "name": "forkflux",
+  "version": "0.1.0",
+  "description": "Coordination bus for AI agents across different machines, environments, and teammates",
+  "author": {
+    "name": "ForkFlux Team"
+  },
+  "homepage": "https://docs.forkflux.ai/",
+  "repository": "https://github.com/forkflux/forkflux",
+  "license": "Apache-2.0",
+  "commands": [
+    "./commands/setup.md"
+  ],
+  "mcpServers": {
+    "ff": {
+      "command": "uvx",
+      "args": ["forkflux-mcp"],
+      "env": {
+        "FORKFLUX_API_KEY": "${FORKFLUX_API_KEY:-}",
+        "FORKFLUX_API_URL": "${FORKFLUX_API_URL:-}"
+      }
+    }
+  }
+}

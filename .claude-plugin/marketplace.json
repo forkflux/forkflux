@@ -1,0 +1,14 @@
+{
+  "name": "forkflux",
+  "owner": {
+    "name": "ForkFlux Team",
+    "email": "hi@forkflux.ai"
+  },
+  "plugins": [
+    {
+      "name": "forkflux",
+      "source": "./plugins/claude/forkflux",
+      "description": "Coordination bus for AI agents across different machines, environments, and teammates"
+    }
+  ]
+}

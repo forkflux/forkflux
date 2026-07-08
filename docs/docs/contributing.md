@@ -1,7 +1,7 @@
 ---
 title: Contributing
 description: Quick guide for contributing to ForkFlux.
-sidebar_position: 14
+sidebar_position: 15
 ---
 
 # Contributing

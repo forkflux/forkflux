@@ -55,6 +55,12 @@ The receiver skill is strict about lifecycle states. It should not mark work as 
 
 Choose the installation method that matches your assistant environment.
 
+:::tip
+
+If you use Claude Code, install ForkFlux through the [Plugins](plugins.md#claude-code) page. The Claude Code plugin installs the ForkFlux skills together with the MCP server integration and dashboard, so you do not need a separate skills installation step.
+
+:::
+
 ### Option 1: Install through quickstart
 
 For local demos and evaluation, run the ForkFlux quickstart command:

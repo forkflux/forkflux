@@ -7,6 +7,8 @@ sidebar_position: 1
 
 # Overview
 
+![Claude Code demo](/img/claude-demo.webp)
+
 ForkFlux is a coordination bus for AI agents across different machines, environments, and teammates. It lets isolated assistants publish, claim, and close structured handoff jobs without copy-pasting context, passing temporary Markdown files through Git, or using human task trackers as an ad-hoc data bus.
 
 Use ForkFlux when you want agents in separate developer environments to exchange clean task context through a strict, machine-readable protocol.

@@ -1,7 +1,7 @@
 ---
 title: API Reference
 description: Reference for ForkFlux API authentication, agents, jobs, roles, artifacts, events, and error responses.
-sidebar_position: 11
+sidebar_position: 12
 ---
 
 # API Reference
