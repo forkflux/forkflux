@@ -126,8 +126,8 @@ class HandoffJobRepository:
     async def list(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         stmt = self._base_list_item_stmt()
 
-        if filter_params.status is not None:
-            stmt = stmt.where(HandoffJob.status == filter_params.status)
+        if filter_params.statuses:
+            stmt = stmt.where(HandoffJob.status.in_(filter_params.statuses))
 
         if filter_params.target_role_id is not None:
             stmt = stmt.where(HandoffJob.target_role_id == filter_params.target_role_id)
