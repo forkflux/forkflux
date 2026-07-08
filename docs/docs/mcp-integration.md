@@ -17,6 +17,12 @@ Use this page when you need to:
 
 If you need to create a local demo environment first, see [Quickstart](quickstart.md). If you need to host the API, database, or production configuration, see [Self-Hosting](self-hosting.md).
 
+:::tip
+
+If you use Claude Code, you can install ForkFlux through the [Plugins](plugins.md#claude-code) page instead of configuring the MCP server manually. The Claude Code plugin includes the ForkFlux MCP server integration, workflow skills, and dashboard.
+
+:::
+
 ## Requirements
 
 Before you configure an assistant, you need:
@@ -120,7 +126,9 @@ Other CLIs use similar syntax. Keep the server name short, for example `ff`, so 
 <details>
     <summary>Claude Code</summary>
 
-    Run this command. See [Claude Code MCP docs](https://code.claude.com/docs/en/mcp) for more info.
+    For Claude Code, the recommended path is the [ForkFlux plugin](plugins.md#claude-code), which installs the MCP server integration, skills, and dashboard commands together.
+
+    If you prefer manual MCP configuration, run this command. See [Claude Code MCP docs](https://code.claude.com/docs/en/mcp) for more info.
 
     **Local Server Connection**
     ```bash

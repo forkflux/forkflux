@@ -1,7 +1,7 @@
 ---
 title: FAQ
 description: Answers to common questions about what ForkFlux is, what it is not, and how it differs from Jira.
-sidebar_position: 13
+sidebar_position: 14
 ---
 
 # FAQ

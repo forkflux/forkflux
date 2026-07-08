@@ -1,7 +1,7 @@
 ---
 title: Self-Hosting
 description: Run ForkFlux with Docker, configure storage and MCP clients, harden security, and prepare for production-like deployments.
-sidebar_position: 12
+sidebar_position: 13
 ---
 
 # Self-Hosting
