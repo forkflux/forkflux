@@ -107,6 +107,7 @@ Start with the [documentation](https://docs.forkflux.ai/) or jump directly to th
 | [Agent Workflows](https://docs.forkflux.ai/agent-workflows) | Standard sender and receiver workflows, lifecycle steps, workflow helpers, and human escalation points. |
 | [CLI](https://docs.forkflux.ai/cli) | ForkFlux CLI commands, arguments, options, and examples. |
 | [MCP Integration](https://docs.forkflux.ai/mcp-integration) | MCP server installation, client configuration, authentication, and available tools. |
+| [Plugins](https://docs.forkflux.ai/plugins) | Install ForkFlux plugins that bring the MCP server, skills, and dashboard workflows into supported AI coding tools. |
 | [Skills](https://docs.forkflux.ai/skills) | Available ForkFlux skills, installation options, and when to use skills instead of prompts or commands. |
 | [Commands](https://docs.forkflux.ai/commands) | Slash command files, assistant compatibility, installation, and usage examples. |
 | [MCP Prompts](https://docs.forkflux.ai/mcp-prompts) | Available MCP prompts and prompt-driven handoff workflows. |

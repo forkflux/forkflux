@@ -79,14 +79,19 @@ import os
 BASE_URL = os.getenv("FORKFLUX_API_URL") or "http://localhost:8000/api/v1"
 URL = f"{BASE_URL}/jobs?limit=5&status=published&status=in_progress"
 TOKEN = os.getenv("FORKFLUX_API_KEY")
+REQUEST_TIMEOUT_SECONDS = 10
 
 def fetch_and_display_data():
+    if not TOKEN:
+        print("Error: FORKFLUX_API_KEY is not set. Set the token before running the statusline.")
+        return
+
     req = urllib.request.Request(URL)
     req.add_header("Authorization", f"Bearer {TOKEN}")
     req.add_header("Accept", "application/json")
 
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             status_code = response.getcode()
             raw_data = response.read().decode("utf-8")
 
