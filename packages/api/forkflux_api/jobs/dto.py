@@ -51,6 +51,6 @@ class HandoffJobWithArtifacts(TypedDict):
 @dataclass(slots=True)
 class HandoffJobFilterParams:
     limit: int
-    status: JobStatusEnum | None
+    statuses: list[JobStatusEnum]
     target_role_id: int | None
     order: list[JobListOrderEnum]

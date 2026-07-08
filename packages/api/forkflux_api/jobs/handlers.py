@@ -48,16 +48,17 @@ async def create_job(
 @router.get("", response_model=list[HandoffJobListItem])
 async def list_jobs(
     limit: int = Query(50, ge=1, le=200),
-    status: JobStatusEnum | None = None,
+    status: list[JobStatusEnum] | None = Query(default=None),
     order: list[JobListOrderEnum] = Query(default=[JobListOrderEnum.CREATED_AT_ASC]),
     target_role_key: TargetRole = Depends(validate_target_role_query_param),
     my_role_only: bool = True,
     job_service: HandoffJobService = Depends(get_handoff_job_service),
     current_agent: AgentIdentity = Depends(get_current_agent),
 ):
+    statuses = status or []
     target_role_id = current_agent.role_id if my_role_only else target_role_key.id if target_role_key else None
     jobs = await job_service.list_jobs(
-        HandoffJobFilterParams(limit=limit, status=status, target_role_id=target_role_id, order=order)
+        HandoffJobFilterParams(limit=limit, statuses=statuses, target_role_id=target_role_id, order=order)
     )
     return [
         HandoffJobListItem(

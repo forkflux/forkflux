@@ -241,6 +241,92 @@ async def test_list_jobs_with_my_role_only_false_and_no_target_role_key_returns_
     assert [item["id"] for item in body] == [first_matching_job.id, second_matching_job.id]
 
 
+async def test_list_jobs_filters_by_multiple_repeated_status_query_params(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-multi-status-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    published_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Repeated status published",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 15, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 15, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 15, tzinfo=timezone.utc),
+    )
+    claimed_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Repeated status claimed",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 16, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 16, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 16, tzinfo=timezone.utc),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Repeated status excluded",
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 17, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 17, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 17, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        f"/api/v1/jobs?status={JobStatusEnum.PUBLISHED.value}&status={JobStatusEnum.CLAIMED.value}",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [published_job.id, claimed_job.id]
+
+
+async def test_list_jobs_treats_omitted_status_as_empty_status_list(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-jobs-empty-status-filter-token"
+    source_agent = await _create_auth_context(db_session, raw_token)
+
+    published_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Omitted status published",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 18, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 18, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 18, tzinfo=timezone.utc),
+    )
+    claimed_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Omitted status claimed",
+        status=JobStatusEnum.CLAIMED,
+        source_agent_id=source_agent.id,
+        target_role_id=source_agent.role_id,
+        created_at=datetime(2026, 4, 19, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 19, tzinfo=timezone.utc),
+        published_at=datetime(2026, 4, 19, tzinfo=timezone.utc),
+    )
+
+    response = await client.get(
+        "/api/v1/jobs",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [published_job.id, claimed_job.id]
+
+
 async def test_list_jobs_with_my_role_only_true_and_empty_target_role_key_treats_it_as_omitted(
     client: AsyncClient,
     db_session: AsyncSession,

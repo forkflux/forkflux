@@ -98,7 +98,7 @@ class HandoffJobService:
     async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         log = self._logger.bind(
             method="list_jobs",
-            status=filter_params.status.value if filter_params.status is not None else None,
+            statuses=[status.value for status in filter_params.statuses],
             target_role_id=filter_params.target_role_id,
             limit=filter_params.limit,
             order=[order.value for order in filter_params.order],
