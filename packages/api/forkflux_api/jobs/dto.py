@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, TypedDict
 
 from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
@@ -54,3 +55,39 @@ class HandoffJobFilterParams:
     statuses: list[JobStatusEnum]
     target_role_id: int | None
     order: list[JobListOrderEnum]
+
+
+@dataclass(slots=True)
+class HandoffJobStats:
+    window_hours: int
+    stuck_minutes: int
+    total_jobs: int
+    all_time_status_counts: dict[JobStatusEnum, int]
+    queue_status_counts: dict[JobStatusEnum, int]
+    terminal_status_counts: dict[JobStatusEnum, int]
+    completion_rate: float
+    failure_rate: float
+    active_agents: int
+    stuck_jobs: int
+    total_handoffs: int
+    estimated_time_saved_minutes: int
+    waiting_jobs_by_role: list[tuple[str, int]]
+    p50_time_to_claim_minutes: float | None
+    p90_time_to_claim_minutes: float | None
+    p50_time_to_resolution_minutes: float | None
+    p90_time_to_resolution_minutes: float | None
+
+
+@dataclass(slots=True)
+class HandoffJobRawStats:
+    window_hours: int
+    stuck_minutes: int
+    total_jobs: int
+    all_time_status_counts: dict[JobStatusEnum, int]
+    status_counts: dict[JobStatusEnum, int]
+    active_agents: int
+    stuck_jobs: int
+    total_handoffs: int
+    waiting_jobs_by_role: list[tuple[str, int]]
+    published_to_claimed_pairs: list[tuple[datetime | None, datetime | None]]
+    published_to_resolution_pairs: list[tuple[datetime | None, datetime | None]]

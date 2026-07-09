@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+from math import ceil, floor
+from statistics import median
 
 import structlog
 from forkflux_api.agents.models import AgentIdentity
@@ -7,6 +9,8 @@ from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
     HandoffJobItem,
+    HandoffJobRawStats,
+    HandoffJobStats,
     HandoffJobWithArtifacts,
     JobArtifactCreate,
     JobEventCreate,
@@ -17,6 +21,8 @@ from forkflux_api.jobs.schemas import HandoffJobCreateRequest
 
 
 class HandoffJobService:
+    MINUTES_SAVED_PER_HANDOFF = 8  # this number is taken from team measurement
+
     def __init__(
         self,
         handoff_job_repo: HandoffJobRepository,
@@ -28,6 +34,107 @@ class HandoffJobService:
         self._handoff_job_repo = handoff_job_repo
         self._job_artifact_repo = job_artifact_repo
         self._job_event_repo = job_event_repo
+
+    @staticmethod
+    def _duration_minutes(started_at: datetime, finished_at: datetime) -> float:
+        return (finished_at - started_at).total_seconds() / 60
+
+    @staticmethod
+    def _median_or_none(values: list[float]) -> float | None:
+        if not values:
+            return None
+
+        return float(median(values))
+
+    @staticmethod
+    def _percentile_or_none(values: list[float], percentile: float) -> float | None:
+        if not values:
+            return None
+
+        sorted_values = sorted(values)
+        position = (len(sorted_values) - 1) * percentile
+        lower_idx = floor(position)
+        upper_idx = ceil(position)
+
+        if lower_idx == upper_idx:
+            return float(sorted_values[lower_idx])
+
+        lower = sorted_values[lower_idx]
+        upper = sorted_values[upper_idx]
+        weight = position - lower_idx
+        return float(lower + ((upper - lower) * weight))
+
+    async def stats(self, window_hours: int = 24, stuck_minutes: int = 60) -> HandoffJobStats:
+        log = self._logger.bind(method="stats", window_hours=window_hours, stuck_minutes=stuck_minutes)
+        log.info("operation_started")
+
+        raw_stats: HandoffJobRawStats = await self._handoff_job_repo.stats(
+            window_hours=window_hours,
+            stuck_minutes=stuck_minutes,
+        )
+        status_counts = {status: raw_stats.status_counts.get(status, 0) for status in JobStatusEnum}
+        all_time_status_counts = {status: raw_stats.all_time_status_counts.get(status, 0) for status in JobStatusEnum}
+        queue_status_counts = {
+            JobStatusEnum.PUBLISHED: status_counts[JobStatusEnum.PUBLISHED],
+            JobStatusEnum.CLAIMED: status_counts[JobStatusEnum.CLAIMED],
+            JobStatusEnum.IN_PROGRESS: status_counts[JobStatusEnum.IN_PROGRESS],
+        }
+        terminal_status_counts = {
+            JobStatusEnum.COMPLETED: status_counts[JobStatusEnum.COMPLETED],
+            JobStatusEnum.FAILED: status_counts[JobStatusEnum.FAILED],
+            JobStatusEnum.CANCELLED: status_counts[JobStatusEnum.CANCELLED],
+        }
+
+        completed_jobs = status_counts[JobStatusEnum.COMPLETED]
+        failed_jobs = status_counts[JobStatusEnum.FAILED]
+        total_handoffs = raw_stats.total_handoffs
+        estimated_time_saved_minutes = total_handoffs * self.MINUTES_SAVED_PER_HANDOFF
+        completion_rate = (completed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
+        failure_rate = (failed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
+
+        time_to_claim_minutes = [
+            self._duration_minutes(published_at, claimed_at)
+            for published_at, claimed_at in raw_stats.published_to_claimed_pairs
+            if published_at is not None and claimed_at is not None and claimed_at >= published_at
+        ]
+        time_to_resolution_minutes = [
+            self._duration_minutes(published_at, resolved_at)
+            for published_at, resolved_at in raw_stats.published_to_resolution_pairs
+            if published_at is not None and resolved_at is not None and resolved_at >= published_at
+        ]
+
+        log.info(
+            "operation_completed",
+            total_jobs=raw_stats.total_jobs,
+            completed_jobs=completed_jobs,
+            failed_jobs=failed_jobs,
+            active_agents=raw_stats.active_agents,
+            stuck_jobs=raw_stats.stuck_jobs,
+            total_handoffs=total_handoffs,
+            estimated_time_saved_minutes=estimated_time_saved_minutes,
+            time_to_claim_samples=len(time_to_claim_minutes),
+            time_to_resolution_samples=len(time_to_resolution_minutes),
+        )
+
+        return HandoffJobStats(
+            window_hours=raw_stats.window_hours,
+            stuck_minutes=raw_stats.stuck_minutes,
+            total_jobs=raw_stats.total_jobs,
+            all_time_status_counts=all_time_status_counts,
+            queue_status_counts=queue_status_counts,
+            terminal_status_counts=terminal_status_counts,
+            completion_rate=completion_rate,
+            failure_rate=failure_rate,
+            active_agents=raw_stats.active_agents,
+            stuck_jobs=raw_stats.stuck_jobs,
+            total_handoffs=total_handoffs,
+            estimated_time_saved_minutes=estimated_time_saved_minutes,
+            waiting_jobs_by_role=raw_stats.waiting_jobs_by_role,
+            p50_time_to_claim_minutes=self._median_or_none(time_to_claim_minutes),
+            p90_time_to_claim_minutes=self._percentile_or_none(time_to_claim_minutes, 0.9),
+            p50_time_to_resolution_minutes=self._median_or_none(time_to_resolution_minutes),
+            p90_time_to_resolution_minutes=self._percentile_or_none(time_to_resolution_minutes, 0.9),
+        )
 
     async def create_job(self, job_data: HandoffJobCreateRequest, target_role_id: int, source_agent_id: int) -> int:
         log = self._logger.bind(method="create_job")

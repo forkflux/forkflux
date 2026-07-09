@@ -142,6 +142,76 @@ The quickstart flow creates:
 
 :::
 
+### `forkflux stats`
+
+Shows a handoff metrics snapshot for a configurable time window.
+
+Use this command to quickly assess delivery health, queue pressure, and latency trends without querying the database directly.
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux stats [OPTIONS]
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux stats [OPTIONS]
+    ```
+  </TabItem>
+</Tabs>
+
+Arguments: none.
+
+| Option | Type | Default | Description |
+|---|---:|---:|---|
+| `--window-hours` | `INTEGER` | `24` | Metrics lookback window in hours. Must be at least `1`. |
+| `--stuck-minutes` | `INTEGER` | `60` | Threshold (minutes) used to classify active jobs as stuck. Must be at least `1`. |
+| `--verbose` | `FLAG` | `False` | Shows legacy all-time status counters in an additional table. |
+
+Examples:
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux stats
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux stats
+    ```
+  </TabItem>
+</Tabs>
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux stats --window-hours 72 --stuck-minutes 30 --verbose
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux stats --window-hours 72 --stuck-minutes 30 --verbose
+    ```
+  </TabItem>
+</Tabs>
+
+The command prints rich tables with the following sections:
+
+| Section | What it shows |
+|---|---|
+| `Pipeline Health` | Total jobs in the window, completion rate, failure rate, and number of active agents. |
+| `Workflow Impact` | Total handoffs and estimated cumulative time saved. |
+| `Latency (p50 / p90)` | Median and tail latencies for time-to-claim and time-to-resolution. |
+| `Active Queue Snapshot` | Current counts for `published`, `claimed`, and `in_progress`, plus stuck-job count. |
+| `Historical (All-time Status Counters)` | Added only with `--verbose`; total counters by job status across all time. |
+
+Operator notes:
+
+- The `Published (waiting)` row appends a bottleneck hint when one role dominates waiting jobs.
+- High stuck-job counts usually indicate assignment imbalance, blocked dependencies, or missing agent capacity.
+
 ## Role commands
 
 Role commands are grouped under `forkflux agents-role`. A role defines the type of work an agent can target or receive, such as `developer`, `qa`, `frontend`, or `reviewer`.
