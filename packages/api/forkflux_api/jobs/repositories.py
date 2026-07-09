@@ -1,13 +1,14 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import cast
 
 import structlog
-from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
 from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
     HandoffJobItem,
+    HandoffJobRawStats,
     JobArtifactCreate,
     JobEventCreate,
 )
@@ -19,7 +20,7 @@ from forkflux_api.jobs.exceptions import (
     JobEventConflictError,
 )
 from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
-from sqlalchemy import Row, Select, select
+from sqlalchemy import Row, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -170,6 +171,143 @@ class HandoffJobRepository:
         except IntegrityError as err:
             await self._session.rollback()
             raise HandoffJobConflictError from err
+
+    async def stats(self, window_hours: int = 24, stuck_minutes: int = 60) -> HandoffJobRawStats:
+        log = self._logger.bind(method="stats")
+
+        now = datetime.now(timezone.utc)
+        window_start = now - timedelta(hours=window_hours)
+        stuck_before = now - timedelta(minutes=stuck_minutes)
+
+        active_statuses = [JobStatusEnum.PUBLISHED, JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS]
+
+        total_jobs = int(
+            (
+                await self._session.scalar(
+                    select(func.count(HandoffJob.id)).where(HandoffJob.published_at >= window_start)
+                )
+            )
+            or 0
+        )
+
+        all_time_status_counts: dict[JobStatusEnum, int] = {status: 0 for status in JobStatusEnum}
+        all_time_status_rows = await self._session.execute(
+            select(HandoffJob.status, func.count(HandoffJob.id)).group_by(HandoffJob.status)
+        )
+        for status, count in all_time_status_rows.all():
+            all_time_status_counts[status] = int(count)
+
+        status_counts: dict[JobStatusEnum, int] = {status: 0 for status in JobStatusEnum}
+        status_rows = await self._session.execute(
+            select(HandoffJob.status, func.count(HandoffJob.id))
+            .where(HandoffJob.published_at >= window_start)
+            .group_by(HandoffJob.status)
+        )
+        for status, count in status_rows.all():
+            status_counts[status] = int(count)
+
+        active_agents = int(
+            (
+                await self._session.scalar(
+                    select(func.count(func.distinct(AgentApiToken.agent_id))).where(
+                        AgentApiToken.is_active.is_(True),
+                        AgentApiToken.last_used_at.is_not(None),
+                        AgentApiToken.last_used_at >= window_start,
+                    )
+                )
+            )
+            or 0
+        )
+
+        stuck_jobs = int(
+            (
+                await self._session.scalar(
+                    select(func.count(HandoffJob.id)).where(
+                        HandoffJob.status.in_(active_statuses),
+                        HandoffJob.updated_at < stuck_before,
+                    )
+                )
+            )
+            or 0
+        )
+
+        total_handoffs = int(
+            (
+                await self._session.scalar(
+                    select(func.count(HandoffJob.id)).where(
+                        HandoffJob.published_at >= window_start,
+                        HandoffJob.status == JobStatusEnum.COMPLETED,
+                        HandoffJob.claimed_at.is_not(None),
+                    )
+                )
+            )
+            or 0
+        )
+
+        waiting_jobs_by_role_rows = await self._session.execute(
+            select(TargetRole.role_key, func.count(HandoffJob.id))
+            .join(TargetRole, HandoffJob.target_role_id == TargetRole.id)
+            .where(
+                HandoffJob.status == JobStatusEnum.PUBLISHED,
+                HandoffJob.published_at >= window_start,
+            )
+            .group_by(TargetRole.role_key)
+            .order_by(func.count(HandoffJob.id).desc(), TargetRole.role_key.asc())
+            .limit(3)
+        )
+        waiting_jobs_by_role = [(role_key, int(count)) for role_key, count in waiting_jobs_by_role_rows.all()]
+
+        published_to_claimed_rows = await self._session.execute(
+            select(HandoffJob.published_at, HandoffJob.claimed_at).where(
+                HandoffJob.published_at >= window_start,
+                HandoffJob.claimed_at.is_not(None),
+            )
+        )
+        published_to_claimed_pairs = [
+            (published_at, claimed_at) for published_at, claimed_at in published_to_claimed_rows.all()
+        ]
+
+        published_to_resolution_rows = await self._session.execute(
+            select(
+                HandoffJob.published_at,
+                func.coalesce(HandoffJob.completed_at, HandoffJob.failed_at, HandoffJob.cancelled_at),
+            ).where(
+                HandoffJob.published_at >= window_start,
+                HandoffJob.status.in_([JobStatusEnum.COMPLETED, JobStatusEnum.FAILED, JobStatusEnum.CANCELLED]),
+                func.coalesce(HandoffJob.completed_at, HandoffJob.failed_at, HandoffJob.cancelled_at).is_not(None),
+            )
+        )
+        published_to_resolution_pairs = [
+            (published_at, resolved_at) for published_at, resolved_at in published_to_resolution_rows.all()
+        ]
+
+        log.info(
+            "operation_completed",
+            window_hours=window_hours,
+            stuck_minutes=stuck_minutes,
+            total_jobs=total_jobs,
+            completed_jobs=status_counts[JobStatusEnum.COMPLETED],
+            failed_jobs=status_counts[JobStatusEnum.FAILED],
+            active_agents=active_agents,
+            stuck_jobs=stuck_jobs,
+            total_handoffs=total_handoffs,
+            published_to_claimed_samples=len(published_to_claimed_pairs),
+            published_to_resolution_samples=len(published_to_resolution_pairs),
+        )
+
+        return HandoffJobRawStats(
+            window_hours=window_hours,
+            stuck_minutes=stuck_minutes,
+            total_jobs=total_jobs,
+            all_time_status_counts=all_time_status_counts,
+            status_counts=status_counts,
+            active_agents=active_agents,
+            stuck_jobs=stuck_jobs,
+            total_handoffs=total_handoffs,
+            waiting_jobs_by_role=waiting_jobs_by_role,
+            published_to_claimed_pairs=published_to_claimed_pairs,
+            published_to_resolution_pairs=published_to_resolution_pairs,
+        )
 
 
 class JobArtifactRepository:

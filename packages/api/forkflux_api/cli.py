@@ -51,6 +51,28 @@ app.add_typer(agent_app, name="agent")
 app.add_typer(job_app, name="job")
 
 
+def _format_minutes(value: float | None) -> str:
+    if value is None:
+        return "-"
+
+    return f"{value:.2f}"
+
+
+def _format_duration(value: float | None) -> str:
+    if value is None:
+        return "-"
+
+    rounded_minutes = int(round(value))
+    if rounded_minutes < 60:
+        return f"{rounded_minutes}m"
+
+    hours, minutes = divmod(rounded_minutes, 60)
+    if minutes == 0:
+        return f"{hours}h"
+
+    return f"{hours}h {minutes}m"
+
+
 def _configure_cli_logging() -> None:
     """Suppress INFO logs for CLI-invoked services, keep WARNING/ERROR visible."""
     global _CLI_LOGGING_CONFIGURED
@@ -168,6 +190,84 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:  # noqa: S104
 @app.command(help="Initialize the database")
 def init() -> None:
     _apply_migrations()
+
+
+@app.command(help="Show handoff statistics snapshot")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def stats(
+    window_hours: int = typer.Option(24, min=1, help="Metrics window in hours"),
+    stuck_minutes: int = typer.Option(60, min=1, help="Stuck-job threshold in minutes"),
+    verbose: bool = typer.Option(False, "--verbose", help="Show legacy all-time status counters"),
+) -> None:
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
+        job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
+        job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        stats_data = await HandoffJobService(
+            handoff_job_repo=handoff_job_repo,
+            job_artifact_repo=job_artifact_repo,
+            job_event_repo=job_event_repo,
+            trace_id=trace_id,
+        ).stats(window_hours=window_hours, stuck_minutes=stuck_minutes)
+
+    console.print(f"📊 ForkFlux Metrics (Last {stats_data.window_hours}h)")
+    console.print()
+
+    pipeline_health_table = Table("[ Pipeline Health ]", "Value")
+    pipeline_health_table.add_row("Total jobs", str(stats_data.total_jobs))
+    pipeline_health_table.add_row("Completion rate", f"{stats_data.completion_rate * 100:.2f}%")
+    pipeline_health_table.add_row("Failure rate", f"{stats_data.failure_rate * 100:.2f}%")
+    pipeline_health_table.add_row("Active agents", str(stats_data.active_agents))
+    console.print(pipeline_health_table)
+
+    workflow_impact_table = Table("[ Workflow Impact ]", "Value")
+    workflow_impact_table.add_row("Total handoffs", str(stats_data.total_handoffs))
+    workflow_impact_table.add_row(
+        "Estimated time saved", _format_duration(float(stats_data.estimated_time_saved_minutes))
+    )
+    console.print(workflow_impact_table)
+
+    latency_table = Table("[ Latency (p50 / p90) ]", "Value")
+    latency_table.add_row(
+        "Time to claim",
+        f"{_format_duration(stats_data.p50_time_to_claim_minutes)} / "
+        f"{_format_duration(stats_data.p90_time_to_claim_minutes)}",
+    )
+    latency_table.add_row(
+        "Time to resolution",
+        f"{_format_duration(stats_data.p50_time_to_resolution_minutes)} / "
+        f"{_format_duration(stats_data.p90_time_to_resolution_minutes)}",
+    )
+    console.print(latency_table)
+
+    queue_snapshot_table = Table("[ Active Queue Snapshot ]", "Value")
+
+    bottleneck_suffix = ""
+    if stats_data.waiting_jobs_by_role:
+        role_key, role_count = stats_data.waiting_jobs_by_role[0]
+        bottleneck_suffix = f"  (Bottleneck: {role_key} - {role_count} jobs)"
+
+    queue_snapshot_table.add_row(
+        "Published (waiting)",
+        f"{stats_data.queue_status_counts[JobStatusEnum.PUBLISHED]}{bottleneck_suffix}",
+    )
+    queue_snapshot_table.add_row("Claimed", str(stats_data.queue_status_counts[JobStatusEnum.CLAIMED]))
+    queue_snapshot_table.add_row("In Progress", str(stats_data.queue_status_counts[JobStatusEnum.IN_PROGRESS]))
+    queue_snapshot_table.add_row(
+        f"⚠️ Stuck (>{stats_data.stuck_minutes}m)",
+        str(stats_data.stuck_jobs),
+    )
+    console.print(queue_snapshot_table)
+
+    if verbose:
+        console.print()
+        legacy_table = Table("[ Historical (All-time Status Counters) ]", "Value")
+        for status in JobStatusEnum:
+            legacy_table.add_row(f"Status {status.value}", str(stats_data.all_time_status_counts[status]))
+        console.print(legacy_table)
 
 
 @app.command(help="Initialize the database, add some example data, add skills and MCP server")

@@ -9,6 +9,7 @@ from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
 from forkflux_api.jobs.repositories import HandoffJobRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.factories import (
+    AgentApiTokenFactory,
     AgentIdentityFactory,
     HandoffJobFactory,
     JobArtifactFactory,
@@ -417,7 +418,10 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
 
     all_items = await repository.list(
         filter_params=HandoffJobFilterParams(
-            limit=200, status=JobStatusEnum.PUBLISHED, target_role_id=None, order=[JobListOrderEnum.CREATED_AT_ASC]
+            limit=200,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_id=None,
+            order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
 
@@ -487,7 +491,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
     filtered_items = await repository.list(
         filter_params=HandoffJobFilterParams(
             limit=200,
-            status=JobStatusEnum.PUBLISHED,
+            statuses=[JobStatusEnum.PUBLISHED],
             target_role_id=reviewer_role.id,
             order=[JobListOrderEnum.CREATED_AT_ASC],
         )
@@ -541,7 +545,10 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
 
     items = await repository.list(
         filter_params=HandoffJobFilterParams(
-            limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=None, order=[JobListOrderEnum.CREATED_AT_ASC]
+            limit=50,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_id=None,
+            order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
 
@@ -637,3 +644,220 @@ async def test_handoff_job_repository_delete_raises_has_children_when_child_jobs
 
     assert persisted_parent_job is not None
     assert persisted_child_job is not None
+
+
+async def test_handoff_job_repository_stats_returns_zeroed_metrics_for_empty_database(
+    db_session: AsyncSession,
+) -> None:
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-stats-empty")
+
+    result = await repository.stats()
+
+    assert result.window_hours == 24
+    assert result.stuck_minutes == 60
+    assert result.total_jobs == 0
+    assert result.active_agents == 0
+    assert result.stuck_jobs == 0
+    assert result.total_handoffs == 0
+    assert result.waiting_jobs_by_role == []
+    assert result.published_to_claimed_pairs == []
+    assert result.published_to_resolution_pairs == []
+    assert result.status_counts[JobStatusEnum.PUBLISHED] == 0
+    assert result.status_counts[JobStatusEnum.CLAIMED] == 0
+    assert result.status_counts[JobStatusEnum.IN_PROGRESS] == 0
+    assert result.status_counts[JobStatusEnum.COMPLETED] == 0
+    assert result.status_counts[JobStatusEnum.FAILED] == 0
+    assert result.status_counts[JobStatusEnum.CANCELLED] == 0
+    assert result.all_time_status_counts[JobStatusEnum.PUBLISHED] == 0
+    assert result.all_time_status_counts[JobStatusEnum.CLAIMED] == 0
+    assert result.all_time_status_counts[JobStatusEnum.IN_PROGRESS] == 0
+    assert result.all_time_status_counts[JobStatusEnum.COMPLETED] == 0
+    assert result.all_time_status_counts[JobStatusEnum.FAILED] == 0
+    assert result.all_time_status_counts[JobStatusEnum.CANCELLED] == 0
+
+
+async def test_handoff_job_repository_stats_computes_status_distribution_rates_and_medians(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-stats-target-role",
+        role_label="Handoff stats target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-stats-source-role",
+        role_label="Handoff stats source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-stats-source-agent",
+        role_id=source_role.id,
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-stats-assignee-agent",
+        role_id=target_role.id,
+    )
+    stale_assignee = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-stats-stale-assignee",
+        role_id=target_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-stats-aggregate")
+
+    recent = datetime.now(timezone.utc)
+    base = recent - timedelta(hours=6)
+
+    await AgentApiTokenFactory.create(
+        db_session,
+        agent_id=assignee_agent.id,
+        last_used_at=recent - timedelta(minutes=30),
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        agent_id=source_agent.id,
+        last_used_at=recent - timedelta(hours=23),
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        agent_id=stale_assignee.id,
+        last_used_at=recent - timedelta(hours=26),
+    )
+
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=None,
+        status=JobStatusEnum.PUBLISHED,
+        published_at=base,
+        claimed_at=None,
+        completed_at=None,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.CLAIMED,
+        published_at=base,
+        claimed_at=base + timedelta(minutes=15),
+        completed_at=None,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.IN_PROGRESS,
+        published_at=base,
+        claimed_at=base + timedelta(minutes=12),
+        started_at=base + timedelta(minutes=13),
+        completed_at=None,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.COMPLETED,
+        published_at=base,
+        claimed_at=base + timedelta(minutes=10),
+        completed_at=base + timedelta(minutes=40),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.COMPLETED,
+        published_at=base,
+        claimed_at=base + timedelta(minutes=20),
+        completed_at=base + timedelta(minutes=80),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.COMPLETED,
+        published_at=base + timedelta(minutes=60),
+        claimed_at=base + timedelta(minutes=90),
+        completed_at=base + timedelta(minutes=55),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.FAILED,
+        published_at=base,
+        claimed_at=None,
+        failed_at=base + timedelta(minutes=30),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=None,
+        status=JobStatusEnum.CANCELLED,
+        published_at=base,
+        claimed_at=None,
+        cancelled_at=base + timedelta(minutes=5),
+    )
+
+    # stale active job outside window should still be counted as stuck
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=stale_assignee.id,
+        status=JobStatusEnum.IN_PROGRESS,
+        published_at=recent - timedelta(hours=30),
+        claimed_at=recent - timedelta(hours=29),
+        started_at=recent - timedelta(hours=29),
+        created_at=recent - timedelta(hours=30),
+        updated_at=recent - timedelta(hours=2),
+    )
+
+    # recent waiting jobs for role bottleneck
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.PUBLISHED,
+        published_at=recent - timedelta(minutes=40),
+        created_at=recent - timedelta(minutes=40),
+        updated_at=recent - timedelta(minutes=40),
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.PUBLISHED,
+        published_at=recent - timedelta(minutes=20),
+        created_at=recent - timedelta(minutes=20),
+        updated_at=recent - timedelta(minutes=20),
+    )
+
+    result = await repository.stats(window_hours=24, stuck_minutes=60)
+
+    assert result.window_hours == 24
+    assert result.stuck_minutes == 60
+    assert result.total_jobs == 10
+    assert result.status_counts[JobStatusEnum.PUBLISHED] == 3
+    assert result.status_counts[JobStatusEnum.CLAIMED] == 1
+    assert result.status_counts[JobStatusEnum.IN_PROGRESS] == 1
+    assert result.status_counts[JobStatusEnum.COMPLETED] == 3
+    assert result.status_counts[JobStatusEnum.FAILED] == 1
+    assert result.status_counts[JobStatusEnum.CANCELLED] == 1
+    assert result.all_time_status_counts[JobStatusEnum.IN_PROGRESS] == 2
+    assert result.active_agents == 2
+    assert result.stuck_jobs == 1
+    assert result.total_handoffs == 3
+    assert result.waiting_jobs_by_role[0] == (target_role.role_key, 3)
+    assert len(result.published_to_claimed_pairs) == 5
+    assert len(result.published_to_resolution_pairs) == 5
+    assert (base, base + timedelta(minutes=15)) in result.published_to_claimed_pairs
+    assert (base + timedelta(minutes=60), base + timedelta(minutes=55)) in result.published_to_resolution_pairs

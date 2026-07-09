@@ -1,9 +1,15 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 from forkflux_api.jobs.constants import JobEventTypeEnum, JobListOrderEnum, JobPriorityEnum, JobStatusEnum
-from forkflux_api.jobs.dto import HandoffJobCreate, HandoffJobFilterParams, HandoffJobItem, JobEventCreate
+from forkflux_api.jobs.dto import (
+    HandoffJobCreate,
+    HandoffJobFilterParams,
+    HandoffJobItem,
+    HandoffJobRawStats,
+    JobEventCreate,
+)
 from forkflux_api.jobs.exceptions import HandoffJobConflictError
 from forkflux_api.jobs.schemas import HandoffJobCreateRequest, JobArtifact
 from forkflux_api.jobs.services import HandoffJobService
@@ -68,7 +74,10 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
 
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
     filter_params = HandoffJobFilterParams(
-        limit=50, status=JobStatusEnum.PUBLISHED, target_role_id=1, order=[JobListOrderEnum.CREATED_AT_ASC]
+        limit=50,
+        statuses=[JobStatusEnum.PUBLISHED],
+        target_role_id=1,
+        order=[JobListOrderEnum.CREATED_AT_ASC],
     )
     expected_jobs = [Mock(), Mock()]
 
@@ -108,6 +117,136 @@ async def test_handoff_job_service_delete_job_delegates_to_repository_delete() -
     await service.delete_job(job_id=job_id)
 
     repository.delete.assert_awaited_once_with(job_id=job_id)
+
+
+async def test_handoff_job_service_stats_computes_completion_rate_and_medians() -> None:
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    base = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+    repository.stats = AsyncMock(
+        return_value=HandoffJobRawStats(
+            window_hours=24,
+            stuck_minutes=60,
+            total_jobs=8,
+            all_time_status_counts={
+                JobStatusEnum.PUBLISHED: 11,
+                JobStatusEnum.CLAIMED: 3,
+                JobStatusEnum.IN_PROGRESS: 2,
+                JobStatusEnum.COMPLETED: 30,
+                JobStatusEnum.FAILED: 4,
+                JobStatusEnum.CANCELLED: 1,
+            },
+            status_counts={
+                JobStatusEnum.PUBLISHED: 1,
+                JobStatusEnum.CLAIMED: 1,
+                JobStatusEnum.IN_PROGRESS: 1,
+                JobStatusEnum.COMPLETED: 3,
+                JobStatusEnum.FAILED: 1,
+                JobStatusEnum.CANCELLED: 1,
+            },
+            active_agents=8,
+            stuck_jobs=2,
+            total_handoffs=3,
+            waiting_jobs_by_role=[("qa", 8), ("frontend", 2)],
+            published_to_claimed_pairs=[
+                (base, base + timedelta(minutes=15)),
+                (base, base + timedelta(minutes=10)),
+                (base + timedelta(minutes=30), base + timedelta(minutes=50)),
+                (base + timedelta(minutes=90), base + timedelta(minutes=70)),
+            ],
+            published_to_resolution_pairs=[
+                (base, base + timedelta(minutes=40)),
+                (base, base + timedelta(minutes=80)),
+                (base, base + timedelta(minutes=30)),
+                (base + timedelta(minutes=60), base + timedelta(minutes=55)),
+            ],
+        )
+    )
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.stats()
+
+    repository.stats.assert_awaited_once_with(window_hours=24, stuck_minutes=60)
+    assert result.window_hours == 24
+    assert result.stuck_minutes == 60
+    assert result.total_jobs == 8
+    assert result.queue_status_counts[JobStatusEnum.PUBLISHED] == 1
+    assert result.queue_status_counts[JobStatusEnum.CLAIMED] == 1
+    assert result.queue_status_counts[JobStatusEnum.IN_PROGRESS] == 1
+    assert result.terminal_status_counts[JobStatusEnum.COMPLETED] == 3
+    assert result.terminal_status_counts[JobStatusEnum.FAILED] == 1
+    assert result.terminal_status_counts[JobStatusEnum.CANCELLED] == 1
+    assert result.all_time_status_counts[JobStatusEnum.COMPLETED] == 30
+    assert result.completion_rate == pytest.approx(3 / 8)
+    assert result.failure_rate == pytest.approx(1 / 8)
+    assert result.active_agents == 8
+    assert result.stuck_jobs == 2
+    assert result.total_handoffs == 3
+    assert result.estimated_time_saved_minutes == 24
+    assert result.waiting_jobs_by_role == [("qa", 8), ("frontend", 2)]
+    assert result.p50_time_to_claim_minutes == pytest.approx(15.0)
+    assert result.p90_time_to_claim_minutes == pytest.approx(19.0)
+    assert result.p50_time_to_resolution_minutes == pytest.approx(40.0)
+    assert result.p90_time_to_resolution_minutes == pytest.approx(72.0)
+
+
+async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data() -> None:
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    repository.stats = AsyncMock(
+        return_value=HandoffJobRawStats(
+            window_hours=24,
+            stuck_minutes=60,
+            total_jobs=0,
+            all_time_status_counts={status: 0 for status in JobStatusEnum},
+            status_counts={status: 0 for status in JobStatusEnum},
+            active_agents=0,
+            stuck_jobs=0,
+            total_handoffs=0,
+            waiting_jobs_by_role=[],
+            published_to_claimed_pairs=[],
+            published_to_resolution_pairs=[],
+        )
+    )
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.stats()
+
+    repository.stats.assert_awaited_once_with(window_hours=24, stuck_minutes=60)
+    assert result.total_jobs == 0
+    assert result.completion_rate == 0.0
+    assert result.failure_rate == 0.0
+    assert result.active_agents == 0
+    assert result.stuck_jobs == 0
+    assert result.total_handoffs == 0
+    assert result.estimated_time_saved_minutes == 0
+    assert result.waiting_jobs_by_role == []
+    assert result.p50_time_to_claim_minutes is None
+    assert result.p90_time_to_claim_minutes is None
+    assert result.p50_time_to_resolution_minutes is None
+    assert result.p90_time_to_resolution_minutes is None
+    for status in JobStatusEnum:
+        if status in {JobStatusEnum.PUBLISHED, JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS}:
+            assert result.queue_status_counts[status] == 0
+        if status in {JobStatusEnum.COMPLETED, JobStatusEnum.FAILED, JobStatusEnum.CANCELLED}:
+            assert result.terminal_status_counts[status] == 0
+        assert result.all_time_status_counts[status] == 0
 
 
 async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artifacts_and_returns_job_id() -> None:
