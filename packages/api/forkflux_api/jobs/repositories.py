@@ -25,6 +25,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+MAX_STATS_DURATION_SAMPLES = 200
+
 
 class HandoffJobRepository:
     def __init__(self, session: AsyncSession, trace_id: str) -> None:
@@ -258,10 +260,13 @@ class HandoffJobRepository:
         waiting_jobs_by_role = [(role_key, int(count)) for role_key, count in waiting_jobs_by_role_rows.all()]
 
         published_to_claimed_rows = await self._session.execute(
-            select(HandoffJob.published_at, HandoffJob.claimed_at).where(
+            select(HandoffJob.published_at, HandoffJob.claimed_at)
+            .where(
                 HandoffJob.published_at >= window_start,
                 HandoffJob.claimed_at.is_not(None),
             )
+            .order_by(HandoffJob.published_at.desc(), HandoffJob.id.desc())
+            .limit(MAX_STATS_DURATION_SAMPLES)
         )
         published_to_claimed_pairs = [
             (published_at, claimed_at) for published_at, claimed_at in published_to_claimed_rows.all()
@@ -271,11 +276,14 @@ class HandoffJobRepository:
             select(
                 HandoffJob.published_at,
                 func.coalesce(HandoffJob.completed_at, HandoffJob.failed_at, HandoffJob.cancelled_at),
-            ).where(
+            )
+            .where(
                 HandoffJob.published_at >= window_start,
                 HandoffJob.status.in_([JobStatusEnum.COMPLETED, JobStatusEnum.FAILED, JobStatusEnum.CANCELLED]),
                 func.coalesce(HandoffJob.completed_at, HandoffJob.failed_at, HandoffJob.cancelled_at).is_not(None),
             )
+            .order_by(HandoffJob.published_at.desc(), HandoffJob.id.desc())
+            .limit(MAX_STATS_DURATION_SAMPLES)
         )
         published_to_resolution_pairs = [
             (published_at, resolved_at) for published_at, resolved_at in published_to_resolution_rows.all()
@@ -293,6 +301,7 @@ class HandoffJobRepository:
             total_handoffs=total_handoffs,
             published_to_claimed_samples=len(published_to_claimed_pairs),
             published_to_resolution_samples=len(published_to_resolution_pairs),
+            duration_sample_cap=MAX_STATS_DURATION_SAMPLES,
         )
 
         return HandoffJobRawStats(

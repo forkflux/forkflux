@@ -62,7 +62,7 @@ def _format_duration(value: float | None) -> str:
     if value is None:
         return "-"
 
-    rounded_minutes = int(round(value))
+    rounded_minutes = round(value)
     if rounded_minutes < 60:
         return f"{rounded_minutes}m"
 

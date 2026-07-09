@@ -6,7 +6,7 @@ from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobSt
 from forkflux_api.jobs.dto import HandoffJobCreate, HandoffJobFilterParams
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobHasChildrenError, HandoffJobNotFoundError
 from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
-from forkflux_api.jobs.repositories import HandoffJobRepository
+from forkflux_api.jobs.repositories import MAX_STATS_DURATION_SAMPLES, HandoffJobRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.factories import (
     AgentApiTokenFactory,
@@ -861,3 +861,52 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
     assert len(result.published_to_resolution_pairs) == 5
     assert (base, base + timedelta(minutes=15)) in result.published_to_claimed_pairs
     assert (base + timedelta(minutes=60), base + timedelta(minutes=55)) in result.published_to_resolution_pairs
+
+
+async def test_handoff_job_repository_stats_limits_duration_samples_to_bounded_size(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-stats-cap-target-role",
+        role_label="Handoff stats cap target role",
+    )
+    source_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="handoff-stats-cap-source-role",
+        role_label="Handoff stats cap source role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-stats-cap-source-agent",
+        role_id=source_role.id,
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="handoff-stats-cap-assignee-agent",
+        role_id=target_role.id,
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-stats-cap")
+
+    base = datetime.now(timezone.utc) - timedelta(hours=2)
+
+    total_rows = MAX_STATS_DURATION_SAMPLES + 20
+    for idx in range(total_rows):
+        published_at = base + timedelta(minutes=idx)
+        await HandoffJobFactory.create(
+            db_session,
+            source_agent_id=source_agent.id,
+            target_role_id=target_role.id,
+            assignee_agent_id=assignee_agent.id,
+            status=JobStatusEnum.COMPLETED,
+            published_at=published_at,
+            claimed_at=published_at + timedelta(minutes=1),
+            completed_at=published_at + timedelta(minutes=5),
+        )
+
+    result = await repository.stats(window_hours=24, stuck_minutes=60)
+
+    assert len(result.published_to_claimed_pairs) == MAX_STATS_DURATION_SAMPLES
+    assert len(result.published_to_resolution_pairs) == MAX_STATS_DURATION_SAMPLES
+    assert (base, base + timedelta(minutes=1)) not in result.published_to_claimed_pairs
+    assert (base, base + timedelta(minutes=5)) not in result.published_to_resolution_pairs

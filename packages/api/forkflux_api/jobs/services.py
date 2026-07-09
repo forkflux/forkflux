@@ -21,6 +21,8 @@ from forkflux_api.jobs.schemas import HandoffJobCreateRequest
 
 
 class HandoffJobService:
+    MINUTES_SAVED_PER_HANDOFF = 8  # this number is taken from team measurement
+
     def __init__(
         self,
         handoff_job_repo: HandoffJobRepository,
@@ -86,7 +88,7 @@ class HandoffJobService:
         completed_jobs = status_counts[JobStatusEnum.COMPLETED]
         failed_jobs = status_counts[JobStatusEnum.FAILED]
         total_handoffs = raw_stats.total_handoffs
-        estimated_time_saved_minutes = total_handoffs * 8
+        estimated_time_saved_minutes = total_handoffs * self.MINUTES_SAVED_PER_HANDOFF
         completion_rate = (completed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
         failure_rate = (failed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
 
