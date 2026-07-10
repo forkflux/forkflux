@@ -111,9 +111,13 @@ async def create_job(
     """
     Publishes a new handoff job to the ForkFlux coordination bus for delegation.
 
-    CRITICAL: The Target Agent operates in complete isolation. They cannot see your
-    local workspace, files, or chat history. You MUST pack all necessary context
-    into the parameters below.
+    CRITICAL:
+        1. The Target Agent operates in complete isolation. They cannot see your
+            local workspace, files, or chat history. You MUST pack all necessary context
+            into the parameters below.
+        2. 'summary' field MUST ONLY contain the target goal.
+        3. 'constraints' is the SINGLE SOURCE OF TRUTH for all rules, limits, and tech conditions.
+        4. NEVER duplicate items from 'constraints' inside the 'summary' text. Keep them isolated.
 
     Args:
         summary: A concise, human-readable title of the job.
