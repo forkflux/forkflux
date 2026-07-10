@@ -10,7 +10,7 @@ from forkflux_api.jobs.api_exceptions import ParentJobValidationError, TargetRol
 from forkflux_api.jobs.dto import HandoffJobItem
 from forkflux_api.jobs.exceptions import HandoffJobNotFoundError
 from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from forkflux_api.jobs.schemas import HandoffJobCreateRequest
+from forkflux_api.jobs.schemas import HandoffJobClaimNextRequest, HandoffJobCreateRequest
 from forkflux_api.jobs.services import HandoffJobService
 
 
@@ -84,3 +84,12 @@ async def validate_target_role_query_param(
         return role
     except TargetRoleNotFoundError:
         raise TargetRoleValidationError(field_name="target_role_key", value=target_role_key, loc="query")
+
+
+async def validate_target_role_claim_next(
+    data: HandoffJobClaimNextRequest, service: TargetRoleService = Depends(get_target_role_service)
+) -> TargetRole:
+    try:
+        return await service.get_by_role_key(role_key=data.target_role_key)
+    except TargetRoleNotFoundError:
+        raise TargetRoleValidationError(field_name="target_role_key", value=data.target_role_key)

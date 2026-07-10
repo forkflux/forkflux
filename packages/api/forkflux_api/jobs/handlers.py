@@ -15,6 +15,7 @@ from forkflux_api.jobs.dependencies import (
     get_handoff_job_service,
     validate_parent_job,
     validate_target_role,
+    validate_target_role_claim_next,
     validate_target_role_query_param,
 )
 from forkflux_api.jobs.dto import HandoffJobFilterParams
@@ -22,6 +23,7 @@ from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotF
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
 from forkflux_api.jobs.schemas import (
     HandoffJobChangeStatusRequest,
+    HandoffJobClaimNextRequest,
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobListItem,
@@ -78,6 +80,42 @@ async def list_jobs(
         )
         for x in jobs
     ]
+
+
+@router.post("/claim-next", status_code=http_status.HTTP_201_CREATED, response_model=HandoffJobWithArtifactsItem)
+async def claim_next_job(
+    data: HandoffJobClaimNextRequest,
+    valid_target_role: TargetRole = Depends(validate_target_role_claim_next),
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
+):
+    agent_role_ids = await agent_identity_role_service.list_role_ids(agent_identity_id=current_agent.id)
+
+    jobs = await job_service.list_jobs(
+        HandoffJobFilterParams(
+            limit=1,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_ids=[valid_target_role.id],
+            order=[JobListOrderEnum.PRIORITY_DESC, JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    if not jobs:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="No published jobs available for the given target role.",
+        )
+
+    job_id = jobs[0].job_details.id
+
+    try:
+        await job_service.claim_job(job_id=job_id, agent_id=current_agent.id, agent_role_ids=agent_role_ids)
+    except HandoffJobNotFoundError, HandoffJobConflictError:
+        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="body")
+
+    entity = await job_service.get_job_with_artifacts(job_id)
+    return handoff_job_to_response_model(entity=entity)
 
 
 @router.get("/{job_id}", response_model=HandoffJobWithArtifactsItem)

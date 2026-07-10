@@ -79,3 +79,9 @@ class HandoffJobChangeStatusRequest(BaseModel):
 
     status: JobStatusEnum
     failure_reason: str | None = None
+
+
+class HandoffJobClaimNextRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    target_role_key: str
