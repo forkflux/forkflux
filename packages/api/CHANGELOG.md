@@ -1,3 +1,20 @@
+## [0.4.0] - 2026-07-10
+
+### ⚙️ Miscellaneous Tasks
+
+- Api jobs list accepts multiple statuses
+
+### 🐛 Bug Fixes
+
+- Tighten stats sampling and remove stats/cli magic cleanups
+- Enforce assignment-based routing in board flow
+
+### 🚀 Features
+
+- Add cli basic stats
+- Add multiple roles support for agents
+- Add `claim_next_job` endpoint
+
 ## [0.3.0] - 2026-07-07
 
 ### ⚙️ Miscellaneous Tasks
