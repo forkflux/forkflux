@@ -94,6 +94,15 @@ def downgrade() -> None:
             )
         )
 
+    null_count = bind.execute(sa.text("SELECT COUNT(*) FROM agent_identity WHERE role_id IS NULL")).scalar()
+
+    if null_count:
+        raise RuntimeError(
+            f"Cannot enforce non-null role_id: {null_count} agent_identity row(s) "
+            "still have NULL role_id after backfill from agent_identity_role. "
+            "Assign a target_role to these agents before downgrading."
+        )
+
     with op.batch_alter_table("agent_identity") as batch_op:
         batch_op.alter_column("role_id", nullable=False)
         batch_op.create_foreign_key("fk_agent_identity_role_id_target_role", "target_role", ["role_id"], ["id"])

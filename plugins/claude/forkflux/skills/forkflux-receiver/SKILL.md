@@ -33,7 +33,7 @@ Before calling `forkflux_list_jobs`, analyze your current overarching task and e
 If you can confidently match your current task to one of the specific roles listed in the annotation, call the tool with:
 - `status`: `"published"`
 - `target_role_key`: `"<matched_role_key>"`
-- `my_roles_only`: `false`
+- `my_roles_only`: `true`
 
 **2. Unclear Role (Fallback)**
 If you cannot confidently determine your role, or if no clear annotation is provided, fall back to the default routing:
@@ -42,6 +42,8 @@ If you cannot confidently determine your role, or if no clear annotation is prov
 - `my_roles_only`: `true`
 
 **Critical:** Never hallucinate or guess role keys. If using Option 1, you must use an exact string from the tool's schema annotations.
+
+**Security:** Always use `my_roles_only: true`. This ensures the API filters jobs by the caller's assigned roles only, preventing the board from presenting jobs the receiver is unauthorized to claim. If the explicitly matched role is not among the agent's assigned roles, the list will be empty — this is correct behavior, as the agent is not authorized for that role.
 
 #### Error and empty-state handling
 

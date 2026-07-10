@@ -108,19 +108,20 @@ async def _apply_fixtures() -> tuple[str, str]:
     qa_role = await add_role.__wrapped__(role_key="qa", role_label="QA")
 
     console.print("Lets add 2 agents - agent-1 and agent-2")
-    developer_agent, developer_token = await add_agent.__wrapped__(agent_label="agent-1")
-    qa_agent, qa_token = await add_agent.__wrapped__(agent_label="agent-2")
-
-    await assign_agent_role.__wrapped__(agent_id=developer_agent.id, role_id=developer_role.id)
-    await assign_agent_role.__wrapped__(agent_id=qa_agent.id, role_id=qa_role.id)
-
-    if developer_agent is None:
+    developer_result = await add_agent.__wrapped__(agent_label="agent-1")
+    if developer_result is None:
         console.print("Failed to create API key for agent-1 (developer)", style="bold red")
         raise typer.Exit(code=1)
+    developer_agent, developer_token = developer_result
 
-    if qa_agent is None:
+    qa_result = await add_agent.__wrapped__(agent_label="agent-2")
+    if qa_result is None:
         console.print("Failed to create API key for agent-2 (qa)", style="bold red")
         raise typer.Exit(code=1)
+    qa_agent, qa_token = qa_result
+
+    await assign_agent_role.__wrapped__(agent_id=developer_agent.id, role_key=developer_role.role_key)
+    await assign_agent_role.__wrapped__(agent_id=qa_agent.id, role_key=qa_role.role_key)
 
     return developer_token, qa_token
 

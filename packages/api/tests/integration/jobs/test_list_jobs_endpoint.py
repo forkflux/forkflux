@@ -125,7 +125,7 @@ async def test_list_jobs_filters_by_status_and_target_role_key_when_my_roles_onl
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-list-jobs-filter-token"
-    source_agent, source_role = await _create_auth_context(db_session, raw_token)
+    source_agent, _source_role = await _create_auth_context(db_session, raw_token)
 
     reviewer_role = await TargetRoleFactory.create(
         db_session,
@@ -187,7 +187,7 @@ async def test_list_jobs_with_my_roles_only_false_and_no_target_role_key_returns
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-list-jobs-cross-role-token"
-    source_agent, source_role = await _create_auth_context(db_session, raw_token)
+    source_agent, _source_role = await _create_auth_context(db_session, raw_token)
 
     reviewer_role = await TargetRoleFactory.create(
         db_session,
