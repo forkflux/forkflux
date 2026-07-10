@@ -15,14 +15,8 @@ from tests.factories import (
 
 
 async def _create_auth_context(db_session: AsyncSession, raw_token: str) -> int:
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key=f"get-job-source-role-{raw_token}",
-        role_label="Get job source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label=f"get-job-source-agent-{raw_token}",
     )
     await AgentApiTokenFactory.create(
@@ -43,14 +37,8 @@ async def test_get_job_returns_200_and_job_with_artifacts(client: AsyncClient, d
         role_key="get-job-reviewer-role",
         role_label="Get job reviewer role",
     )
-    operator_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="get-job-operator-role",
-        role_label="Get job operator role",
-    )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=operator_role.id,
         agent_label="get-job-assignee-agent",
     )
 

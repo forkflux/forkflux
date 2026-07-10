@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Any
 
-from forkflux_api.database import Base, UTCDateTime
-from forkflux_api.jobs.constants import JobStatusEnum
 from sqlalchemy import JSON, BigInteger, CheckConstraint, Enum, ForeignKey, Index, Integer, SmallInteger, Text, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
+
+from forkflux_api.database import Base, UTCDateTime
+from forkflux_api.jobs.constants import JobStatusEnum
 
 JSON_TYPE = JSON().with_variant(postgresql.JSONB(astext_type=Text()), "postgresql")
 PK_TYPE = BigInteger().with_variant(Integer, "sqlite")

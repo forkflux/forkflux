@@ -2,9 +2,9 @@ import pytest
 from forkflux_api.agents.dto import AgentApiTokenCreate
 from forkflux_api.agents.exceptions import AgentApiTokenConflictError, AgentApiTokenNotFoundError
 from forkflux_api.agents.models import AgentApiToken
-from forkflux_api.agents.respositories import AgentApiTokenRepository
+from forkflux_api.agents.repositories import AgentApiTokenRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
+from tests.factories import AgentApiTokenFactory, AgentIdentityFactory
 
 
 async def test_agent_api_token_repository_init_sets_session_and_logger(db_session: AsyncSession) -> None:
@@ -15,14 +15,8 @@ async def test_agent_api_token_repository_init_sets_session_and_logger(db_sessio
 
 
 async def test_agent_api_token_repository_get_returns_active_token(db_session: AsyncSession) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-role",
-        role_label="Agent role",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-1",
     )
     active_token = await AgentApiTokenFactory.create(
@@ -51,14 +45,8 @@ async def test_agent_api_token_repository_get_returns_active_token(db_session: A
 async def test_agent_api_token_repository_get_raises_not_found_for_missing_or_inactive_token(
     db_session: AsyncSession,
 ) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-role-2",
-        role_label="Agent role 2",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-2",
     )
     await AgentApiTokenFactory.create(
@@ -78,14 +66,8 @@ async def test_agent_api_token_repository_get_raises_not_found_for_missing_or_in
 
 
 async def test_agent_api_token_repository_create_persists_and_returns_token(db_session: AsyncSession) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-token-create-role",
-        role_label="Agent token create role",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-token-create-1",
     )
     repository = AgentApiTokenRepository(session=db_session, trace_id="trace-123")
@@ -120,14 +102,8 @@ async def test_agent_api_token_repository_create_raises_conflict_on_integrity_er
 async def test_agent_api_token_repository_revoke_revokes_all_active_tokens_for_agent(
     db_session: AsyncSession,
 ) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-token-revoke-role",
-        role_label="Agent token revoke role",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-token-revoke-1",
     )
     active_token_1 = await AgentApiTokenFactory.create(
@@ -173,14 +149,8 @@ async def test_agent_api_token_repository_revoke_revokes_all_active_tokens_for_a
 async def test_agent_api_token_repository_revoke_returns_zero_when_no_active_tokens_exist(
     db_session: AsyncSession,
 ) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-token-revoke-role-2",
-        role_label="Agent token revoke role 2",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-token-revoke-2",
     )
     await AgentApiTokenFactory.create(

@@ -1,4 +1,6 @@
 from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from forkflux_api.agents.dependencies import get_target_role_service
 from forkflux_api.agents.exceptions import TargetRoleNotFoundError
 from forkflux_api.agents.models import TargetRole
@@ -10,7 +12,6 @@ from forkflux_api.jobs.exceptions import HandoffJobNotFoundError
 from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
 from forkflux_api.jobs.schemas import HandoffJobCreateRequest
 from forkflux_api.jobs.services import HandoffJobService
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def get_trace_id(request: Request) -> str:

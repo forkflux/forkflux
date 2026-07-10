@@ -22,7 +22,6 @@ async def test_list_roles_returns_200_and_roles_with_valid_bearer_token(
     )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role_admin.id,
         agent_label="agent-list-roles",
     )
     await AgentApiTokenFactory.create(
@@ -56,14 +55,8 @@ async def test_list_roles_returns_401_for_invalid_bearer_token(
     db_session: AsyncSession,
 ) -> None:
     valid_raw_token = "some-other-valid-token"
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="ops",
-        role_label="Operations",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-invalid-token",
     )
     await AgentApiTokenFactory.create(

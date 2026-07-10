@@ -16,19 +16,33 @@ from alembic.config import Config
 from rich.console import Console
 from rich.table import Table
 
+from forkflux_api.agents.models import AgentIdentity, TargetRole
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
 from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentIdentityConflictError,
     AgentIdentityNotFoundError,
+    AgentIdentityRoleConflictError,
+    AgentIdentityRoleNotFoundError,
     TargetRoleConflictError,
     TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
-from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
-from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService, TargetRoleService
+from forkflux_api.agents.repositories import (
+    AgentApiTokenRepository,
+    AgentIdentityRepository,
+    AgentIdentityRoleRepository,
+    TargetRoleRepository,
+)
+from forkflux_api.agents.services import (
+    AgentApiTokenService,
+    AgentIdentityRoleService,
+    AgentIdentityService,
+    TargetRoleService,
+)
 from forkflux_api.database import session_manager
 from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import HandoffJobFilterParams
@@ -90,18 +104,21 @@ async def _apply_fixtures() -> tuple[str, str]:
     _configure_cli_logging()
 
     console.print("Lets add 2 roles - developer and QA")
-    await add_role.__wrapped__(role_key="developer", role_label="Developer")
-    await add_role.__wrapped__(role_key="qa", role_label="QA")
+    developer_role = await add_role.__wrapped__(role_key="developer", role_label="Developer")
+    qa_role = await add_role.__wrapped__(role_key="qa", role_label="QA")
 
     console.print("Lets add 2 agents - agent-1 and agent-2")
-    developer_token = await add_agent.__wrapped__(agent_label="agent-1", role_key="developer")
-    qa_token = await add_agent.__wrapped__(agent_label="agent-2", role_key="qa")
+    developer_agent, developer_token = await add_agent.__wrapped__(agent_label="agent-1")
+    qa_agent, qa_token = await add_agent.__wrapped__(agent_label="agent-2")
 
-    if developer_token is None:
+    await assign_agent_role.__wrapped__(agent_id=developer_agent.id, role_id=developer_role.id)
+    await assign_agent_role.__wrapped__(agent_id=qa_agent.id, role_id=qa_role.id)
+
+    if developer_agent is None:
         console.print("Failed to create API key for agent-1 (developer)", style="bold red")
         raise typer.Exit(code=1)
 
-    if qa_token is None:
+    if qa_agent is None:
         console.print("Failed to create API key for agent-2 (qa)", style="bold red")
         raise typer.Exit(code=1)
 
@@ -346,7 +363,7 @@ async def list_roles() -> None:
 
 @agents_role_app.command("add")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def add_role(role_key: str, role_label: str) -> None:
+async def add_role(role_key: str, role_label: str) -> TargetRole:
     """
     Adds a new role with the specified key and label.
     """
@@ -361,6 +378,8 @@ async def add_role(role_key: str, role_label: str) -> None:
             console.print(f"Role {new_role.role_key} created successfully")
         except TargetRoleConflictError:
             console.print(f"Role with key {role_key} already exists", style="bold red")
+
+    return new_role
 
 
 @agents_role_app.command("delete")
@@ -396,41 +415,46 @@ async def list_agents() -> None:
 
     async with session_manager() as session:
         agent_repo = AgentIdentityRepository(session=session, trace_id=trace_id)
-        agents = await AgentIdentityService(agent_identity_repo=agent_repo, trace_id=trace_id).get_all_agents()
+        agent_service = AgentIdentityService(
+            agent_identity_repo=agent_repo,
+            trace_id=trace_id,
+        )
+        agents = await agent_service.get_all_agents()
         role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
         roles = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_all_roles()
+        agent_role_repo = AgentIdentityRoleRepository(session=session, trace_id=trace_id)
+        agent_role_service = AgentIdentityRoleService(
+            agent_identity_role_repo=agent_role_repo,
+            trace_id=trace_id,
+        )
 
-    roles_mapping = {role.id: role.role_key for role in roles}
+        roles_mapping = {role.id: role.role_key for role in roles}
 
-    table = Table("ID", "Label", "Role key")
-    for agent in agents:
-        table.add_row(str(agent.id), agent.agent_label, roles_mapping[agent.role_id])
-    console.print(table)
+        table = Table("ID", "Label", "Role keys")
+        for agent in agents:
+            role_ids = await agent_role_service.list_role_ids(agent_identity_id=agent.id)
+            role_keys = [roles_mapping[role_id] for role_id in role_ids if role_id in roles_mapping]
+            table.add_row(str(agent.id), agent.agent_label, ", ".join(role_keys) if role_keys else "-")
+        console.print(table)
 
 
 @agent_app.command("add")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def add_agent(agent_label: str, role_key: str, tool_family: str | None = None) -> str | None:
+async def add_agent(agent_label: str, tool_family: str | None = None) -> tuple[AgentIdentity, str] | None:
     """
-    Adds a new agent with the specified label, role, and tool family (optional).
+    Adds a new agent with the specified label and tool family (optional).
     """
     _configure_cli_logging()
     trace_id = str(uuid4())
 
     async with session_manager() as session:
         try:
-            role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
-            role = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_by_role_key(role_key)
-        except TargetRoleNotFoundError:
-            console.print(f"Role with key {role_key} not found", style="bold red")
-            return None
-
-        try:
             agent_repo = AgentIdentityRepository(session=session, trace_id=trace_id)
-            agent_dto = AgentIdentityCreate(agent_label=agent_label, role_id=role.id, tool_family=tool_family)
-            new_agent = await AgentIdentityService(agent_identity_repo=agent_repo, trace_id=trace_id).create_agent(
-                dto=agent_dto
-            )
+            agent_dto = AgentIdentityCreate(agent_label=agent_label, tool_family=tool_family)
+            new_agent = await AgentIdentityService(
+                agent_identity_repo=agent_repo,
+                trace_id=trace_id,
+            ).create_agent(dto=agent_dto)
             console.print(f"Agent {new_agent.agent_label} created successfully")
         except AgentIdentityConflictError:
             console.print("Can't create a new agent", style="bold red")
@@ -443,10 +467,71 @@ async def add_agent(agent_label: str, role_key: str, tool_family: str | None = N
                 dto=token_dto
             )
             console.print(f"API key {new_token} for agent {new_agent.agent_label} created successfully")
-            return new_token
         except AgentApiTokenConflictError:
             console.print("Can't create a new API key", style="bold red")
             return None
+
+    return new_agent, new_token
+
+
+@agent_app.command("assign-role")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def assign_agent_role(agent_id: int, role_key: str) -> None:
+    """
+    Assigns a role to an agent.
+    """
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        try:
+            role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
+            role = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_by_role_key(role_key)
+        except TargetRoleNotFoundError:
+            console.print(f"Role with key {role_key} not found", style="bold red")
+            return
+
+        agent_role_repo = AgentIdentityRoleRepository(session=session, trace_id=trace_id)
+        service = AgentIdentityRoleService(
+            agent_identity_role_repo=agent_role_repo,
+            trace_id=trace_id,
+        )
+
+        try:
+            await service.assign_role(AgentIdentityRoleAssign(agent_identity_id=agent_id, target_role_id=role.id))
+            console.print(f"Role {role_key} assigned to agent {agent_id}")
+        except AgentIdentityRoleConflictError:
+            console.print(f"Role {role_key} is already assigned to agent {agent_id}", style="bold red")
+
+
+@agent_app.command("unassign-role")
+@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
+async def unassign_agent_role(agent_id: int, role_key: str) -> None:
+    """
+    Unassigns a role from an agent.
+    """
+    _configure_cli_logging()
+    trace_id = str(uuid4())
+
+    async with session_manager() as session:
+        try:
+            role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
+            role = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_by_role_key(role_key)
+        except TargetRoleNotFoundError:
+            console.print(f"Role with key {role_key} not found", style="bold red")
+            return
+
+        agent_role_repo = AgentIdentityRoleRepository(session=session, trace_id=trace_id)
+        service = AgentIdentityRoleService(
+            agent_identity_role_repo=agent_role_repo,
+            trace_id=trace_id,
+        )
+
+        try:
+            await service.unassign_role(agent_identity_id=agent_id, target_role_id=role.id)
+            console.print(f"Role {role_key} unassigned from agent {agent_id}")
+        except AgentIdentityRoleNotFoundError:
+            console.print(f"Role {role_key} is not assigned to agent {agent_id}", style="bold red")
 
 
 @agent_app.command("revoke-token")
@@ -471,14 +556,14 @@ async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target
     trace_id = str(uuid4())
 
     async with session_manager() as session:
-        target_role_id: int | None = None
+        target_role_ids: list[int] = []
         if target_role_key is not None and target_role_key.strip() != "":
             try:
                 role_repo = TargetRoleRepository(session=session, trace_id=trace_id)
                 role = await TargetRoleService(target_role_repo=role_repo, trace_id=trace_id).get_by_role_key(
                     target_role_key
                 )
-                target_role_id = role.id
+                target_role_ids = [role.id]
             except TargetRoleNotFoundError:
                 console.print(f"Role with key {target_role_key} not found", style="bold red")
                 return
@@ -494,8 +579,8 @@ async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target
         ).list_jobs(
             HandoffJobFilterParams(
                 limit=limit,
-                status=status,
-                target_role_id=target_role_id,
+                statuses=[status] if status is not None else [],
+                target_role_ids=target_role_ids,
                 order=[JobListOrderEnum.CREATED_AT_ASC],
             )
         )
@@ -588,9 +673,10 @@ async def change_job_status(
     async with session_manager() as session:
         try:
             agent_repo = AgentIdentityRepository(session=session, trace_id=trace_id)
-            agent = await AgentIdentityService(agent_identity_repo=agent_repo, trace_id=trace_id).get_by_id(
-                agent_identity_id=agent_id
-            )
+            agent = await AgentIdentityService(
+                agent_identity_repo=agent_repo,
+                trace_id=trace_id,
+            ).get_by_id(agent_identity_id=agent_id)
         except AgentIdentityNotFoundError:
             console.print(f"Agent with id {agent_id} not found", style="bold red")
             return
@@ -605,7 +691,7 @@ async def change_job_status(
                 job_artifact_repo=job_artifact_repo,
                 job_event_repo=job_event_repo,
                 trace_id=trace_id,
-            ).change_job_status(job_id=job_id, status=status, agent=agent, failure_reason=failure_reason)
+            ).change_job_status(job_id=job_id, status=status, agent_id=agent.id, failure_reason=failure_reason)
         except HandoffJobNotFoundError:
             console.print(f"Job with id {job_id} not found", style="bold red")
             return

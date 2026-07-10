@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from forkflux_api.database import Base, UTCDateTime
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, Text
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
+from forkflux_api.database import Base, UTCDateTime
 
 PK_TYPE = BigInteger().with_variant(Integer, "sqlite")
 
@@ -21,8 +22,17 @@ class AgentIdentity(Base):
 
     id: Mapped[int] = mapped_column(PK_TYPE, primary_key=True, autoincrement=True)
     agent_label: Mapped[str] = mapped_column(Text, nullable=False)
-    role_id: Mapped[int] = mapped_column(ForeignKey("target_role.id"), nullable=False)
     tool_family: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class AgentIdentityRole(Base):
+    __tablename__ = "agent_identity_role"
+    __table_args__ = (UniqueConstraint("agent_identity_id", "target_role_id", name="uq_agent_identity_role_pair"),)
+
+    id: Mapped[int] = mapped_column(PK_TYPE, primary_key=True, autoincrement=True)
+    agent_identity_id: Mapped[int] = mapped_column(ForeignKey("agent_identity.id", ondelete="CASCADE"), nullable=False)
+    target_role_id: Mapped[int] = mapped_column(ForeignKey("target_role.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
 

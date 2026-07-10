@@ -10,10 +10,15 @@ class TargetRoleCreate:
 @dataclass(slots=True)
 class AgentIdentityCreate:
     agent_label: str
-    role_id: int
     tool_family: str | None
 
 
 @dataclass(slots=True)
 class AgentApiTokenCreate:
     agent_id: int
+
+
+@dataclass(slots=True)
+class AgentIdentityRoleAssign:
+    agent_identity_id: int
+    target_role_id: int

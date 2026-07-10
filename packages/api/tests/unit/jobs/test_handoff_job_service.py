@@ -76,7 +76,7 @@ async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> Non
     filter_params = HandoffJobFilterParams(
         limit=50,
         statuses=[JobStatusEnum.PUBLISHED],
-        target_role_id=1,
+        target_role_ids=[1],
         order=[JobListOrderEnum.CREATED_AT_ASC],
     )
     expected_jobs = [Mock(), Mock()]
@@ -358,11 +358,10 @@ async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pas
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-    agent.role_id = 20
+    agent_id = 10
+    agent_role_ids = [20]
 
-    await service.claim_job(job_id=123, agent=agent)
+    await service.claim_job(job_id=123, agent_id=agent_id, agent_role_ids=agent_role_ids)
 
     repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
     repository.save.assert_awaited_once_with(job=job)
@@ -393,12 +392,8 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-    agent.role_id = 20
-
     with pytest.raises(HandoffJobConflictError):
-        await service.claim_job(job_id=123, agent=agent)
+        await service.claim_job(job_id=123, agent_id=10, agent_role_ids=[20])
 
     repository.save.assert_not_called()
 
@@ -424,12 +419,8 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_role_mismatch(
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-    agent.role_id = 99
-
     with pytest.raises(HandoffJobConflictError):
-        await service.claim_job(job_id=123, agent=agent)
+        await service.claim_job(job_id=123, agent_id=10, agent_role_ids=[99])
 
     repository.save.assert_not_called()
 
@@ -455,12 +446,8 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_as
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-    agent.role_id = 20
-
     with pytest.raises(HandoffJobConflictError):
-        await service.claim_job(job_id=123, agent=agent)
+        await service.claim_job(job_id=123, agent_id=10, agent_role_ids=[20])
 
     repository.save.assert_not_called()
 
@@ -486,10 +473,7 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-
-    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent=agent)
+    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
 
     repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
     repository.save.assert_awaited_once_with(job=job)
@@ -519,10 +503,7 @@ async def test_handoff_job_service_change_job_status_sets_completed_at_for_assig
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-
-    await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent=agent)
+    await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent_id=10)
 
     repository.save.assert_awaited_once_with(job=job)
     assert job.status == JobStatusEnum.COMPLETED
@@ -551,14 +532,11 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 10
-
     failure_reason = "executor timeout"
     await service.change_job_status(
         job_id=123,
         status=JobStatusEnum.FAILED,
-        agent=agent,
+        agent_id=10,
         failure_reason=failure_reason,
     )
 
@@ -591,10 +569,7 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 42
-
-    await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent=agent)
+    await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent_id=42)
 
     repository.save.assert_awaited_once_with(job=job)
     assert job.status == JobStatusEnum.CANCELLED
@@ -623,11 +598,8 @@ async def test_handoff_job_service_change_job_status_raises_conflict_for_invalid
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 42
-
     with pytest.raises(HandoffJobConflictError):
-        await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent=agent)
+        await service.change_job_status(job_id=123, status=JobStatusEnum.COMPLETED, agent_id=42)
 
     repository.save.assert_not_called()
 
@@ -653,11 +625,8 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_assign
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 99
-
     with pytest.raises(HandoffJobConflictError):
-        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent=agent)
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=99)
 
     repository.save.assert_not_called()
 
@@ -683,10 +652,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_so
         trace_id="trace-123",
     )
 
-    agent = Mock()
-    agent.id = 99
-
     with pytest.raises(HandoffJobConflictError):
-        await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent=agent)
+        await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent_id=99)
 
     repository.save.assert_not_called()

@@ -88,7 +88,7 @@ Expected result:
 
 Use `/ff-board` when a receiver agent needs to see published jobs available to its current role.
 
-The command guides the assistant to call `forkflux_list_jobs` with `status` set to `published`, `target_role_key` set to `null`, and `my_role_only` set to `true`. This prevents the assistant from listing jobs intended for other roles.
+The command guides the assistant to call `forkflux_list_jobs` with `status` set to `published`, `target_role_key` set to `null`, and `my_roles_only` set to `true`. This prevents the assistant from listing jobs intended for other roles.
 
 Example:
 

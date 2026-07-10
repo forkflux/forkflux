@@ -44,6 +44,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "import-linter==2.13",
     "polyfactory==3.3.0",
     "testcontainers[postgres]==4.14.2",
 ]
@@ -76,3 +77,30 @@ prepend_sys_path = [
 ]
 timezone = "UTC"
 sqlalchemy.url = "driver_not_set"
+
+[tool.importlinter]
+root_package = "forkflux_api"
+
+[[tool.importlinter.contracts]]
+name = "Jobs core must not import agents"
+type = "forbidden"
+source_modules = [
+    "forkflux_api.jobs.services",
+    "forkflux_api.jobs.repositories",
+    "forkflux_api.jobs.models",
+]
+forbidden_modules = [
+    "forkflux_api.agents",
+]
+
+[[tool.importlinter.contracts]]
+name = "Agents core must not import jobs"
+type = "forbidden"
+source_modules = [
+    "forkflux_api.agents.services",
+    "forkflux_api.agents.repositories",
+    "forkflux_api.agents.models",
+]
+forbidden_modules = [
+    "forkflux_api.jobs",
+]

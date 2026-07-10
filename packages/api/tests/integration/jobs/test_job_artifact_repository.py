@@ -23,15 +23,9 @@ async def test_job_artifact_repository_create_persists_and_returns_artifact(db_s
         role_key="job-artifact-target-role",
         role_label="Job artifact target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-source-role",
-        role_label="Job artifact source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-source-agent",
-        role_id=source_role.id,
     )
 
     handoff_job = await HandoffJobFactory.create(
@@ -93,15 +87,9 @@ async def test_job_artifact_repository_bulk_create_persists_and_returns_artifact
         role_key="job-artifact-bulk-target-role",
         role_label="Job artifact bulk target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-bulk-source-role",
-        role_label="Job artifact bulk source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-bulk-source-agent",
-        role_id=source_role.id,
     )
 
     handoff_job = await HandoffJobFactory.create(
@@ -160,15 +148,9 @@ async def test_job_artifact_repository_bulk_create_raises_conflict_on_integrity_
         role_key="job-artifact-bulk-conflict-target-role",
         role_label="Job artifact bulk conflict target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-bulk-conflict-source-role",
-        role_label="Job artifact bulk conflict source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-bulk-conflict-source-agent",
-        role_id=source_role.id,
     )
 
     handoff_job = await HandoffJobFactory.create(
@@ -214,15 +196,9 @@ async def test_job_artifact_repository_list_returns_artifacts_for_job_ordered_by
         role_key="job-artifact-list-target-role",
         role_label="Job artifact list target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-list-source-role",
-        role_label="Job artifact list source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-list-source-agent",
-        role_id=source_role.id,
     )
 
     handoff_job = await HandoffJobFactory.create(
@@ -283,15 +259,9 @@ async def test_job_artifact_repository_list_returns_empty_list_when_job_has_no_a
         role_key="job-artifact-list-empty-target-role",
         role_label="Job artifact list empty target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-list-empty-source-role",
-        role_label="Job artifact list empty source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-list-empty-source-agent",
-        role_id=source_role.id,
     )
 
     handoff_job = await HandoffJobFactory.create(
@@ -313,15 +283,9 @@ async def test_job_artifact_factory_creates_artifact_with_valid_job(db_session: 
         role_key="job-artifact-factory-target-role",
         role_label="Job artifact factory target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-artifact-factory-source-role",
-        role_label="Job artifact factory source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-artifact-factory-source-agent",
-        role_id=source_role.id,
     )
     handoff_job = await HandoffJobFactory.create(
         db_session,

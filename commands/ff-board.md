@@ -17,7 +17,7 @@ Fetches a list of published jobs from the ForkFlux coordination bus that are spe
 1. Call the `forkflux_list_jobs` MCP tool with the exact following arguments:
    * `status`: "published"
    * `target_role_key`: null
-   * `my_role_only`: true
+   * `my_roles_only`: true
 2. Do not change these parameters. They are strictly required to filter only the tasks ready to be claimed by your specific role.
 3. If the tool call fails or returns a connection error, output the exact error message and stop. Do not hallucinate or make up mock jobs.
 4. If the returned list is empty, kindly inform the user that there are currently no published tasks available for your role in the shared pool.

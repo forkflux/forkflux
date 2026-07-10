@@ -13,5 +13,4 @@ class GetMeResponse(BaseModel):
 
     id: int
     agent_label: str
-    role_id: int
     tool_family: str | None

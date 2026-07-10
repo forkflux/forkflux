@@ -27,13 +27,21 @@ You MUST use MCP tools only:
 
 #### Required call contract (strict)
 
-Call `forkflux_list_jobs` with exact arguments:
+Before calling `forkflux_list_jobs`, analyze your current overarching task and examine the list of available roles provided in the `target_role_key` tool parameter annotation. Determine the arguments based on the following logic:
 
+**1. Explicit Role Match (Preferred)**
+If you can confidently match your current task to one of the specific roles listed in the annotation, call the tool with:
+- `status`: `"published"`
+- `target_role_key`: `"<matched_role_key>"`
+- `my_roles_only`: `false`
+
+**2. Unclear Role (Fallback)**
+If you cannot confidently determine your role, or if no clear annotation is provided, fall back to the default routing:
 - `status`: `"published"`
 - `target_role_key`: `null`
-- `my_role_only`: `true`
+- `my_roles_only`: `true`
 
-Do not modify, omit, or guess these values.
+**Critical:** Never hallucinate or guess role keys. If using Option 1, you must use an exact string from the tool's schema annotations.
 
 #### Error and empty-state handling
 

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from itertools import count
 from typing import Any, TypeVar
 
-from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
 from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
 from polyfactory import AsyncPersistenceProtocol
@@ -65,6 +65,14 @@ class AgentIdentityFactory(BaseSQLAlchemyFactory):
     __model__ = AgentIdentity
 
     agent_label = Use(lambda: f"agent-{next(AgentIdentityFactory._counter)}")
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class AgentIdentityRoleFactory(BaseSQLAlchemyFactory):
+    __model__ = AgentIdentityRole
+
+    agent_identity_id: int
+    target_role_id: int
     created_at: datetime = datetime.now(timezone.utc)
 
 

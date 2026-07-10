@@ -39,11 +39,6 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-create-job-token"
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="create-job-source-role",
-        role_label="Create job source role",
-    )
     target_role = await TargetRoleFactory.create(
         db_session,
         role_key="create-job-target-role",
@@ -51,7 +46,6 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
     )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="create-job-source-agent",
     )
     await AgentApiTokenFactory.create(
@@ -146,14 +140,8 @@ async def test_create_job_returns_401_for_invalid_bearer_token(
     db_session: AsyncSession,
 ) -> None:
     valid_raw_token = "some-other-valid-create-job-token"
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="create-job-auth-source-role",
-        role_label="Create job auth source role",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="create-job-auth-agent",
     )
     await AgentApiTokenFactory.create(
@@ -180,11 +168,6 @@ async def test_create_job_returns_422_when_parent_job_id_is_invalid(
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-create-job-parent-validation-token"
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="create-job-parent-validation-source-role",
-        role_label="Create job parent validation source role",
-    )
     target_role = await TargetRoleFactory.create(
         db_session,
         role_key="create-job-parent-validation-target-role",
@@ -192,7 +175,6 @@ async def test_create_job_returns_422_when_parent_job_id_is_invalid(
     )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="create-job-parent-validation-source-agent",
     )
     await AgentApiTokenFactory.create(
@@ -228,14 +210,8 @@ async def test_create_job_returns_422_when_target_role_key_is_invalid(
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-create-job-target-role-validation-token"
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="create-job-target-validation-source-role",
-        role_label="Create job target validation source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="create-job-target-validation-source-agent",
     )
     await AgentApiTokenFactory.create(

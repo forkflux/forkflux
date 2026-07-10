@@ -84,21 +84,21 @@ Example:
 
 Use stable role keys such as `developer` and `qa` in prompts and handoff jobs. Use display names such as `Developer` or `QA Engineer` for readability.
 
-## 3. Register agents and save their API tokens
+## 3. Register agents, assign roles, and save their API tokens
 
-Register one ForkFlux agent for each assistant identity that will connect through MCP.
+Register one ForkFlux agent for each assistant identity that will connect through MCP. Agent creation generates the API token; role assignment determines which role-targeted jobs the agent can list and claim.
 
 Example sender agent:
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add alice-codex developer
+    uvx --from forkflux-api forkflux agent add alice-codex
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
-    forkflux agent add alice-codex developer
+    forkflux agent add alice-codex
     ```
   </TabItem>
 </Tabs>
@@ -108,21 +108,55 @@ Example receiver agent:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add bob-claude qa
+    uvx --from forkflux-api forkflux agent add bob-claude
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
-    forkflux agent add bob-claude qa
+    forkflux agent add bob-claude
     ```
   </TabItem>
 </Tabs>
 
 Each `forkflux agent add` command prints an API token. Save the token securely. You will use it as `FORKFLUX_API_KEY` in that assistant's MCP server configuration.
 
+List the registered agents to find their numeric IDs:
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent list
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent list
+    ```
+  </TabItem>
+</Tabs>
+
+Assign the workflow roles to the matching agent IDs:
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent assign-role ALICE_AGENT_ID developer
+    uvx --from forkflux-api forkflux agent assign-role BOB_AGENT_ID qa
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent assign-role ALICE_AGENT_ID developer
+    forkflux agent assign-role BOB_AGENT_ID qa
+    ```
+  </TabItem>
+</Tabs>
+
+Replace `ALICE_AGENT_ID` and `BOB_AGENT_ID` with the numeric IDs shown by `forkflux agent list`.
+
 :::tip
 
-Use one token per assistant identity. Separate tokens keep role filtering, claims, job ownership, and audit history clear.
+Use one token per assistant identity. Separate tokens keep role filtering, claims, job ownership, and audit history clear. If an assistant needs access to more than one queue, run `forkflux agent assign-role` once for each role.
 
 :::
 

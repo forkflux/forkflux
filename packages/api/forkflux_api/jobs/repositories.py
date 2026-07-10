@@ -2,7 +2,11 @@ from datetime import datetime, timedelta, timezone
 from typing import cast
 
 import structlog
-from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
+from sqlalchemy import Row, Select, column, func, select, table
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
+
 from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
@@ -20,12 +24,11 @@ from forkflux_api.jobs.exceptions import (
     JobEventConflictError,
 )
 from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
-from sqlalchemy import Row, Select, func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
 MAX_STATS_DURATION_SAMPLES = 200
+AGENT_IDENTITY_TABLE = table("agent_identity", column("id"), column("agent_label"))
+TARGET_ROLE_TABLE = table("target_role", column("id"), column("role_key"))
+AGENT_API_TOKEN_TABLE = table("agent_api_token", column("agent_id"), column("is_active"), column("last_used_at"))
 
 
 class HandoffJobRepository:
@@ -92,19 +95,19 @@ class HandoffJobRepository:
 
     @staticmethod
     def _base_list_item_stmt() -> Select[tuple[HandoffJob, str, str, str | None]]:
-        source_agent = aliased(AgentIdentity)
-        assignee_agent = aliased(AgentIdentity)
+        source_agent = aliased(AGENT_IDENTITY_TABLE, name="source_agent")
+        assignee_agent = aliased(AGENT_IDENTITY_TABLE, name="assignee_agent")
 
         stmt = (
             select(
                 HandoffJob,
-                TargetRole.role_key,
-                source_agent.agent_label,
-                assignee_agent.agent_label,
+                TARGET_ROLE_TABLE.c.role_key,
+                source_agent.c.agent_label,
+                assignee_agent.c.agent_label,
             )
-            .join(TargetRole, HandoffJob.target_role_id == TargetRole.id)
-            .join(source_agent, HandoffJob.source_agent_id == source_agent.id)
-            .outerjoin(assignee_agent, HandoffJob.assignee_agent_id == assignee_agent.id)
+            .join(TARGET_ROLE_TABLE, HandoffJob.target_role_id == TARGET_ROLE_TABLE.c.id)
+            .join(source_agent, HandoffJob.source_agent_id == source_agent.c.id)
+            .outerjoin(assignee_agent, HandoffJob.assignee_agent_id == assignee_agent.c.id)
         )
         return cast(Select[tuple[HandoffJob, str, str, str | None]], stmt)
 
@@ -132,8 +135,8 @@ class HandoffJobRepository:
         if filter_params.statuses:
             stmt = stmt.where(HandoffJob.status.in_(filter_params.statuses))
 
-        if filter_params.target_role_id is not None:
-            stmt = stmt.where(HandoffJob.target_role_id == filter_params.target_role_id)
+        if filter_params.target_role_ids:
+            stmt = stmt.where(HandoffJob.target_role_id.in_(filter_params.target_role_ids))
 
         order_clauses = []
         for order_mode in filter_params.order:
@@ -211,10 +214,10 @@ class HandoffJobRepository:
         active_agents = int(
             (
                 await self._session.scalar(
-                    select(func.count(func.distinct(AgentApiToken.agent_id))).where(
-                        AgentApiToken.is_active.is_(True),
-                        AgentApiToken.last_used_at.is_not(None),
-                        AgentApiToken.last_used_at >= window_start,
+                    select(func.count(func.distinct(AGENT_API_TOKEN_TABLE.c.agent_id))).where(
+                        AGENT_API_TOKEN_TABLE.c.is_active.is_(True),
+                        AGENT_API_TOKEN_TABLE.c.last_used_at.is_not(None),
+                        AGENT_API_TOKEN_TABLE.c.last_used_at >= window_start,
                     )
                 )
             )
@@ -247,14 +250,14 @@ class HandoffJobRepository:
         )
 
         waiting_jobs_by_role_rows = await self._session.execute(
-            select(TargetRole.role_key, func.count(HandoffJob.id))
-            .join(TargetRole, HandoffJob.target_role_id == TargetRole.id)
+            select(TARGET_ROLE_TABLE.c.role_key, func.count(HandoffJob.id))
+            .join(TARGET_ROLE_TABLE, HandoffJob.target_role_id == TARGET_ROLE_TABLE.c.id)
             .where(
                 HandoffJob.status == JobStatusEnum.PUBLISHED,
                 HandoffJob.published_at >= window_start,
             )
-            .group_by(TargetRole.role_key)
-            .order_by(func.count(HandoffJob.id).desc(), TargetRole.role_key.asc())
+            .group_by(TARGET_ROLE_TABLE.c.role_key)
+            .order_by(func.count(HandoffJob.id).desc(), TARGET_ROLE_TABLE.c.role_key.asc())
             .limit(3)
         )
         waiting_jobs_by_role = [(role_key, int(count)) for role_key, count in waiting_jobs_by_role_rows.all()]

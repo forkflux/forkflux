@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forkflux_api.agents.exceptions import AgentApiTokenNotFoundError, AgentIdentityNotFoundError
 from forkflux_api.agents.models import AgentIdentity
-from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository
+from forkflux_api.agents.repositories import AgentApiTokenRepository, AgentIdentityRepository
 from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService
 from forkflux_api.database import get_session
 

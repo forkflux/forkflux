@@ -24,7 +24,6 @@ async def _create_authenticated_agent(
     )
     agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label=agent_label,
     )
     await AgentApiTokenFactory.create(
@@ -85,14 +84,8 @@ async def test_change_job_status_returns_204_and_sets_started_at_for_assignee(
         agent_label="change-status-started-assignee-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="change-status-started-source-role",
-        role_label="Change status started source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="change-status-started-source-agent",
     )
 
@@ -142,14 +135,8 @@ async def test_change_job_status_returns_204_and_sets_completed_at_for_assignee(
         agent_label="change-status-completed-assignee-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="change-status-completed-source-role",
-        role_label="Change status completed source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="change-status-completed-source-agent",
     )
 
@@ -345,12 +332,10 @@ async def test_change_job_status_returns_422_when_assignee_mismatches_and_keeps_
     )
     real_assignee = await AgentIdentityFactory.create(
         db_session,
-        role_id=assignee_role.id,
         agent_label="change-status-assignee-mismatch-real-assignee",
     )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=assignee_role.id,
         agent_label="change-status-assignee-mismatch-source-agent",
     )
 

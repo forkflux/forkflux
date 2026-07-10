@@ -53,7 +53,7 @@ class HandoffJobWithArtifacts(TypedDict):
 class HandoffJobFilterParams:
     limit: int
     statuses: list[JobStatusEnum]
-    target_role_id: int | None
+    target_role_ids: list[int]
     order: list[JobListOrderEnum]
 
 

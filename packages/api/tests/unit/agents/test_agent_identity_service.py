@@ -52,7 +52,7 @@ async def test_agent_identity_service_get_by_id_propagates_not_found_error() -> 
 
 
 async def test_agent_identity_service_create_agent_delegates_and_returns_identity() -> None:
-    dto = AgentIdentityCreate(agent_label="agent-1", role_id=101, tool_family="forkflux")
+    dto = AgentIdentityCreate(agent_label="agent-1", tool_family="forkflux")
     expected_identity = Mock(id=123)
     repository = Mock()
     repository.create = AsyncMock(return_value=expected_identity)
@@ -65,7 +65,7 @@ async def test_agent_identity_service_create_agent_delegates_and_returns_identit
 
 
 async def test_agent_identity_service_create_agent_propagates_conflict_error() -> None:
-    dto = AgentIdentityCreate(agent_label="agent-dup", role_id=202, tool_family=None)
+    dto = AgentIdentityCreate(agent_label="agent-dup", tool_family=None)
     repository = Mock()
     repository.create = AsyncMock(side_effect=AgentIdentityConflictError)
     service = AgentIdentityService(agent_identity_repo=repository, trace_id="trace-123")
