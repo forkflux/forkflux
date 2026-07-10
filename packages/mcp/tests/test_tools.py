@@ -38,7 +38,7 @@ async def test_list_jobs_calls_api_request_with_default_params_and_returns_paylo
             "limit": 50,
             "status": "published",
             "target_role_key": None,
-            "my_role_only": True,
+            "my_roles_only": True,
         },
     )
     _assert_tool_result_envelope(result, expected_payload)

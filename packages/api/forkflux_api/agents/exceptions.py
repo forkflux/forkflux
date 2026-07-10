@@ -18,6 +18,16 @@ class AgentIdentityConflictError(Exception):
     msg = "Agent identity conflicts with existing data constraints."
 
 
+class AgentIdentityRoleConflictError(Exception):
+    code = "agent_identity_role.conflict"
+    msg = "Agent identity role assignment conflicts with existing data constraints."
+
+
+class AgentIdentityRoleNotFoundError(Exception):
+    code = "agent_identity_role.not_found"
+    msg = "Agent identity role assignment not found."
+
+
 class TargetRoleConflictError(Exception):
     code = "target_role.conflict"
     msg = "Target role already exists."

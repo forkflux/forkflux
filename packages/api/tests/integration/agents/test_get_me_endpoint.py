@@ -5,7 +5,7 @@ from forkflux_api.dependencies import get_agent_identity_service
 from forkflux_api.main import app
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, TargetRoleFactory
+from tests.factories import AgentApiTokenFactory, AgentIdentityFactory
 
 
 async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
@@ -13,14 +13,8 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-get-me-token"
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="operator",
-        role_label="Operator",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-get-me",
         tool_family="internal",
     )
@@ -40,7 +34,6 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
     assert response.json() == {
         "id": identity.id,
         "agent_label": identity.agent_label,
-        "role_id": identity.role_id,
         "tool_family": identity.tool_family,
     }
 
@@ -57,14 +50,8 @@ async def test_get_me_returns_401_for_invalid_bearer_token(
     db_session: AsyncSession,
 ) -> None:
     valid_raw_token = "some-other-valid-token-for-me"
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="auditor",
-        role_label="Auditor",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-other-token",
     )
     await AgentApiTokenFactory.create(
@@ -89,14 +76,8 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
     db_session: AsyncSession,
 ) -> None:
     raw_token = "valid-token-agent-missing"
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="support",
-        role_label="Support",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-missing",
     )
     await AgentApiTokenFactory.create(

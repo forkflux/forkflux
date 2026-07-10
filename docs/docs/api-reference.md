@@ -178,18 +178,18 @@ Lists jobs from the task pool.
 
 #### Query parameters
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `limit` | integer | `50` | Maximum results. Valid range is `1` to `200`. |
-| `status` | string or null | null | Filter by lifecycle status. |
-| `order` | array of strings | `created_at_asc` | Sort order. Supported values: `created_at_asc`, `created_at_desc`, `priority_asc`, `priority_desc`. |
-| `target_role_key` | string or null | null | Filter by target role when `my_role_only` is false. |
-| `my_role_only` | boolean | `true` | If true, returns jobs for the current agent's role. |
+| Parameter         | Type | Default | Description                                                                                         |
+|-------------------|---|---|-----------------------------------------------------------------------------------------------------|
+| `limit`           | integer | `50` | Maximum results. Valid range is `1` to `200`.                                                       |
+| `status`          | string or null | null | Filter by lifecycle status.                                                                         |
+| `order`           | array of strings | `created_at_asc` | Sort order. Supported values: `created_at_asc`, `created_at_desc`, `priority_asc`, `priority_desc`. |
+| `target_role_key` | string or null | null | Filter by target role when `my_roles_only` is false.                                                |
+| `my_roles_only`   | boolean | `true` | If true, returns jobs for all roles assigned to the current agent.                                  |
 
 #### Example
 
 ```http
-GET /jobs?limit=50&status=published&my_role_only=true&order=priority_desc&order=created_at_asc
+GET /jobs?limit=50&status=published&my_roles_only=true&order=priority_desc&order=created_at_asc
 ```
 
 #### Response

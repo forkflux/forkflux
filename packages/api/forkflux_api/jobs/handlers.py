@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
+
+from forkflux_api.agents.dependencies import get_agent_identity_roles_service
 from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.agents.services import AgentIdentityRoleService
 from forkflux_api.dependencies import get_current_agent, verify_token
 from forkflux_api.jobs.api_exceptions import (
     HandoffJobClaimValidationError,
@@ -51,14 +54,16 @@ async def list_jobs(
     status: list[JobStatusEnum] | None = Query(default=None),
     order: list[JobListOrderEnum] = Query(default=[JobListOrderEnum.CREATED_AT_ASC]),
     target_role_key: TargetRole = Depends(validate_target_role_query_param),
-    my_role_only: bool = True,
+    my_roles_only: bool = True,
     job_service: HandoffJobService = Depends(get_handoff_job_service),
     current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
 ):
     statuses = status or []
-    target_role_id = current_agent.role_id if my_role_only else target_role_key.id if target_role_key else None
+    list_current_role_ids = await agent_identity_role_service.list_role_ids(agent_identity_id=current_agent.id)
+    target_role_ids = list_current_role_ids if my_roles_only else [target_role_key.id] if target_role_key else []
     jobs = await job_service.list_jobs(
-        HandoffJobFilterParams(limit=limit, statuses=statuses, target_role_id=target_role_id, order=order)
+        HandoffJobFilterParams(limit=limit, statuses=statuses, target_role_ids=target_role_ids, order=order)
     )
     return [
         HandoffJobListItem(
@@ -93,9 +98,11 @@ async def claim_job(
     job_id: int,
     job_service: HandoffJobService = Depends(get_handoff_job_service),
     current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
 ):
     try:
-        await job_service.claim_job(job_id, current_agent)
+        agent_role_ids = await agent_identity_role_service.list_role_ids(agent_identity_id=current_agent.id)
+        await job_service.claim_job(job_id=job_id, agent_id=current_agent.id, agent_role_ids=agent_role_ids)
     except HandoffJobNotFoundError, HandoffJobConflictError:
         raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path")
 
@@ -111,7 +118,7 @@ async def change_job_status(
     current_agent: AgentIdentity = Depends(get_current_agent),
 ):
     try:
-        await job_service.change_job_status(job_id, data.status, current_agent, data.failure_reason)
+        await job_service.change_job_status(job_id, data.status, current_agent.id, data.failure_reason)
     except HandoffJobNotFoundError:
         raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")
     except HandoffJobConflictError:

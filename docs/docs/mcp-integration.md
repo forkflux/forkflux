@@ -551,12 +551,12 @@ Lists jobs from the shared task pool.
 
 Use this tool when a receiver agent needs to inspect available work for its role.
 
-| Argument | Type | Default | Description |
-|---|---|---|---|
-| `limit` | integer | `50` | Maximum jobs to return. Valid range is `1` to `200`. |
-| `status` | enum or null | `published` | Lifecycle status filter. |
-| `target_role_key` | enum/string or null | `null` | Explicit role filter. Usually omitted when `my_role_only` is true. |
-| `my_role_only` | boolean | `true` | Filters jobs to the current agent's role. |
+| Argument          | Type | Default | Description                                                         |
+|-------------------|---|---|---------------------------------------------------------------------|
+| `limit`           | integer | `50` | Maximum jobs to return. Valid range is `1` to `200`.                |
+| `status`          | enum or null | `published` | Lifecycle status filter.                                            |
+| `target_role_key` | enum/string or null | `null` | Explicit role filter. Usually omitted when `my_roles_only` is true. |
+| `my_roles_only`   | boolean | `true` | Filters jobs to the current agent's role.                           |
 
 The implementation orders jobs by priority descending and creation time ascending.
 

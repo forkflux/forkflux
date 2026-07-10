@@ -147,7 +147,7 @@ async def list_jobs(
     limit: Annotated[int, Field(default=50, ge=1, le=200)] = 50,
     status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
     target_role_key: TargetRoleEnum | None = None,  # type: ignore[valid-type]
-    my_role_only: bool = True,
+    my_roles_only: bool = True,
 ):
     """
     Fetches a list of jobs from the ForkFlux Coordination Bus.
@@ -160,7 +160,7 @@ async def list_jobs(
         limit: The maximum number of jobs to return (min 1, max 200). Default is 50.
         status: Filter by job lifecycle status. Defaults to 'published' (jobs ready to be claimed).
         target_role_key: Filter jobs explicitly intended for a specific agent role.
-        my_role_only: If True (default), filters the pool to return only jobs matching the current agent's role.
+        my_roles_only: If True (default), filters the pool to return only jobs matching the agent's roles.
     """
     return await _api_request(
         "GET",
@@ -169,7 +169,7 @@ async def list_jobs(
             "limit": limit,
             "status": status.value if status else None,
             "target_role_key": target_role_key.value if target_role_key else None,  # type: ignore[attr-defined]
-            "my_role_only": my_role_only,
+            "my_roles_only": my_roles_only,
         },
     )
 
@@ -240,10 +240,21 @@ def board_prompt() -> str:
 
     Follow these instruction steps carefully:
 
-    1. Call the `forkflux_list_jobs` MCP tool with the exact following arguments:
-       - `status`: "published"
-       - `target_role_key`: null
-       - `my_role_only`: true
+    1. Call the `forkflux_list_jobs` MCP tool.
+
+    Before calling `forkflux_list_jobs`, analyze your current overarching task and examine the list of available roles provided in the `target_role_key` tool parameter annotation. Determine the arguments based on the following logic:
+
+    **1.1. Explicit Role Match (Preferred)**
+    If you can confidently match your current task to one of the specific roles listed in the annotation, call the tool with:
+    - `status`: `"published"`
+    - `target_role_key`: `"<matched_role_key>"`
+    - `my_roles_only`: `false`
+
+    **1.2. Unclear Role (Fallback)**
+    If you cannot confidently determine your role, or if no clear annotation is provided, fall back to the default routing:
+    - `status`: `"published"`
+    - `target_role_key`: `null`
+    - `my_roles_only`: `true`
 
     2. CRITICAL: Do not modify, omit, or guess these parameters. They are strictly required by the protocol to isolate work meant for your role.
 

@@ -1,8 +1,13 @@
 import pytest
-from forkflux_api.agents.dto import AgentIdentityCreate
-from forkflux_api.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
-from forkflux_api.agents.models import AgentIdentity
-from forkflux_api.agents.respositories import AgentIdentityRepository
+from forkflux_api.agents.dto import AgentIdentityCreate, AgentIdentityRoleAssign
+from forkflux_api.agents.exceptions import (
+    AgentIdentityConflictError,
+    AgentIdentityNotFoundError,
+    AgentIdentityRoleConflictError,
+    AgentIdentityRoleNotFoundError,
+)
+from forkflux_api.agents.models import AgentIdentity, AgentIdentityRole
+from forkflux_api.agents.repositories import AgentIdentityRepository, AgentIdentityRoleRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.factories import AgentIdentityFactory, TargetRoleFactory
 
@@ -15,14 +20,8 @@ async def test_agent_identity_repository_init_sets_session_and_logger(db_session
 
 
 async def test_agent_identity_repository_get_by_id_returns_identity(db_session: AsyncSession) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-role-identity",
-        role_label="Agent identity role",
-    )
     identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-identity-1",
     )
 
@@ -33,23 +32,15 @@ async def test_agent_identity_repository_get_by_id_returns_identity(db_session: 
     assert isinstance(result, AgentIdentity)
     assert result.id == identity.id
     assert result.agent_label == "agent-identity-1"
-    assert result.role_id == role.id
 
 
 async def test_agent_identity_repository_list_returns_identities(db_session: AsyncSession) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-list-role",
-        role_label="Agent list role",
-    )
     first_identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-list-1",
     )
     second_identity = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label="agent-list-2",
     )
 
@@ -71,15 +62,9 @@ async def test_agent_identity_repository_get_by_id_raises_not_found(db_session: 
 
 
 async def test_agent_identity_repository_create_persists_and_returns_identity(db_session: AsyncSession) -> None:
-    role = await TargetRoleFactory.create(
-        db_session,
-        role_key="agent-create-role",
-        role_label="Agent create role",
-    )
     repository = AgentIdentityRepository(session=db_session, trace_id="trace-123")
     dto = AgentIdentityCreate(
         agent_label="agent-create-1",
-        role_id=role.id,
         tool_family="tools-v1",
     )
 
@@ -90,22 +75,124 @@ async def test_agent_identity_repository_create_persists_and_returns_identity(db
     assert isinstance(created_identity, AgentIdentity)
     assert created_identity.id is not None
     assert created_identity.agent_label == "agent-create-1"
-    assert created_identity.role_id == role.id
     assert created_identity.tool_family == "tools-v1"
     assert created_identity.created_at is not None
     assert fetched_identity is not None
     assert fetched_identity.agent_label == "agent-create-1"
-    assert fetched_identity.role_id == role.id
     assert fetched_identity.tool_family == "tools-v1"
 
 
 async def test_agent_identity_repository_create_raises_conflict_on_integrity_error(db_session: AsyncSession) -> None:
     repository = AgentIdentityRepository(session=db_session, trace_id="trace-123")
     dto = AgentIdentityCreate(
-        agent_label="agent-create-conflict",
-        role_id=999_999,
+        agent_label=None,
         tool_family=None,
     )
 
     with pytest.raises(AgentIdentityConflictError):
         await repository.create(dto=dto)
+
+
+async def test_agent_identity_role_repository_assign_persists_and_returns_assignment(db_session: AsyncSession) -> None:
+    role = await TargetRoleFactory.create(
+        db_session,
+        role_key="agent-role-assign-role",
+        role_label="Agent role assign role",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-role-assign-identity",
+    )
+    repository = AgentIdentityRoleRepository(session=db_session, trace_id="trace-123")
+    dto = AgentIdentityRoleAssign(agent_identity_id=identity.id, target_role_id=role.id)
+
+    assignment = await repository.assign(dto=dto)
+
+    fetched_assignment = await db_session.get(AgentIdentityRole, assignment.id)
+
+    assert assignment.id is not None
+    assert assignment.agent_identity_id == identity.id
+    assert assignment.target_role_id == role.id
+    assert assignment.created_at is not None
+    assert fetched_assignment is not None
+    assert fetched_assignment.agent_identity_id == identity.id
+    assert fetched_assignment.target_role_id == role.id
+
+
+async def test_agent_identity_role_repository_assign_raises_conflict_for_duplicate_pair(
+    db_session: AsyncSession,
+) -> None:
+    role = await TargetRoleFactory.create(
+        db_session,
+        role_key="agent-role-assign-duplicate-role",
+        role_label="Agent role assign duplicate role",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-role-assign-duplicate-identity",
+    )
+    repository = AgentIdentityRoleRepository(session=db_session, trace_id="trace-123")
+    dto = AgentIdentityRoleAssign(agent_identity_id=identity.id, target_role_id=role.id)
+
+    await repository.assign(dto=dto)
+
+    with pytest.raises(AgentIdentityRoleConflictError):
+        await repository.assign(dto=dto)
+
+
+async def test_agent_identity_role_repository_list_role_ids_for_agent_returns_sorted_ids(
+    db_session: AsyncSession,
+) -> None:
+    first_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="agent-role-list-first-role",
+        role_label="Agent role list first role",
+    )
+    second_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="agent-role-list-second-role",
+        role_label="Agent role list second role",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-role-list-identity",
+    )
+    repository = AgentIdentityRoleRepository(session=db_session, trace_id="trace-123")
+
+    await repository.assign(dto=AgentIdentityRoleAssign(agent_identity_id=identity.id, target_role_id=second_role.id))
+    await repository.assign(dto=AgentIdentityRoleAssign(agent_identity_id=identity.id, target_role_id=first_role.id))
+
+    role_ids = await repository.list_role_ids_for_agent(agent_identity_id=identity.id)
+
+    assert role_ids == sorted([first_role.id, second_role.id])
+
+
+async def test_agent_identity_role_repository_remove_deletes_assignment(db_session: AsyncSession) -> None:
+    role = await TargetRoleFactory.create(
+        db_session,
+        role_key="agent-role-remove-role",
+        role_label="Agent role remove role",
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-role-remove-identity",
+    )
+    repository = AgentIdentityRoleRepository(session=db_session, trace_id="trace-123")
+    assignment = await repository.assign(
+        dto=AgentIdentityRoleAssign(agent_identity_id=identity.id, target_role_id=role.id)
+    )
+
+    await repository.remove(agent_identity_id=identity.id, target_role_id=role.id)
+
+    deleted = await db_session.get(AgentIdentityRole, assignment.id)
+
+    assert deleted is None
+
+
+async def test_agent_identity_role_repository_remove_raises_not_found_for_missing_pair(
+    db_session: AsyncSession,
+) -> None:
+    repository = AgentIdentityRoleRepository(session=db_session, trace_id="trace-123")
+
+    with pytest.raises(AgentIdentityRoleNotFoundError):
+        await repository.remove(agent_identity_id=999_999, target_role_id=999_998)

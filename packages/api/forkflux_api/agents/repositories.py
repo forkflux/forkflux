@@ -1,20 +1,23 @@
 from datetime import datetime, timezone
 
 import structlog
-from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
+from sqlalchemy import delete, exists, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
 from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentApiTokenNotFoundError,
     AgentIdentityConflictError,
     AgentIdentityNotFoundError,
+    AgentIdentityRoleConflictError,
+    AgentIdentityRoleNotFoundError,
     TargetRoleConflictError,
     TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
-from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
-from sqlalchemy import delete, exists, select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
 
 
 class TargetRoleRepository:
@@ -154,7 +157,6 @@ class AgentIdentityRepository:
     async def create(self, dto: AgentIdentityCreate) -> AgentIdentity:
         agent_identity = AgentIdentity(
             agent_label=dto.agent_label,
-            role_id=dto.role_id,
             tool_family=dto.tool_family,
             created_at=datetime.now(timezone.utc),
         )
@@ -167,3 +169,47 @@ class AgentIdentityRepository:
             raise AgentIdentityConflictError from err
 
         return agent_identity
+
+
+class AgentIdentityRoleRepository:
+    def __init__(self, session: AsyncSession, trace_id: str) -> None:
+        self._session = session
+        self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
+
+    async def assign(self, dto: AgentIdentityRoleAssign) -> AgentIdentityRole:
+        role_assignment = AgentIdentityRole(
+            agent_identity_id=dto.agent_identity_id,
+            target_role_id=dto.target_role_id,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        self._session.add(role_assignment)
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise AgentIdentityRoleConflictError from err
+
+        return role_assignment
+
+    async def list_role_ids_for_agent(self, agent_identity_id: int) -> list[int]:
+        rows = await self._session.execute(
+            select(AgentIdentityRole.target_role_id)
+            .where(AgentIdentityRole.agent_identity_id == agent_identity_id)
+            .order_by(AgentIdentityRole.target_role_id.asc())
+        )
+        return [row[0] for row in rows.all()]
+
+    async def remove(self, agent_identity_id: int, target_role_id: int) -> None:
+        result = await self._session.execute(
+            delete(AgentIdentityRole).where(
+                AgentIdentityRole.agent_identity_id == agent_identity_id,
+                AgentIdentityRole.target_role_id == target_role_id,
+            )
+        )
+
+        deleted_count = result.rowcount or 0  # type: ignore[attr-defined]
+        if deleted_count == 0:
+            raise AgentIdentityRoleNotFoundError
+
+        await self._session.flush()

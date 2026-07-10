@@ -6,7 +6,13 @@ from forkflux_api.jobs.models import HandoffJob, JobEvent
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import AgentApiTokenFactory, AgentIdentityFactory, HandoffJobFactory, TargetRoleFactory
+from tests.factories import (
+    AgentApiTokenFactory,
+    AgentIdentityFactory,
+    AgentIdentityRoleFactory,
+    HandoffJobFactory,
+    TargetRoleFactory,
+)
 
 
 async def _create_authenticated_agent(
@@ -24,8 +30,12 @@ async def _create_authenticated_agent(
     )
     agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=role.id,
         agent_label=agent_label,
+    )
+    await AgentIdentityRoleFactory.create(
+        db_session,
+        agent_identity_id=agent.id,
+        target_role_id=role.id,
     )
     await AgentApiTokenFactory.create(
         db_session,
@@ -54,14 +64,8 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
         agent_label="claim-job-claimant-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="claim-job-source-role",
-        role_label="Claim job source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="claim-job-source-agent",
     )
 
@@ -199,14 +203,8 @@ async def test_claim_job_returns_422_when_job_status_is_not_published(
         agent_label="claim-job-status-claimant-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="claim-job-status-source-role",
-        role_label="Claim job status source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="claim-job-status-source-agent",
     )
 
@@ -263,14 +261,8 @@ async def test_claim_job_returns_422_when_claimant_role_does_not_match_target_ro
         agent_label="claim-job-role-mismatch-claimant-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="claim-job-role-mismatch-source-role",
-        role_label="Claim job role mismatch source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="claim-job-role-mismatch-source-agent",
     )
     real_target_role = await TargetRoleFactory.create(
@@ -332,19 +324,12 @@ async def test_claim_job_returns_422_when_job_is_already_assigned(
         agent_label="claim-job-assigned-claimant-agent",
     )
 
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="claim-job-assigned-source-role",
-        role_label="Claim job assigned source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
-        role_id=source_role.id,
         agent_label="claim-job-assigned-source-agent",
     )
     existing_assignee = await AgentIdentityFactory.create(
         db_session,
-        role_id=claimant_role_id,
         agent_label="claim-job-assigned-existing-assignee",
     )
 

@@ -3,7 +3,7 @@ from math import ceil, floor
 from statistics import median
 
 import structlog
-from forkflux_api.agents.models import AgentIdentity
+
 from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
@@ -206,7 +206,7 @@ class HandoffJobService:
         log = self._logger.bind(
             method="list_jobs",
             statuses=[status.value for status in filter_params.statuses],
-            target_role_id=filter_params.target_role_id,
+            target_role_ids=filter_params.target_role_ids,
             limit=filter_params.limit,
             order=[order.value for order in filter_params.order],
         )
@@ -225,8 +225,8 @@ class HandoffJobService:
 
         log.info("operation_completed")
 
-    async def claim_job(self, job_id: int, agent: AgentIdentity) -> None:
-        log = self._logger.bind(method="claim_job", job_id=job_id, agent_id=agent.id, agent_role_id=agent.role_id)
+    async def claim_job(self, job_id: int, agent_id: int, agent_role_ids: list[int]) -> None:
+        log = self._logger.bind(method="claim_job", job_id=job_id, agent_id=agent_id, agent_role_ids=agent_role_ids)
         log.info("operation_started")
 
         job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
@@ -239,7 +239,7 @@ class HandoffJobService:
             )
             raise HandoffJobConflictError
 
-        if agent.role_id != job.target_role_id:
+        if job.target_role_id not in agent_role_ids:
             log.warning(
                 "operation_failed",
                 reason="role_mismatch",
@@ -258,7 +258,7 @@ class HandoffJobService:
         timestamp = datetime.now(timezone.utc)
 
         job.status = JobStatusEnum.IN_PROGRESS
-        job.assignee_agent_id = agent.id
+        job.assignee_agent_id = agent_id
         job.claimed_at = timestamp
         job.started_at = timestamp
 
@@ -266,10 +266,10 @@ class HandoffJobService:
         log.info("operation_completed")
 
     async def change_job_status(
-        self, job_id: int, status: JobStatusEnum, agent: AgentIdentity, failure_reason: str | None = None
+        self, job_id: int, status: JobStatusEnum, agent_id: int, failure_reason: str | None = None
     ) -> None:
         log = self._logger.bind(
-            method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent.id
+            method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent_id
         )
         log.info("operation_started")
 
@@ -294,7 +294,7 @@ class HandoffJobService:
             raise HandoffJobConflictError
 
         if current_status == JobStatusEnum.PUBLISHED and status == JobStatusEnum.CANCELLED:
-            if job.source_agent_id != agent.id:
+            if job.source_agent_id != agent_id:
                 log.warning(
                     "operation_failed",
                     reason="source_agent_mismatch",
@@ -303,7 +303,7 @@ class HandoffJobService:
                 raise HandoffJobConflictError
         elif current_status == JobStatusEnum.CLAIMED and status == JobStatusEnum.CANCELLED:
             allowed_agent_ids = {job.source_agent_id, job.assignee_agent_id}
-            if agent.id not in allowed_agent_ids:
+            if agent_id not in allowed_agent_ids:
                 log.warning(
                     "operation_failed",
                     reason="agent_not_allowed_to_cancel_claimed_job",
@@ -311,7 +311,7 @@ class HandoffJobService:
                     assignee_agent_id=job.assignee_agent_id,
                 )
                 raise HandoffJobConflictError
-        elif job.assignee_agent_id != agent.id:
+        elif job.assignee_agent_id != agent_id:
             log.warning(
                 "operation_failed",
                 reason="assignee_mismatch",

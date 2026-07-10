@@ -31,15 +31,9 @@ async def test_handoff_job_repository_create_persists_and_applies_defaults(db_se
         role_key="handoff-target-role",
         role_label="Handoff target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-source-role",
-        role_label="Handoff source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     dto = HandoffJobCreate(
@@ -97,15 +91,9 @@ async def test_handoff_job_factory_uses_database_identity_sequence(db_session: A
         role_key="handoff-sequence-target-role",
         role_label="Handoff sequence target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-sequence-source-role",
-        role_label="Handoff sequence source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-sequence-source-agent",
-        role_id=source_role.id,
     )
 
     created_job = await HandoffJobFactory.create(
@@ -125,15 +113,9 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_source_a
         role_key="handoff-conflict-target-role-invalid-source",
         role_label="Handoff conflict target role invalid source",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-conflict-source-role-invalid-source",
-        role_label="Handoff conflict source role invalid source",
-    )
     valid_source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-valid-source-agent-after-rollback",
-        role_id=source_role.id,
     )
     valid_source_agent_id = valid_source_agent.id
     target_role_id = target_role.id
@@ -171,11 +153,6 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_source_a
 async def test_handoff_job_repository_create_raises_conflict_on_invalid_target_role_id_and_session_remains_usable(
     db_session: AsyncSession,
 ) -> None:
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-conflict-source-role-invalid-target",
-        role_label="Handoff conflict source role invalid target",
-    )
     valid_target_role = await TargetRoleFactory.create(
         db_session,
         role_key="handoff-valid-target-role-after-rollback",
@@ -184,7 +161,6 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_target_r
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-source-agent-invalid-target",
-        role_id=source_role.id,
     )
     source_agent_id = source_agent.id
     valid_target_role_id = valid_target_role.id
@@ -227,15 +203,9 @@ async def test_handoff_job_repository_save_persists_updated_job_and_returns_upda
         role_key="handoff-save-target-role",
         role_label="Handoff save target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-save-source-role",
-        role_label="Handoff save source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-save-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     handoff_job = await HandoffJobFactory.create(
@@ -274,15 +244,9 @@ async def test_handoff_job_repository_get_returns_job_by_id(db_session: AsyncSes
         role_key="handoff-get-target-role",
         role_label="Handoff get target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-get-source-role",
-        role_label="Handoff get source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-get-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     created_job = await HandoffJobFactory.create(
@@ -318,15 +282,9 @@ async def test_handoff_job_repository_get_by_id_for_update_returns_job_by_id(
         role_key="handoff-get-for-update-target-role",
         role_label="Handoff get for update target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-get-for-update-source-role",
-        role_label="Handoff get for update source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-get-for-update-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     created_job = await HandoffJobFactory.create(
@@ -367,20 +325,13 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
         role_key="handoff-list-operator",
         role_label="Handoff list operator",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-list-source",
-        role_label="Handoff list source",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-source-agent",
-        role_id=source_role.id,
     )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-assignee-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
 
@@ -420,7 +371,7 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
         filter_params=HandoffJobFilterParams(
             limit=200,
             statuses=[JobStatusEnum.PUBLISHED],
-            target_role_id=None,
+            target_role_ids=[],
             order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
@@ -448,20 +399,13 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
         role_key="handoff-list-status-operator",
         role_label="Handoff list status operator",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-list-status-source",
-        role_label="Handoff list status source",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-status-source-agent",
-        role_id=source_role.id,
     )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-status-assignee-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
 
@@ -492,7 +436,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
         filter_params=HandoffJobFilterParams(
             limit=200,
             statuses=[JobStatusEnum.PUBLISHED],
-            target_role_id=reviewer_role.id,
+            target_role_ids=[reviewer_role.id],
             order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
@@ -510,20 +454,13 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
         role_key="handoff-list-limit-role",
         role_label="Handoff list limit role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-list-limit-source",
-        role_label="Handoff list limit source",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-limit-source-agent",
-        role_id=source_role.id,
     )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-list-limit-assignee-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
 
@@ -547,7 +484,7 @@ async def test_handoff_job_repository_list_applies_limit(db_session: AsyncSessio
         filter_params=HandoffJobFilterParams(
             limit=50,
             statuses=[JobStatusEnum.PUBLISHED],
-            target_role_id=None,
+            target_role_ids=[],
             order=[JobListOrderEnum.CREATED_AT_ASC],
         )
     )
@@ -568,15 +505,9 @@ async def test_handoff_job_repository_delete_removes_job_and_cascades_related_ro
         role_key="handoff-delete-target-role",
         role_label="Handoff delete target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-delete-source-role",
-        role_label="Handoff delete source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-delete-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     job = await HandoffJobFactory.create(
@@ -613,15 +544,9 @@ async def test_handoff_job_repository_delete_raises_has_children_when_child_jobs
         role_key="handoff-delete-children-target-role",
         role_label="Handoff delete children target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-delete-children-source-role",
-        role_label="Handoff delete children source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-delete-children-source-agent",
-        role_id=source_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
     parent_job = await HandoffJobFactory.create(
@@ -684,25 +609,17 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         role_key="handoff-stats-target-role",
         role_label="Handoff stats target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-stats-source-role",
-        role_label="Handoff stats source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-stats-source-agent",
-        role_id=source_role.id,
     )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-stats-assignee-agent",
-        role_id=target_role.id,
     )
     stale_assignee = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-stats-stale-assignee",
-        role_id=target_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-stats-aggregate")
 
@@ -871,20 +788,13 @@ async def test_handoff_job_repository_stats_limits_duration_samples_to_bounded_s
         role_key="handoff-stats-cap-target-role",
         role_label="Handoff stats cap target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="handoff-stats-cap-source-role",
-        role_label="Handoff stats cap source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-stats-cap-source-agent",
-        role_id=source_role.id,
     )
     assignee_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="handoff-stats-cap-assignee-agent",
-        role_id=target_role.id,
     )
     repository = HandoffJobRepository(session=db_session, trace_id="trace-stats-cap")
 

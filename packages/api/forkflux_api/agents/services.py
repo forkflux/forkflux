@@ -2,9 +2,15 @@ import hashlib
 import secrets
 
 import structlog
-from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, TargetRoleCreate
-from forkflux_api.agents.models import AgentApiToken, AgentIdentity, TargetRole
-from forkflux_api.agents.respositories import AgentApiTokenRepository, AgentIdentityRepository, TargetRoleRepository
+
+from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
+from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
+from forkflux_api.agents.repositories import (
+    AgentApiTokenRepository,
+    AgentIdentityRepository,
+    AgentIdentityRoleRepository,
+    TargetRoleRepository,
+)
 
 
 class TargetRoleService:
@@ -117,10 +123,53 @@ class AgentIdentityService:
         return agent
 
     async def create_agent(self, dto: AgentIdentityCreate) -> AgentIdentity:
-        log = self._logger.bind(method="create_agent", agent_label=dto.agent_label, role_id=dto.role_id)
+        log = self._logger.bind(method="create_agent", agent_label=dto.agent_label)
         log.info("operation_started")
 
         agent = await self._agent_identity_repo.create(dto)
 
         log.info("operation_completed", agent_identity_id=agent.id)
         return agent
+
+
+class AgentIdentityRoleService:
+    def __init__(self, agent_identity_role_repo: AgentIdentityRoleRepository, trace_id: str) -> None:
+        self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
+        self._agent_identity_role_repo = agent_identity_role_repo
+
+    async def assign_role(self, dto: AgentIdentityRoleAssign) -> AgentIdentityRole:
+        log = self._logger.bind(
+            method="assign_role",
+            agent_identity_id=dto.agent_identity_id,
+            target_role_id=dto.target_role_id,
+        )
+        log.info("operation_started")
+
+        assignment = await self._agent_identity_role_repo.assign(dto)
+
+        log.info("operation_completed", assignment_id=assignment.id)
+        return assignment
+
+    async def unassign_role(self, agent_identity_id: int, target_role_id: int) -> None:
+        log = self._logger.bind(
+            method="unassign_role",
+            agent_identity_id=agent_identity_id,
+            target_role_id=target_role_id,
+        )
+        log.info("operation_started")
+
+        await self._agent_identity_role_repo.remove(
+            agent_identity_id=agent_identity_id,
+            target_role_id=target_role_id,
+        )
+
+        log.info("operation_completed")
+
+    async def list_role_ids(self, agent_identity_id: int) -> list[int]:
+        log = self._logger.bind(method="list_role_ids", agent_identity_id=agent_identity_id)
+        log.info("operation_started")
+
+        role_ids = await self._agent_identity_role_repo.list_role_ids_for_agent(agent_identity_id=agent_identity_id)
+
+        log.info("operation_completed", roles_count=len(role_ids))
+        return role_ids

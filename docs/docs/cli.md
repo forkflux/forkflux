@@ -335,7 +335,7 @@ The command asks for confirmation before deleting. ForkFlux refuses to delete a 
 
 ## Agent commands
 
-Agent commands are grouped under `forkflux agent`. An agent represents an assistant identity that can authenticate to ForkFlux and perform work for a role.
+Agent commands are grouped under `forkflux agent`. An agent represents an assistant identity that can authenticate to ForkFlux. Assign one or more roles to the agent before it receives role-targeted work.
 
 ### `forkflux agent list`
 
@@ -358,21 +358,21 @@ Arguments: none.
 
 Options: only `--help`.
 
-Output includes each agent ID, label, and role key.
+Output includes each agent ID, label, and assigned role keys.
 
 ### `forkflux agent add`
 
-Creates an agent and generates an API token for it.
+Creates an agent and generates an API token for it. This command does not assign roles; use `forkflux agent assign-role` after creating the agent.
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add [OPTIONS] AGENT_LABEL ROLE_KEY
+    uvx --from forkflux-api forkflux agent add [OPTIONS] AGENT_LABEL
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
-    forkflux agent add [OPTIONS] AGENT_LABEL ROLE_KEY
+    forkflux agent add [OPTIONS] AGENT_LABEL
     ```
   </TabItem>
 </Tabs>
@@ -380,7 +380,6 @@ Creates an agent and generates an API token for it.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `AGENT_LABEL` | `TEXT` | Yes | Human-readable label for the agent. |
-| `ROLE_KEY` | `TEXT` | Yes | Existing role key assigned to the agent. |
 
 | Option | Type | Default | Description |
 |---|---:|---:|---|
@@ -391,12 +390,12 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add alice-codex developer
+    uvx --from forkflux-api forkflux agent add alice-codex
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
-    forkflux agent add alice-codex developer
+    forkflux agent add alice-codex
     ```
   </TabItem>
 </Tabs>
@@ -404,17 +403,99 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add bob-claude qa --tool-family claude
+    uvx --from forkflux-api forkflux agent add bob-claude --tool-family claude
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
-    forkflux agent add bob-claude qa --tool-family claude
+    forkflux agent add bob-claude --tool-family claude
     ```
   </TabItem>
 </Tabs>
 
-The command prints the generated API key. Save it immediately and configure it in the agent's MCP client environment as `FORKFLUX_API_KEY`.
+The command prints the generated API key. Save it immediately and configure it in the agent's MCP client environment as `FORKFLUX_API_KEY`. Use `forkflux agent list` to find the agent ID, then pass that ID to `forkflux agent assign-role` to make the agent eligible for role-targeted jobs.
+
+### `forkflux agent assign-role`
+
+Assigns an existing role to an agent.
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent assign-role AGENT_ID ROLE_KEY
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent assign-role AGENT_ID ROLE_KEY
+    ```
+  </TabItem>
+</Tabs>
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `AGENT_ID` | `INTEGER` | Yes | Numeric ID of the agent that should receive the role. |
+| `ROLE_KEY` | `TEXT` | Yes | Existing role key to assign to the agent. |
+
+Options: only `--help`.
+
+Example:
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent assign-role 2 qa
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent assign-role 2 qa
+    ```
+  </TabItem>
+</Tabs>
+
+Use this command after `forkflux agent add` or whenever an existing agent needs access to another role.
+
+### `forkflux agent unassign-role`
+
+Removes a role assignment from an agent.
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent unassign-role AGENT_ID ROLE_KEY
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent unassign-role AGENT_ID ROLE_KEY
+    ```
+  </TabItem>
+</Tabs>
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `AGENT_ID` | `INTEGER` | Yes | Numeric ID of the agent whose role assignment should be removed. |
+| `ROLE_KEY` | `TEXT` | Yes | Existing role key to remove from the agent. |
+
+Options: only `--help`.
+
+Example:
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux agent unassign-role 2 qa
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux agent unassign-role 2 qa
+    ```
+  </TabItem>
+</Tabs>
+
+After removal, the agent can no longer list or claim jobs that only target that role.
 
 ### `forkflux agent revoke-token`
 
@@ -671,14 +752,16 @@ Prefer terminal statuses for final outcomes:
 
 ## Manual setup example
 
-This sequence initializes ForkFlux, creates a custom role, creates an agent for that role, and starts the API server.
+This sequence initializes ForkFlux, creates a custom role, creates an agent, assigns the role to that agent, and starts the API server.
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
     uvx --from forkflux-api forkflux init
     uvx --from forkflux-api forkflux agents-role add reviewer Reviewer
-    uvx --from forkflux-api forkflux agent add reviewer-claude reviewer --tool-family claude
+    uvx --from forkflux-api forkflux agent add reviewer-claude --tool-family claude
+    uvx --from forkflux-api forkflux agent list
+    uvx --from forkflux-api forkflux agent assign-role AGENT_ID reviewer
     uvx --from forkflux-api forkflux serve
     ```
   </TabItem>
@@ -686,10 +769,12 @@ This sequence initializes ForkFlux, creates a custom role, creates an agent for 
     ```bash
     forkflux init
     forkflux agents-role add reviewer Reviewer
-    forkflux agent add reviewer-claude reviewer --tool-family claude
+    forkflux agent add reviewer-claude --tool-family claude
+    forkflux agent list
+    forkflux agent assign-role AGENT_ID reviewer
     forkflux serve
     ```
   </TabItem>
 </Tabs>
 
-Copy the API key printed by `forkflux agent add` into the MCP client configuration for the receiving assistant.
+Copy the API key printed by `forkflux agent add` into the MCP client configuration for the receiving assistant. Replace `AGENT_ID` in the role assignment command with the numeric ID shown by `forkflux agent list`.

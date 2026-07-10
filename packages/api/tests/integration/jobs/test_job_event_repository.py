@@ -21,15 +21,9 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
         role_key="job-event-target-role",
         role_label="Job event target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-event-source-role",
-        role_label="Job event source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-event-source-agent",
-        role_id=source_role.id,
     )
     handoff_job = await HandoffJobFactory.create(
         db_session,
@@ -92,15 +86,9 @@ async def test_job_event_factory_creates_event_with_valid_job(db_session: AsyncS
         role_key="job-event-factory-target-role",
         role_label="Job event factory target role",
     )
-    source_role = await TargetRoleFactory.create(
-        db_session,
-        role_key="job-event-factory-source-role",
-        role_label="Job event factory source role",
-    )
     source_agent = await AgentIdentityFactory.create(
         db_session,
         agent_label="job-event-factory-source-agent",
-        role_id=source_role.id,
     )
     handoff_job = await HandoffJobFactory.create(
         db_session,
