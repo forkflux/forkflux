@@ -207,6 +207,29 @@ async def claim_job(job_id: Annotated[int, Field(description="The unique ID of t
     return await _api_request("POST", f"/jobs/{job_id}/claim")
 
 
+@mcp.tool("forkflux_claim_next_job")
+async def claim_next_job(
+    target_role_key: TargetRoleEnum,  # type: ignore[valid-type]
+):
+    """
+    Atomically claims the next available published job for a given target role
+    from the ForkFlux coordination bus and returns its FULL context (Fat Claim).
+
+    The API selects the highest-priority, oldest published job
+    matching the given target_role_key and assigns it to the calling agent.
+
+    If no published jobs are available for the role, the API returns a 404.
+
+    Args:
+        target_role_key: The role specialization to claim a job for.
+    """
+    return await _api_request(
+        "POST",
+        "/jobs/claim-next",
+        json_data={"target_role_key": target_role_key.value},  # type: ignore[attr-defined]
+    )
+
+
 @mcp.tool("forkflux_change_job_status")
 async def change_job_status(
     job_id: Annotated[int, Field(description="The unique ID of the job.")],
