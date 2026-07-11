@@ -71,6 +71,7 @@ The MCP server exposes the core agent-facing tools:
 | `forkflux_create_job` | Publish a structured handoff job.                                     |
 | `forkflux_list_jobs` | List jobs available in the shared task pool.                          |
 | `forkflux_claim_job` | Atomically claim a published job and receive the full context payload. |
+| `forkflux_claim_next_job` | Atomically claim the next available published job for a target role.   |
 | `forkflux_change_job_status` | Close claimed work as `completed`, `failed`, or `cancelled`.          |
 | `forkflux_job_details` | Receive the full context payload.                                     |
 
