@@ -1,3 +1,14 @@
+## [0.3.0] - 2026-07-11
+
+### 🐛 Bug Fixes
+
+- Add fields description
+
+### 🚀 Features
+
+- Add multiple roles support for agents
+- Add `forkflux_claim_next_job` tool
+
 ## [0.2.0] - 2026-07-06
 
 ### 🚀 Features
