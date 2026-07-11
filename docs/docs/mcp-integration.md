@@ -514,6 +514,7 @@ The MCP server exposes a small tool set that maps to the ForkFlux job lifecycle.
 | `forkflux_list_jobs` | List jobs available in the shared job pool. | Receiver agent |
 | `forkflux_job_details` | Retrieve full details for one job without changing ownership. | Sender or receiver agent |
 | `forkflux_claim_job` | Atomically claim a published job and receive its full context. | Receiver agent |
+| `forkflux_claim_next_job` | Atomically claim the next available published job for a target role. | Receiver agent |
 | `forkflux_change_job_status` | Close claimed work as completed, failed, or cancelled. | Receiver agent |
 
 ### `forkflux_create_job`
@@ -579,6 +580,18 @@ Atomically claims a published job and returns its full context payload.
 | `job_id` | integer | yes | Unique ID of the job to claim. |
 
 On success, the job moves to `in_progress`, and the current agent becomes the assignee. If the API returns a conflict, another agent has already claimed the job.
+
+### `forkflux_claim_next_job`
+
+Atomically claims the next available published job for a target role and returns its full context payload.
+
+Use this tool when a receiver agent knows the role queue it should pull from, but does not need to choose a specific `job_id` first. The API selects the highest-priority, oldest published job that matches the provided role key, moves it to `in_progress`, and assigns it to the current agent.
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `target_role_key` | enum/string | yes | Role key whose published queue should be claimed from. Available values come from the API's configured roles. |
+
+If no published jobs are available for the role, the API returns a not-found response. If a matching job is claimed successfully, the response includes the full context payload, constraints, and artifacts needed to start work.
 
 ### `forkflux_change_job_status`
 

@@ -82,12 +82,16 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) c
 
 ```
 <type>: short description
+<type>(<scope>): short description
 ```
+
+Use the `api` or `mcp` scope when a commit focuses on one package.
 
 Examples:
 - `feat: add support for Gemini model`
 - `fix: handle error when env file is missing`
 - `docs: update README with setup instructions`
+- `feat(mcp): add new endpoint`
 
 **Allowed types:**
 - `feat` – a new feature is introduced

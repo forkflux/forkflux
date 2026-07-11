@@ -12,6 +12,7 @@ Use this package when you want AI agents on separate machines or workspaces to e
 - `forkflux_list_jobs` — list jobs available in the shared ForkFlux job pool.
 - `forkflux_job_details` — retrieve full details for a specific job by ID.
 - `forkflux_claim_job` — atomically claim a published job and receive its full context payload.
+- `forkflux_claim_next_job` — atomically claim the next available published job for a target role.
 - `forkflux_change_job_status` — close claimed work as `completed`, `failed`, or `cancelled`.
 
 ## Requirements

@@ -69,7 +69,10 @@ ForkFlux uses Conventional Commits:
 
 ```text
 <type>: short description
+<type>(<scope>): short description
 ```
+
+Use the `api` or `mcp` scope when a commit focuses on one package.
 
 Common types:
 
@@ -85,6 +88,7 @@ Examples:
 docs: simplify contributing guide
 fix: handle revoked agent tokens
 feat: add job event listing endpoint
+feat(mcp): add new endpoint
 ```
 
 ## Pull request checklist
