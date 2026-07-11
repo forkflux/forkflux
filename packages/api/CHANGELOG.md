@@ -1,4 +1,4 @@
-## [0.4.0] - 2026-07-10
+## [0.4.0] - 2026-07-11
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -8,6 +8,7 @@
 
 - Tighten stats sampling and remove stats/cli magic cleanups
 - Enforce assignment-based routing in board flow
+- `change_job_status` endpoint response
 
 ### 🚀 Features
 

@@ -71,7 +71,7 @@ async def test_change_job_status_returns_401_for_invalid_bearer_token(
     assert response.headers["www-authenticate"] == "Bearer"
 
 
-async def test_change_job_status_returns_204_and_sets_started_at_for_assignee(
+async def test_change_job_status_returns_200_and_sets_started_at_for_assignee(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -109,8 +109,12 @@ async def test_change_job_status_returns_204_and_sets_started_at_for_assignee(
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
-    assert response.status_code == 204
-    assert response.content == b""
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": job.id,
+        "previous_status": JobStatusEnum.CLAIMED.value,
+        "new_status": JobStatusEnum.IN_PROGRESS.value,
+    }
 
     await db_session.refresh(job)
     persisted_job = await db_session.get(HandoffJob, job.id)
@@ -122,7 +126,7 @@ async def test_change_job_status_returns_204_and_sets_started_at_for_assignee(
     assert persisted_job.updated_at > old_timestamp
 
 
-async def test_change_job_status_returns_204_and_sets_completed_at_for_assignee(
+async def test_change_job_status_returns_200_and_sets_completed_at_for_assignee(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -161,8 +165,12 @@ async def test_change_job_status_returns_204_and_sets_completed_at_for_assignee(
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
-    assert response.status_code == 204
-    assert response.content == b""
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": job.id,
+        "previous_status": JobStatusEnum.IN_PROGRESS.value,
+        "new_status": JobStatusEnum.COMPLETED.value,
+    }
 
     await db_session.refresh(job)
     persisted_job = await db_session.get(HandoffJob, job.id)
@@ -173,7 +181,7 @@ async def test_change_job_status_returns_204_and_sets_completed_at_for_assignee(
     assert persisted_job.updated_at > old_timestamp
 
 
-async def test_change_job_status_returns_204_and_sets_cancelled_at_for_source_agent_on_published_job(
+async def test_change_job_status_returns_200_and_sets_cancelled_at_for_source_agent_on_published_job(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -211,8 +219,12 @@ async def test_change_job_status_returns_204_and_sets_cancelled_at_for_source_ag
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
-    assert response.status_code == 204
-    assert response.content == b""
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": job.id,
+        "previous_status": JobStatusEnum.PUBLISHED.value,
+        "new_status": JobStatusEnum.CANCELLED.value,
+    }
 
     await db_session.refresh(job)
     persisted_job = await db_session.get(HandoffJob, job.id)

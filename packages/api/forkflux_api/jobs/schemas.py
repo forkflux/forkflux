@@ -81,6 +81,14 @@ class HandoffJobChangeStatusRequest(BaseModel):
     failure_reason: str | None = None
 
 
+class HandoffJobChangeStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: int
+    previous_status: JobStatusEnum
+    new_status: JobStatusEnum
+
+
 class HandoffJobClaimNextRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
