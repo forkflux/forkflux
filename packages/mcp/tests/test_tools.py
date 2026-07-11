@@ -147,6 +147,28 @@ async def test_claim_job_calls_api_request_with_expected_contract_and_returns_pa
     _assert_tool_result_envelope(result, expected_payload)
 
 
+async def test_claim_next_job_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"id": 88, "status": "in_progress", "summary": "Fix CI pipeline"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_claim_next_job",
+            arguments={"target_role_key": TargetRoleEnum.qa_agent},
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs/claim-next",
+        json_data={"target_role_key": "qa_agent"},
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
 async def test_job_details_calls_api_request_with_expected_contract_and_returns_payload(
     client: Client[FastMCPTransport],
 ) -> None:
