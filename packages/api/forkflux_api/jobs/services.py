@@ -267,7 +267,7 @@ class HandoffJobService:
 
     async def change_job_status(
         self, job_id: int, status: JobStatusEnum, agent_id: int, failure_reason: str | None = None
-    ) -> None:
+    ) -> tuple[JobStatusEnum, JobStatusEnum]:
         log = self._logger.bind(
             method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent_id
         )
@@ -335,3 +335,4 @@ class HandoffJobService:
 
         await self._handoff_job_repo.save(job=job)
         log.info("operation_completed", previous_status=current_status.value, current_status=status.value)
+        return current_status, status

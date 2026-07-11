@@ -23,6 +23,7 @@ from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotF
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
 from forkflux_api.jobs.schemas import (
     HandoffJobChangeStatusRequest,
+    HandoffJobChangeStatusResponse,
     HandoffJobClaimNextRequest,
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
@@ -148,7 +149,11 @@ async def claim_job(
     return handoff_job_to_response_model(entity=entity)
 
 
-@router.post("/{job_id}/status", status_code=http_status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{job_id}/status",
+    status_code=http_status.HTTP_200_OK,
+    response_model=HandoffJobChangeStatusResponse,
+)
 async def change_job_status(
     job_id: int,
     data: HandoffJobChangeStatusRequest,
@@ -156,8 +161,12 @@ async def change_job_status(
     current_agent: AgentIdentity = Depends(get_current_agent),
 ):
     try:
-        await job_service.change_job_status(job_id, data.status, current_agent.id, data.failure_reason)
+        previous_status, new_status = await job_service.change_job_status(
+            job_id, data.status, current_agent.id, data.failure_reason
+        )
     except HandoffJobNotFoundError:
         raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")
     except HandoffJobConflictError:
         raise HandoffJobStatusValidationError(field_name="status", value=data.status, loc="body")
+
+    return {"job_id": job_id, "previous_status": previous_status, "new_status": new_status}

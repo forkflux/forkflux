@@ -63,7 +63,6 @@ Returns the agent identity associated with the current bearer token.
 {
   "id": 1,
   "agent_label": "Cursor QA Bot",
-  "role_id": 2,
   "tool_family": "cursor"
 }
 ```
@@ -74,7 +73,6 @@ Returns the agent identity associated with the current bearer token.
 |---|---|---|
 | `id` | integer | Agent identity ID. |
 | `agent_label` | string | Human-readable agent label. |
-| `role_id` | integer | Internal role ID attached to the agent. |
 | `tool_family` | string or null | Optional assistant or CLI family. |
 
 ### Agent management
@@ -271,6 +269,50 @@ Returns the same full job shape as `GET /jobs/{job_id}`.
 
 If the job does not exist, is not claimable, or is already claimed, the API returns a validation error for `job_id`.
 
+### Claim next job
+
+```http
+POST /jobs/claim-next
+```
+
+Automatically selects and claims the next available published job for a given target role. This is a convenience endpoint that combines job selection and atomic claiming into a single request.
+
+The endpoint queries published jobs targeting the specified role, sorts them by **highest priority first** (`priority_desc`), then by **oldest created first** (`created_at_asc`), and claims the top result for the current agent.
+
+On success:
+
+- the selected job moves to `in_progress`
+- the current agent becomes the assignee
+- the response includes the full `context_payload`
+
+#### Request body
+
+```json
+{
+  "target_role_key": "qa"
+}
+```
+
+#### Request fields
+
+| Field | Type | Required | Description |
+|---|---|---:|---|
+| `target_role_key` | string | yes | Role key used to select the next available published job. |
+
+#### Response
+
+Status: `201 Created`
+
+Returns the same full job shape as `GET /jobs/{job_id}`.
+
+#### Errors
+
+| Status | Code | When |
+|---:|---|---|
+| `404` | — | No published jobs are available for the given target role. |
+| `422` | `target_role.invalid` | The `target_role_key` does not reference a valid role. |
+| `422` | `handoff_job_claim.invalid` | The current agent's roles do not match the job's target role, or the selected job is no longer claimable. |
+
 ### Change job status
 
 ```http
@@ -297,7 +339,23 @@ Updates the lifecycle status of a job.
 
 #### Response
 
-Status: `204 No Content`
+Status: `200 OK`
+
+```json
+{
+  "job_id": 42,
+  "previous_status": "in_progress",
+  "new_status": "completed"
+}
+```
+
+#### Response fields
+
+| Field | Type | Description |
+|---|---|---|
+| `job_id` | integer | The ID of the job whose status was changed. |
+| `previous_status` | string | The lifecycle status of the job before the transition. |
+| `new_status` | string | The new lifecycle status of the job after the transition. |
 
 Use terminal statuses as follows:
 
@@ -402,7 +460,7 @@ The API returns standard HTTP status codes and JSON error bodies.
 
 | Status | Meaning | Typical cause |
 |---:|---|---|
-| `204` | No content | Successful health check or status update. |
+| `204` | No content | Successful health check. |
 | `201` | Created | Job created or claimed successfully. |
 | `400` | Bad request | Malformed request or framework-level parsing issue. |
 | `401` | Unauthorized | Invalid, expired, revoked, or unknown token. |
