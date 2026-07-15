@@ -55,7 +55,7 @@ logging.config.dictConfig(
 
 
 def run_migrations_offline() -> None:
-    settings = get_settings()
+    settings = get_settings(db_scope=context.config.attributes.get("db_scope"))
 
     url = settings.database_url
     context.configure(
@@ -82,7 +82,10 @@ def do_run_migrations(connection: "Connection") -> None:
 
 
 async def run_migrations_online() -> None:
-    engine: AsyncEngine = get_async_engine()
+    settings = get_settings(db_scope=context.config.attributes.get("db_scope"))
+    url = settings.database_url
+
+    engine: AsyncEngine = get_async_engine(**{"sqlalchemy.url": url})
 
     async with engine.begin() as connection:
         await connection.run_sync(do_run_migrations)

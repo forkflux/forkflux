@@ -45,6 +45,20 @@ The command:
 - installs ForkFlux sender and receiver skills for supported CLIs
 - registers the ForkFlux MCP server with two detected local CLIs
 
+By default, the MCP server, skills, and database are installed with `local` scope, meaning everything is private to the current working directory. Use the `--scope` option to change where MCP server registrations, workflow skills, and the SQLite database are stored:
+
+```bash
+# Install at user level (available across all projects)
+uvx --from forkflux-api forkflux quickstart --scope user
+
+# Install at project level (shared with repository collaborators)
+uvx --from forkflux-api forkflux quickstart --scope project
+```
+
+Accepted values: `local` (default), `project`, `user`. When `user` is selected, skills are installed to the home directory (e.g. `~/.agents/skills`, `~/.claude/skills`) and the database is created in the global data directory (e.g. `~/Library/Application Support/forkflux/forkflux.db` on macOS) instead of the current directory.
+
+When you run `forkflux serve`, it auto-detects the database: it checks for `./.forkflux/forkflux.db` first, then falls back to the global path. This means you can run `quickstart --scope user` and then `serve` will find the database automatically.
+
 :::caution
 
 `forkflux quickstart` modifies local assistant CLI configuration and installs ForkFlux workflow helpers for supported tools. Use it for local demo and evaluation, not production setup.

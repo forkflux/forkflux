@@ -104,9 +104,58 @@ Options: only `--help`.
 
 Use this command before manually creating roles or agents when you do not want to start the API server yet.
 
+#### SQLite database storage
+
+When no `DATABASE_URL` environment variable or `.env` entry is set, ForkFlux uses SQLite with automatic path resolution:
+
+| Priority | Path | Description |
+|---|---|---|
+| 1 | `./.forkflux/forkflux.db` | Local database in the current working directory. |
+| 2 | Global data directory | Platform-specific path (e.g. `~/Library/Application Support/forkflux/forkflux.db` on macOS). |
+
+`forkflux serve` and `forkflux init` auto-detect the database: if a local database exists it is used, otherwise the global path is checked. If neither exists, a new database is created at the local path.
+
+`forkflux quickstart --scope` controls where the database is created:
+
+| Scope | Database path |
+|---|---|
+| `local` (default) / `project` | `./.forkflux/forkflux.db` |
+| `user` | Global data directory |
+
+To use PostgreSQL or a custom SQLite path, set the `DATABASE_URL` environment variable. The scope option does not override an explicit `DATABASE_URL`.
+
 ### `forkflux quickstart`
 
 Initializes a demo environment with database migrations, example roles, example agents, workflow helpers, and MCP server registrations for supported local assistant CLIs.
+
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux quickstart [OPTIONS]
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux quickstart [OPTIONS]
+    ```
+  </TabItem>
+</Tabs>
+
+Arguments: none.
+
+| Option | Type | Default | Description |
+|---|---:|---:|---|
+| `--scope` / `-s` | `CHOICE` | `local` | Configuration scope for MCP server registrations and skill installations. Accepted values: `local`, `project`, `user`. |
+
+The `--scope` flag controls where the MCP server registration is stored, where workflow skills are installed, and where the SQLite database is created (when no explicit `DATABASE_URL` is set):
+
+| Scope | MCP server config | Skills installation path | Database path |
+|---|---|---|---|
+| `local` | Current working directory only (private, not shared). | Current directory (e.g. `.agents/skills`, `.claude/skills`). | `./.forkflux/forkflux.db` |
+| `project` | Project-level config, shared with repository collaborators. | Current directory (e.g. `.agents/skills`, `.claude/skills`). | `./.forkflux/forkflux.db` |
+| `user` | User-level global config, available across all projects. | Home directory (e.g. `~/.agents/skills`, `~/.claude/skills`). | Global data directory (e.g. `~/Library/Application Support/forkflux/forkflux.db`). |
+
+Examples:
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
@@ -121,9 +170,31 @@ Initializes a demo environment with database migrations, example roles, example 
   </TabItem>
 </Tabs>
 
-Arguments: none.
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux quickstart --scope user
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux quickstart --scope user
+    ```
+  </TabItem>
+</Tabs>
 
-Options: only `--help`.
+<Tabs groupId="cli-command">
+  <TabItem value="uvx" label="uvx">
+    ```bash
+    uvx --from forkflux-api forkflux quickstart -s project
+    ```
+  </TabItem>
+  <TabItem value="installed" label="installed">
+    ```bash
+    forkflux quickstart -s project
+    ```
+  </TabItem>
+</Tabs>
 
 The command checks for supported assistant CLIs: Codex, Claude Code, OpenCode, and Hermes. At least two supported CLIs must be installed for the automated demo setup.
 
