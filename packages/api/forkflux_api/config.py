@@ -38,7 +38,10 @@ def _build_default_database_url(db_scope: CLIScopeEnum | None) -> str:
     local_path = _local_sqlite_db_path()
     global_path = _global_sqlite_db_path()
 
-    if (db_scope is not None and db_scope != CLIScopeEnum.user) or local_path.exists():
+    if db_scope is not None:
+        # Explicit scope: select the corresponding path unconditionally.
+        sqlite_path = global_path if db_scope == CLIScopeEnum.user else local_path
+    elif local_path.exists():
         sqlite_path = local_path
     elif global_path.exists():
         sqlite_path = global_path
@@ -77,4 +80,6 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings(db_scope: CLIScopeEnum | None = None) -> Settings:
+    if db_scope is None:
+        return Settings()
     return Settings(db_scope=db_scope)

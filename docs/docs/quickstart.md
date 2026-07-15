@@ -55,9 +55,13 @@ uvx --from forkflux-api forkflux quickstart --scope user
 uvx --from forkflux-api forkflux quickstart --scope project
 ```
 
-Accepted values: `local` (default), `project`, `user`. When `user` is selected, skills are installed to the home directory (e.g. `~/.agents/skills`, `~/.claude/skills`) and the database is created in the global data directory (e.g. `~/Library/Application Support/forkflux/forkflux.db` on macOS) instead of the current directory.
+Accepted values: `local` (default), `project`, `user`. When `user` is selected, skills are installed to the home directory (e.g. `~/.agents/skills`, `~/.claude/skills`) and MCP server config is stored at the user level. Database path resolution follows the same auto-detection logic as `serve` and `init`: the local path is checked first, then the global path. On a fresh install with no existing database, the database is created at the local path (`./.forkflux/forkflux.db`) regardless of scope.
 
-When you run `forkflux serve`, it auto-detects the database: it checks for `./.forkflux/forkflux.db` first, then falls back to the global path. This means you can run `quickstart --scope user` and then `serve` will find the database automatically.
+:::note
+
+Hermes does not support scoped skill installation. When Hermes is detected, skills are always installed to Hermes's default location regardless of the `--scope` value. The scope still applies to MCP server config and database path resolution for Hermes.
+
+:::
 
 :::caution
 

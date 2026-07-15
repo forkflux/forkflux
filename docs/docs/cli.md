@@ -115,12 +115,14 @@ When no `DATABASE_URL` environment variable or `.env` entry is set, ForkFlux use
 
 `forkflux serve` and `forkflux init` auto-detect the database: if a local database exists it is used, otherwise the global path is checked. If neither exists, a new database is created at the local path.
 
-`forkflux quickstart --scope` controls where the database is created:
+`forkflux quickstart --scope` influences database resolution when no explicit `DATABASE_URL` is set, but it does not unconditionally force a specific path for the `user` scope:
 
 | Scope | Database path |
 |---|---|
 | `local` (default) / `project` | `./.forkflux/forkflux.db` |
-| `user` | Global data directory |
+| `user` | Auto-detected: local path if it exists, otherwise global path if it exists, otherwise local path for a fresh install. |
+
+For `local` and `project` scopes the database is always created at the local path. For `user` scope the same auto-detection logic as `serve` and `init` applies (see above), so a fresh `user`-scope install creates the database at the local path, not the global path.
 
 To use PostgreSQL or a custom SQLite path, set the `DATABASE_URL` environment variable. The scope option does not override an explicit `DATABASE_URL`.
 
@@ -147,13 +149,19 @@ Arguments: none.
 |---|---:|---:|---|
 | `--scope` / `-s` | `CHOICE` | `local` | Configuration scope for MCP server registrations and skill installations. Accepted values: `local`, `project`, `user`. |
 
-The `--scope` flag controls where the MCP server registration is stored, where workflow skills are installed, and where the SQLite database is created (when no explicit `DATABASE_URL` is set):
+The `--scope` flag controls where the MCP server registration is stored, where workflow skills are installed, and influences SQLite database resolution (when no explicit `DATABASE_URL` is set):
 
 | Scope | MCP server config | Skills installation path | Database path |
 |---|---|---|---|
 | `local` | Current working directory only (private, not shared). | Current directory (e.g. `.agents/skills`, `.claude/skills`). | `./.forkflux/forkflux.db` |
 | `project` | Project-level config, shared with repository collaborators. | Current directory (e.g. `.agents/skills`, `.claude/skills`). | `./.forkflux/forkflux.db` |
-| `user` | User-level global config, available across all projects. | Home directory (e.g. `~/.agents/skills`, `~/.claude/skills`). | Global data directory (e.g. `~/Library/Application Support/forkflux/forkflux.db`). |
+| `user` | User-level global config, available across all projects. | Home directory (e.g. `~/.agents/skills`, `~/.claude/skills`). | Auto-detected: local path if it exists, otherwise global path if it exists, otherwise local path for a fresh install. |
+
+:::note
+
+Hermes does not support scoped skill installation. When Hermes is detected, skills are always installed to Hermes's default location regardless of the `--scope` value. The scope still applies to MCP server config and database path resolution for Hermes as shown above.
+
+:::
 
 Examples:
 
