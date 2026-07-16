@@ -43,6 +43,7 @@ from forkflux_api.agents.services import (
     AgentIdentityService,
     TargetRoleService,
 )
+from forkflux_api.constants import CLIScopeEnum
 from forkflux_api.database import session_manager
 from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import HandoffJobFilterParams
@@ -158,8 +159,11 @@ def _download_recursive(
             _download_recursive(client, owner, repo, item["path"], new_local_path)
 
 
-def _download_github_folder(owner: str, repo: str, folder_path: str, save_dir: str) -> bool:
-    local_root = pathlib.Path(save_dir)
+def _download_github_folder(owner: str, repo: str, folder_path: str, save_dir: str, scope: CLIScopeEnum) -> bool:
+    if scope == CLIScopeEnum.user:
+        local_root = pathlib.Path.home() / save_dir
+    else:
+        local_root = pathlib.Path(save_dir)
     local_root.mkdir(parents=True, exist_ok=True)
 
     with httpx.Client() as client:
@@ -171,28 +175,40 @@ def _download_github_folder(owner: str, repo: str, folder_path: str, save_dir: s
             return False
 
 
-def _add_mcp_server(cli_name: str, token: str, role_name: str) -> None:
+def _add_mcp_server(cli_name: str, token: str, role_name: str, scope: CLIScopeEnum) -> None:
     cli_display_name = cli_name.capitalize()
 
-    console.print(f"Adding MCP server to the {cli_display_name} CLI with {role_name} token...")
+    console.print(f"Adding MCP server to the {cli_display_name} CLI with {role_name} token (scope: {scope.value})...")
     subprocess.run(  # noqa: S603
-        [cli_name, "mcp", "add", "ff", "--env", f"FORKFLUX_API_KEY={token}", "--", "uvx", "forkflux-mcp"],  # noqa: S607
+        [
+            cli_name,
+            "mcp",
+            "add",
+            "ff",
+            "--scope",
+            scope.value,
+            "--env",
+            f"FORKFLUX_API_KEY={token}",
+            "--",
+            "uvx",
+            "forkflux-mcp",
+        ],  # noqa: S607
         check=True,
     )
     console.print(f"{cli_display_name} CLI is connected to the ForkFlux bus as a {role_name}", style="green")
 
 
-def _apply_migrations() -> None:
+def _apply_migrations(db_scope: CLIScopeEnum | None) -> None:
     console.print("Apply database migrations")
     current_dir = os.path.dirname(__file__)
-    alembic_cfg = Config(toml_file="../pyproject.toml")
+    alembic_cfg = Config(toml_file="../pyproject.toml", attributes={"db_scope": db_scope if db_scope else None})
     alembic_cfg.set_main_option("script_location", os.path.join(current_dir, "migrations"))
     command.upgrade(alembic_cfg, "head")
 
 
 @app.command(help="Run the server")
 def serve(host: str = "0.0.0.0", port: int = 8000) -> None:  # noqa: S104
-    _apply_migrations()
+    _apply_migrations(db_scope=None)
 
     console.print("Starting server...", style="bold green")
     uvicorn.run(
@@ -207,7 +223,7 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:  # noqa: S104
 
 @app.command(help="Initialize the database")
 def init() -> None:
-    _apply_migrations()
+    _apply_migrations(db_scope=None)
 
 
 @app.command(help="Show handoff statistics snapshot")
@@ -289,7 +305,11 @@ async def stats(
 
 
 @app.command(help="Initialize the database, add some example data, add skills and MCP server")
-def quickstart() -> None:
+def quickstart(
+    scope: CLIScopeEnum = typer.Option(
+        CLIScopeEnum.local, "--scope", "-s", help="Configuration scope for MCP servers and skills"
+    ),
+) -> None:
     is_codex_installed = _check_cli_version("codex")
     is_claude_installed = _check_cli_version("claude")
     is_opencode_installed = _check_cli_version("opencode")
@@ -312,19 +332,20 @@ def quickstart() -> None:
         )
         return
 
-    _apply_migrations()
+    _apply_migrations(db_scope=scope)
     developer_token, qa_token = asyncio.run(_apply_fixtures())
 
-    console.print("Installing skills...")
+    console.print(f"Installing skills (scope: {scope.value})...")
     if "codex" in installed_clis or "opencode" in installed_clis:
-        is_agents_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".agents/skills")
+        is_agents_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".agents/skills", scope)
         if not is_agents_skills_downloaded:
             console.print("Failed to install skills for Codex/OpenCode", style="bold red")
     if "claude" in installed_clis:
-        is_claude_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".claude/skills")
+        is_claude_skills_downloaded = _download_github_folder("forkflux", "forkflux", "skills", ".claude/skills", scope)
         if not is_claude_skills_downloaded:
             console.print("Failed to install skills for Claude", style="bold red")
     if "hermes" in installed_clis:
+        # FIXME: `hermes` doesn't support scope yet
         subprocess.run(  # noqa: S603
             ["hermes", "skills", "tap", "add", "forkflux/forkflux"],  # noqa: S607
             check=True,
@@ -338,8 +359,8 @@ def quickstart() -> None:
             check=True,
         )
 
-    _add_mcp_server(installed_clis[0], developer_token, "Developer")
-    _add_mcp_server(installed_clis[1], qa_token, "QA")
+    _add_mcp_server(installed_clis[0], developer_token, "Developer", scope)
+    _add_mcp_server(installed_clis[1], qa_token, "QA", scope)
 
     console.print("Everything for handoff is ready.")
     console.print("Only one step left! Run the server with:")

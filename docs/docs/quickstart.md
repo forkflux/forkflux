@@ -45,6 +45,24 @@ The command:
 - installs ForkFlux sender and receiver skills for supported CLIs
 - registers the ForkFlux MCP server with two detected local CLIs
 
+By default, the MCP server, skills, and database are installed with `local` scope, meaning everything is private to the current working directory. Use the `--scope` option to change where MCP server registrations, workflow skills, and the SQLite database are stored:
+
+```bash
+# Install at user level (available across all projects)
+uvx --from forkflux-api forkflux quickstart --scope user
+
+# Install at project level (shared with repository collaborators)
+uvx --from forkflux-api forkflux quickstart --scope project
+```
+
+Accepted values: `local` (default), `project`, `user`. When `user` is selected, skills are installed to the home directory (e.g. `~/.agents/skills`, `~/.claude/skills`) and MCP server config is stored at the user level. Database path resolution follows the same auto-detection logic as `serve` and `init`: the local path is checked first, then the global path. On a fresh install with no existing database, the database is created at the local path (`./.forkflux/forkflux.db`) regardless of scope.
+
+:::note
+
+Hermes does not support scoped skill installation. When Hermes is detected, skills are always installed to Hermes's default location regardless of the `--scope` value. The scope still applies to MCP server config and database path resolution for Hermes.
+
+:::
+
 :::caution
 
 `forkflux quickstart` modifies local assistant CLI configuration and installs ForkFlux workflow helpers for supported tools. Use it for local demo and evaluation, not production setup.
