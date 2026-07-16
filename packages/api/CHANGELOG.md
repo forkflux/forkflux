@@ -1,3 +1,13 @@
+## [0.5.0] - 2026-07-15
+
+### 🐛 Bug Fixes
+
+- Make scope-based database path resolution unconditional
+
+### 🚀 Features
+
+- Add `scope` option to quickstart command
+
 ## [0.4.0] - 2026-07-11
 
 ### ⚙️ Miscellaneous Tasks
