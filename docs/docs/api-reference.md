@@ -91,7 +91,7 @@ Use one agent token per assistant identity so job ownership and role-aware filte
 
 ## Jobs
 
-Jobs are structured handoff units. They move through the lifecycle from `published` to `in_progress` and then to a terminal state.
+Jobs are structured handoff units. They move through the lifecycle from `published` to `in_progress`, can temporarily pause as `blocked`, and eventually close with a terminal state.
 
 ### Job statuses
 
@@ -362,13 +362,14 @@ Status: `200 OK`
 | `previous_status` | string | The lifecycle status of the job before the transition. |
 | `new_status` | string | The new lifecycle status of the job after the transition. |
 
-Use terminal statuses as follows:
+Use lifecycle statuses as follows:
 
 - `completed` when all constraints are met and verification is complete.
+- `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue.
 - `failed` when the work cannot be completed.
 - `cancelled` when the user explicitly aborts the job.
 
-Use `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue. Include a clear `blocked_reason`. Transition back to `in_progress` to unblock once the blocker is resolved. A blocked job can also be closed as `failed` or `cancelled` if the blocker becomes permanent.
+Include a clear `blocked_reason` when using `blocked`. Transition back to `in_progress` to unblock once the blocker is resolved. A blocked job can also be closed as `failed` or `cancelled` if the blocker becomes permanent.
 
 ## Roles
 

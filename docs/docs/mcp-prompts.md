@@ -56,7 +56,7 @@ The ForkFlux MCP server currently exposes four prompts.
 | `board` | View published jobs available for the current agent role. | `forkflux_list_jobs` |
 | `claim` | Claim a specific job and retrieve its full context payload. | `forkflux_claim_job` |
 | `push` | Publish a new handoff job for another role or agent. | `forkflux_create_job` |
-| `close` | Mark a claimed job as `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
+| `close` | Update a claimed job as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
 
 Depending on your assistant, these prompts may appear with a server prefix such as `ff:board`, `ForkFlux.board`, or another MCP-server-specific label.
 
@@ -67,7 +67,7 @@ The exact interaction depends on your assistant, but the workflow is usually:
 1. Open your assistant's MCP prompt picker, slash-command menu, or command palette.
 2. Select the ForkFlux MCP server.
 3. Choose one of the available ForkFlux prompts.
-4. Provide any required context in chat, such as a job ID, final status, target role, or handoff constraints.
+4. Provide any required context in chat, such as a job ID, target status, target role, or handoff constraints.
 5. Review the assistant's proposed MCP tool calls when your assistant asks for approval.
 
 For assistants that expose prompts as chat commands, you may be able to run prompts with names similar to:
@@ -147,25 +147,27 @@ The most important part of a push is context quality. The next agent cannot see 
 
 ### `close`
 
-Use `close` when a claimed job is ready to move into a terminal state.
+Use `close` when a claimed job needs a lifecycle update, including a temporary block or a terminal state.
 
 The prompt instructs the assistant to:
 
-1. Confirm the job ID and final status.
-2. Validate that the final status is one of `completed`, `failed`, or `cancelled`.
-3. Require a detailed failure reason when the final status is `failed`.
-4. Call `forkflux_change_job_status`.
-5. Return a concise status update instead of raw JSON.
+1. Confirm the job ID and target status.
+2. Validate that the target status is one of `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
+3. Require a detailed failure reason when the target status is `failed`.
+4. Require a detailed blocked reason when the target status is `blocked`.
+5. Call `forkflux_change_job_status`.
+6. Return a concise status update instead of raw JSON.
 
 Example requests:
 
 ```text
 Close ForkFlux job 123 as completed.
 Close ForkFlux job 123 as failed because the dependency is missing from the environment.
+Mark ForkFlux job 123 as blocked because the staging database is unavailable.
 Cancel ForkFlux job 123 at the user's request.
 ```
 
-Only close a job as `completed` after the agent has met every constraint from the claimed job context.
+Only close a job as `completed` after the agent has met every constraint from the claimed job context. Use `blocked` instead of `failed` when the job cannot proceed temporarily but can resume later.
 
 ## Recommended workflow
 
@@ -174,7 +176,7 @@ For a target agent receiving work:
 1. Run `board` to view available jobs.
 2. Run `claim` for the selected job.
 3. Complete the work locally.
-4. Run `close` with `completed`, `failed`, or `cancelled`.
+4. Run `close` with `blocked`, `completed`, `failed`, or `cancelled`, or with `in_progress` to resume a blocked job.
 
 For a source agent handing off work:
 

@@ -1,6 +1,6 @@
 ---
 name: forkflux-receiver
-description: Strict consolidated Target Agent skill for ForkFlux execution using board -> claim -> close flows with deterministic output contracts.
+description: Strict consolidated Target Agent skill for ForkFlux execution using board -> claim -> status-update flows with deterministic output contracts.
 ---
 
 # forkflux-receiver
@@ -9,7 +9,7 @@ description: Strict consolidated Target Agent skill for ForkFlux execution using
 
 You are an AI Agent operating as a **Target Agent (Receiver)** within the ForkFlux Coordination Bus protocol.
 
-Your goal is to discover published work for your role, atomically claim one task, unpack full context, execute locally, and close the job lifecycle with a terminal status.
+Your goal is to discover published work for your role, atomically claim one task, unpack full context, execute locally, and update the job lifecycle with either a temporary blocked state or a terminal outcome.
 
 ## Critical infrastructure rule
 
@@ -104,20 +104,23 @@ Never dump raw JSON. Return concise Markdown block:
 - 📦 **Context Received**: payload and acceptance criteria unpacked
 - 🚀 **Next Action**: `Shall I start executing this task now?`
 
-### C) Close flow (`forkflux_change_job_status`)
+### C) Status update and close flow (`forkflux_change_job_status`)
 
-Use to finalize lifecycle after execution.
+Use to update lifecycle state after execution starts, including temporary blocking and terminal closure.
 
 #### Preconditions and validation
 
 1. Ensure valid `job_id` and explicit target `status`.
-2. `status` must be terminal only: `completed`, `failed`, `cancelled`.
-3. Never use this flow to set `in_progress` or `published`.
+2. `status` must be one of: `blocked`, `in_progress`, `completed`, `failed`, `cancelled`.
+3. Never use this flow to set `published`, and never use `in_progress` for normal claiming because `forkflux_claim_job` already performs that transition.
 4. State gatekeeping:
    - `completed`: only if all acceptance criteria met and relevant tests/checks pass.
-   - `failed`: unrecoverable error, persistent test failure, blockers, or unmet constraints.
+   - `blocked`: temporary blocker caused by an external dependency, missing environment, unavailable input, or other condition that can plausibly be resolved later.
+   - `in_progress`: only to resume a job that was previously `blocked` or `failed`; include a concise unblock/restart summary in the user-facing response.
+   - `failed`: unrecoverable error, persistent test failure, permanent blocker, or unmet constraints.
    - `cancelled`: user explicitly aborted execution.
 5. If `failed`, `failure_reason` is mandatory and detailed.
+6. If `blocked`, `blocked_reason` is mandatory and actionable.
 
 #### Tool call
 
@@ -131,14 +134,16 @@ If transition fails, output exact error and stop.
 
 Never dump raw JSON. Return concise high-visibility block:
 
-- 🔄 **Job Closed**: `job_id`
-- 🚦 **Final State**: terminal status
+- 🔄 **Job Updated**: `job_id`
+- 🚦 **State**: target status
 - 📝 **Summary / Error Details**:
   - completed: 1-2 sentence implementation summary
   - failed: explicit `failure_reason`
+  - blocked: explicit `blocked_reason` and what is needed to unblock
+  - in_progress: concise unblock/restart summary
 
 ## Non-negotiable formatting rule
 
-For board/claim/close success paths, always parse payloads and present human-readable Markdown summaries.
+For board/claim/status-update success paths, always parse payloads and present human-readable Markdown summaries.
 
 Do not dump raw API JSON responses.

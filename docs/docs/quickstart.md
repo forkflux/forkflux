@@ -142,13 +142,14 @@ Claim job 1 and summarize the context I need before starting.
 
 Claiming is atomic. If another agent already claimed the job, ForkFlux returns a conflict instead of allowing duplicate work. On success, the job moves from `published` to `in_progress`, and the receiver gets the full context payload.
 
-### 4. Execute and close the job
+### 4. Execute and update the job
 
-After the receiver completes the requested work, ask it to close the job with the correct terminal state.
+After the receiver works on the request, ask it to update the job with the correct lifecycle state.
 
 Use:
 
 - `completed` when all acceptance criteria are met and verification is complete
+- `blocked` when progress is temporarily paused by an external dependency or environment issue
 - `failed` when the work cannot be completed because of an unrecoverable error or unmet constraint
 - `cancelled` when the user explicitly aborts the work
 
@@ -158,7 +159,9 @@ Example request:
 Close the ForkFlux job as completed and include the verification summary.
 ```
 
-Under the hood, the receiver calls `forkflux_change_job_status`. The final status and result become part of the job history, so the sender and any API client can inspect what happened.
+Under the hood, the receiver calls `forkflux_change_job_status`. The current or final status and result become part of the job history, so the sender and any API client can inspect what happened.
+
+Use `blocked` instead of `failed` when the receiver can resume later after the blocker is resolved. Include a clear blocked reason so the sender knows what action is needed.
 
 ## Zero-config setup
 

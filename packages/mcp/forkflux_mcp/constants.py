@@ -5,6 +5,7 @@ class JobStatusEnum(str, Enum):
     PUBLISHED = "published"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -12,6 +13,7 @@ class JobStatusEnum(str, Enum):
 
 class JobChangeStatusEnum(str, Enum):
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

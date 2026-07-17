@@ -822,7 +822,7 @@ Examples:
   </TabItem>
 </Tabs>
 
-Prefer terminal statuses for final outcomes:
+Use lifecycle statuses according to the intended outcome:
 
 | Status | Use when |
 |---|---|
