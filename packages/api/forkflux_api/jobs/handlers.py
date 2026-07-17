@@ -71,6 +71,7 @@ async def list_jobs(
     return [
         HandoffJobListItem(
             id=x.job_details.id,
+            parent_job_id=x.job_details.parent_job_id,
             summary=x.job_details.summary,
             status=x.job_details.status,
             priority=JobPriorityEnum(x.job_details.priority),

@@ -100,6 +100,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
 
     assert body[0] == {
         "id": oldest_job.id,
+        "parent_job_id": None,
         "summary": oldest_job.summary,
         "status": JobStatusEnum.PUBLISHED.value,
         "priority": JobPriorityEnum.NORMAL.value,
@@ -110,6 +111,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
     }
     assert body[1] == {
         "id": newest_job.id,
+        "parent_job_id": None,
         "summary": newest_job.summary,
         "status": JobStatusEnum.CLAIMED.value,
         "priority": JobPriorityEnum.HIGH.value,

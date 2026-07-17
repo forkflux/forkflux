@@ -35,6 +35,7 @@ class HandoffJobListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    parent_job_id: int | None
     summary: str
     status: JobStatusEnum
     priority: JobPriorityEnum
