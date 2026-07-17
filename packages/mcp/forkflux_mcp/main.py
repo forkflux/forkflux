@@ -86,7 +86,7 @@ async def _api_request(
         return {"success": False, "error": "Network or Internal Error", "details": str(e)}
 
 
-async def get_dynamic_roles_enum() -> Enum:
+async def get_dynamic_all_roles_enum() -> Enum:
     list_available_roles = await _api_request("GET", "/agents/roles")
     if list_available_roles["success"]:
         available_roles = [x["role_key"] for x in list_available_roles["details"]]
@@ -95,7 +95,17 @@ async def get_dynamic_roles_enum() -> Enum:
     return Enum("TargetRoleEnum", {role: role for role in available_roles})
 
 
-TargetRoleEnum = asyncio.run(get_dynamic_roles_enum())
+async def get_dynamic_my_roles_enum() -> Enum:
+    list_available_roles = await _api_request("GET", "/agents/me/roles")
+    if list_available_roles["success"]:
+        available_roles = [x["role_key"] for x in list_available_roles["details"]]
+    else:
+        available_roles = []
+    return Enum("TargetMyRoleEnum", {role: role for role in available_roles})
+
+
+TargetRoleEnum = asyncio.run(get_dynamic_all_roles_enum())
+TargetMyRoleEnum = asyncio.run(get_dynamic_my_roles_enum())
 
 
 @mcp.tool("forkflux_create_job")
@@ -209,7 +219,7 @@ async def claim_job(job_id: Annotated[int, Field(description="The unique ID of t
 
 @mcp.tool("forkflux_claim_next_job")
 async def claim_next_job(
-    target_role_key: TargetRoleEnum,  # type: ignore[valid-type]
+    target_role_key: TargetMyRoleEnum,  # type: ignore[valid-type]
 ):
     """
     Atomically claims the next available published job for a given target role
