@@ -28,6 +28,19 @@ async def test_target_role_service_get_all_roles_delegates_and_returns_roles() -
     assert roles == expected_roles
 
 
+async def test_target_role_service_get_roles_by_ids_delegates_and_returns_roles() -> None:
+    role_ids = [1, 2, 3]
+    expected_roles = [object(), object(), object()]
+    repository = Mock()
+    repository.list_by_ids = AsyncMock(return_value=expected_roles)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    roles = await service.get_roles_by_ids(role_ids)
+
+    repository.list_by_ids.assert_awaited_once_with(role_ids)
+    assert roles == expected_roles
+
+
 async def test_target_role_service_create_role_delegates_and_returns_role() -> None:
     dto = TargetRoleCreate(role_key="frontend_engineer", role_label="Frontend Engineer")
     expected_role = object()

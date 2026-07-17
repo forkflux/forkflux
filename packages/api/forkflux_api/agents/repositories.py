@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import List
 
 import structlog
 from sqlalchemy import delete, exists, select, update
@@ -27,6 +28,10 @@ class TargetRoleRepository:
 
     async def list(self) -> list[TargetRole]:
         result = await self._session.execute(select(TargetRole))
+        return list(result.scalars().all())
+
+    async def list_by_ids(self, ids: List[int]) -> List[TargetRole]:
+        result = await self._session.execute(select(TargetRole).where(TargetRole.id.in_(ids)))
         return list(result.scalars().all())
 
     async def get_by_role_key(self, role_key: str) -> TargetRole:

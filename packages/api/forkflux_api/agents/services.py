@@ -27,6 +27,15 @@ class TargetRoleService:
         log.info("operation_completed", roles_count=len(roles))
         return roles
 
+    async def get_roles_by_ids(self, ids: list[int]) -> list[TargetRole]:
+        log = self._logger.bind(method="get_roles_by_ids", ids=ids)
+        log.info("operation_started")
+
+        roles = await self._target_role_repo.list_by_ids(ids)
+
+        log.info("operation_completed", roles_count=len(roles))
+        return roles
+
     async def get_by_role_key(self, role_key: str) -> TargetRole:
         log = self._logger.bind(method="get_by_role_key", role_key=role_key)
         log.info("operation_started")
