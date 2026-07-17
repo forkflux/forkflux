@@ -95,11 +95,13 @@ class HandoffJobFactory(BaseSQLAlchemyFactory):
     assignee_agent_id: int | None = None
     constraints: list[str] = []
     failure_reason: str | None = None
+    blocked_reason: str | None = None
     published_at: datetime = datetime.now(timezone.utc)
     claimed_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
     failed_at: datetime | None = None
+    blocked_at: datetime | None = None
     cancelled_at: datetime | None = None
     expires_at: datetime | None = None
     created_at: datetime = datetime.now(timezone.utc)

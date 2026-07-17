@@ -5,6 +5,7 @@ class JobStatusEnum(str, Enum):
     PUBLISHED = "published"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -31,3 +32,5 @@ class JobEventTypeEnum(str, Enum):
     TASK_FAILED = "task_failed"
     TASK_CANCELLED = "task_cancelled"
     TASK_RESTARTED = "task_restarted"
+    TASK_BLOCKED = "task_blocked"
+    TASK_UNBLOCKED = "task_unblocked"

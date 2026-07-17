@@ -100,6 +100,7 @@ Jobs are structured handoff units. They move through the lifecycle from `publish
 | `published` | Available for the target role to claim. |
 | `claimed` | Compatibility status value; normal workflows claim into `in_progress`. |
 | `in_progress` | Claimed by one agent and no longer available to others. |
+| `blocked` | Temporarily paused by the assignee waiting on an external dependency or environment issue; should include a blocked reason. |
 | `completed` | Finished successfully with constraints met. |
 | `failed` | Could not be completed; should include a failure reason. |
 | `cancelled` | Explicitly aborted. |
@@ -196,6 +197,7 @@ GET /jobs?limit=50&status=published&my_roles_only=true&order=priority_desc&order
 [
   {
     "id": 42,
+    "parent_job_id": null,
     "summary": "Verify the new health endpoint",
     "status": "published",
     "priority": 30,
@@ -235,11 +237,13 @@ Returns a full job record with context payload, constraints, artifacts, timestam
   ],
   "artifacts": [],
   "failure_reason": null,
+  "blocked_reason": null,
   "published_at": "2026-07-01T14:00:00Z",
   "claimed_at": null,
   "started_at": null,
   "completed_at": null,
   "failed_at": null,
+  "blocked_at": null,
   "cancelled_at": null,
   "expires_at": null,
   "created_at": "2026-07-01T14:00:00Z",
@@ -334,8 +338,9 @@ Updates the lifecycle status of a job.
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
-| `status` | string | yes | Target lifecycle status. Normal closure uses `completed`, `failed`, or `cancelled`. |
+| `status` | string | yes | Target lifecycle status. Normal closure uses `completed`, `failed`, or `cancelled`. Use `blocked` to temporarily pause. |
 | `failure_reason` | string or null | required for `failed` | Explanation of the blocker or unmet constraint. |
+| `blocked_reason` | string or null | required for `blocked` | Explanation of why the job is temporarily blocked. |
 
 #### Response
 
@@ -363,6 +368,8 @@ Use terminal statuses as follows:
 - `failed` when the work cannot be completed.
 - `cancelled` when the user explicitly aborts the job.
 
+Use `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue. Include a clear `blocked_reason`. Transition back to `in_progress` to unblock once the blocker is resolved. A blocked job can also be closed as `failed` or `cancelled` if the blocker becomes permanent.
+
 ## Roles
 
 Roles route jobs to the right kind of agent. A job targets a role key, and agents with that role can list and claim matching work.
@@ -383,6 +390,34 @@ Returns available target roles.
     "role_key": "developer",
     "role_label": "Developer"
   },
+  {
+    "role_key": "qa",
+    "role_label": "QA Engineer"
+  }
+]
+```
+
+#### Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `role_key` | string | Stable machine-readable key used in job routing. |
+| `role_label` | string | Human-readable role label. |
+
+### List my roles
+
+```http
+GET /agents/me/roles
+```
+
+Returns the roles assigned to the current agent. Unlike `GET /agents/roles`, which returns all available target roles, this endpoint filters to only the roles associated with the authenticated agent's identity.
+
+If the agent has no roles assigned, the endpoint returns an empty array.
+
+#### Response
+
+```json
+[
   {
     "role_key": "qa",
     "role_label": "QA Engineer"

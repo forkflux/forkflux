@@ -254,6 +254,7 @@ async def stats(
     pipeline_health_table.add_row("Total jobs", str(stats_data.total_jobs))
     pipeline_health_table.add_row("Completion rate", f"{stats_data.completion_rate * 100:.2f}%")
     pipeline_health_table.add_row("Failure rate", f"{stats_data.failure_rate * 100:.2f}%")
+    pipeline_health_table.add_row("Blocked rate", f"{stats_data.blocked_rate * 100:.2f}%")
     pipeline_health_table.add_row("Active agents", str(stats_data.active_agents))
     console.print(pipeline_health_table)
 
@@ -290,6 +291,7 @@ async def stats(
     )
     queue_snapshot_table.add_row("Claimed", str(stats_data.queue_status_counts[JobStatusEnum.CLAIMED]))
     queue_snapshot_table.add_row("In Progress", str(stats_data.queue_status_counts[JobStatusEnum.IN_PROGRESS]))
+    queue_snapshot_table.add_row("Blocked", str(stats_data.queue_status_counts[JobStatusEnum.BLOCKED]))
     queue_snapshot_table.add_row(
         f"⚠️ Stuck (>{stats_data.stuck_minutes}m)",
         str(stats_data.stuck_jobs),
@@ -687,7 +689,11 @@ async def delete_job(job_id: int) -> None:
 @job_app.command("change-status")
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def change_job_status(
-    job_id: int, status: JobStatusEnum, agent_id: int, failure_reason: str | None = None
+    job_id: int,
+    status: JobStatusEnum,
+    agent_id: int,
+    failure_reason: str | None = None,
+    blocked_reason: str | None = None,
 ) -> None:
     _configure_cli_logging()
     trace_id = str(uuid4())
@@ -713,7 +719,13 @@ async def change_job_status(
                 job_artifact_repo=job_artifact_repo,
                 job_event_repo=job_event_repo,
                 trace_id=trace_id,
-            ).change_job_status(job_id=job_id, status=status, agent_id=agent.id, failure_reason=failure_reason)
+            ).change_job_status(
+                job_id=job_id,
+                status=status,
+                agent_id=agent.id,
+                failure_reason=failure_reason,
+                blocked_reason=blocked_reason,
+            )
         except HandoffJobNotFoundError:
             console.print(f"Job with id {job_id} not found", style="bold red")
             return

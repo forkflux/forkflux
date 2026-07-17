@@ -79,6 +79,7 @@ class HandoffJobService:
             JobStatusEnum.PUBLISHED: status_counts[JobStatusEnum.PUBLISHED],
             JobStatusEnum.CLAIMED: status_counts[JobStatusEnum.CLAIMED],
             JobStatusEnum.IN_PROGRESS: status_counts[JobStatusEnum.IN_PROGRESS],
+            JobStatusEnum.BLOCKED: status_counts[JobStatusEnum.BLOCKED],
         }
         terminal_status_counts = {
             JobStatusEnum.COMPLETED: status_counts[JobStatusEnum.COMPLETED],
@@ -88,10 +89,12 @@ class HandoffJobService:
 
         completed_jobs = status_counts[JobStatusEnum.COMPLETED]
         failed_jobs = status_counts[JobStatusEnum.FAILED]
+        blocked_jobs = status_counts[JobStatusEnum.BLOCKED]
         total_handoffs = raw_stats.total_handoffs
         estimated_time_saved_minutes = total_handoffs * self.MINUTES_SAVED_PER_HANDOFF
         completion_rate = (completed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
         failure_rate = (failed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
+        blocked_rate = (blocked_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
 
         time_to_claim_minutes = [
             self._duration_minutes(published_at, claimed_at)
@@ -109,6 +112,7 @@ class HandoffJobService:
             total_jobs=raw_stats.total_jobs,
             completed_jobs=completed_jobs,
             failed_jobs=failed_jobs,
+            blocked_jobs=blocked_jobs,
             active_agents=raw_stats.active_agents,
             stuck_jobs=raw_stats.stuck_jobs,
             total_handoffs=total_handoffs,
@@ -126,6 +130,7 @@ class HandoffJobService:
             terminal_status_counts=terminal_status_counts,
             completion_rate=completion_rate,
             failure_rate=failure_rate,
+            blocked_rate=blocked_rate,
             active_agents=raw_stats.active_agents,
             stuck_jobs=raw_stats.stuck_jobs,
             total_handoffs=total_handoffs,
@@ -267,7 +272,12 @@ class HandoffJobService:
         log.info("operation_completed")
 
     async def change_job_status(
-        self, job_id: int, status: JobStatusEnum, agent_id: int, failure_reason: str | None = None
+        self,
+        job_id: int,
+        status: JobStatusEnum,
+        agent_id: int,
+        failure_reason: str | None = None,
+        blocked_reason: str | None = None,
     ) -> tuple[JobStatusEnum, JobStatusEnum]:
         log = self._logger.bind(
             method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent_id
@@ -281,8 +291,12 @@ class HandoffJobService:
             (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED),
+            (JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
             (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS),
+            (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS),
+            (JobStatusEnum.BLOCKED, JobStatusEnum.FAILED),
+            (JobStatusEnum.BLOCKED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED),
         }
@@ -334,6 +348,10 @@ class HandoffJobService:
                 job.failed_at = None
                 job.failure_reason = None
                 event_type = JobEventTypeEnum.TASK_RESTARTED
+            elif current_status == JobStatusEnum.BLOCKED:
+                job.blocked_at = None
+                job.blocked_reason = None
+                event_type = JobEventTypeEnum.TASK_UNBLOCKED
             else:
                 event_type = JobEventTypeEnum.TASK_STARTED
         elif status == JobStatusEnum.COMPLETED:
@@ -342,10 +360,21 @@ class HandoffJobService:
         elif status == JobStatusEnum.FAILED:
             job.failure_reason = failure_reason
             job.failed_at = timestamp
+            if current_status == JobStatusEnum.BLOCKED:
+                job.blocked_at = None
+                job.blocked_reason = None
             event_type = JobEventTypeEnum.TASK_FAILED
             event_payload["failure_reason"] = failure_reason
+        elif status == JobStatusEnum.BLOCKED:
+            job.blocked_reason = blocked_reason
+            job.blocked_at = timestamp
+            event_type = JobEventTypeEnum.TASK_BLOCKED
+            event_payload["blocked_reason"] = blocked_reason
         elif status == JobStatusEnum.CANCELLED:
             job.cancelled_at = timestamp
+            if current_status == JobStatusEnum.BLOCKED:
+                job.blocked_at = None
+                job.blocked_reason = None
             event_type = JobEventTypeEnum.TASK_CANCELLED
 
         await self._handoff_job_repo.save(job=job)

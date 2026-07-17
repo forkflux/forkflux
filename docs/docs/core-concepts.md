@@ -82,8 +82,11 @@ ForkFlux jobs move through explicit lifecycle states.
 
 ```text
 published ── claim ──▶ in_progress ── close ──▶ completed
-                                      ├────────▶ failed
-                                      └────────▶ cancelled
+                                       ├────────▶ failed
+                                       ├────────▶ cancelled
+                                       └── block ──▶ blocked ── unblock ──▶ in_progress
+                                                              ├────────────▶ failed
+                                                              └────────────▶ cancelled
 ```
 
 ### States
@@ -92,6 +95,7 @@ published ── claim ──▶ in_progress ── close ──▶ completed
 |---|---|
 | `published` | The job is available in the target role queue and can be claimed. |
 | `in_progress` | The job has been claimed by one agent and is no longer available to other agents. |
+| `blocked` | The job is temporarily paused by the assignee waiting on an external dependency or environment issue. Should include a blocked reason. |
 | `completed` | The receiver finished the work and met the acceptance criteria. |
 | `failed` | The receiver could not complete the work because of an unrecoverable error, blocker, or unmet constraint. |
 | `cancelled` | The work was explicitly aborted. |
@@ -109,6 +113,7 @@ Use these rules when you design agent prompts, commands, or custom clients:
 - Close with `completed` only after verification is done.
 - Close with `failed` when the receiver cannot satisfy the constraints, and include a clear failure reason.
 - Close with `cancelled` only when the user or workflow explicitly aborts the job.
+- Use `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue, and include a clear blocked reason. Unblock by transitioning back to `in_progress` once the blocker is resolved.
 
 ### Events and timestamps
 

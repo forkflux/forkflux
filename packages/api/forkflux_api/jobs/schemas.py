@@ -62,12 +62,14 @@ class HandoffJobWithArtifactsItem(BaseModel):
     constraints: list[str]
     artifacts: list[JobArtifact]
     failure_reason: str | None
+    blocked_reason: str | None
 
     published_at: datetime
     claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     failed_at: datetime | None
+    blocked_at: datetime | None
     cancelled_at: datetime | None
     expires_at: datetime | None
 
@@ -80,6 +82,7 @@ class HandoffJobChangeStatusRequest(BaseModel):
 
     status: JobStatusEnum
     failure_reason: str | None = None
+    blocked_reason: str | None = None
 
 
 class HandoffJobChangeStatusResponse(BaseModel):
