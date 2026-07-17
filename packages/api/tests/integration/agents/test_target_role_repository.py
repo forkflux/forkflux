@@ -147,3 +147,78 @@ async def test_target_role_repository_delete_raises_in_use_when_role_referenced(
 
     with pytest.raises(TargetRoleInUseError):
         await repository.delete(role_key="operator")
+
+
+async def test_target_role_repository_list_by_ids_returns_matching_roles(db_session: AsyncSession) -> None:
+    role_admin = await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    role_viewer = await TargetRoleFactory.create(
+        db_session,
+        role_key="viewer",
+        role_label="Viewer",
+    )
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="operator",
+        role_label="Operator",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    roles = await repository.list_by_ids(ids=[role_admin.id, role_viewer.id])
+
+    assert all(isinstance(role, TargetRole) for role in roles)
+    assert {role.id for role in roles} == {role_admin.id, role_viewer.id}
+
+
+async def test_target_role_repository_list_by_ids_returns_empty_list_when_no_ids_match(
+    db_session: AsyncSession,
+) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    roles = await repository.list_by_ids(ids=[999_999, 888_888])
+
+    assert roles == []
+
+
+async def test_target_role_repository_list_by_ids_returns_subset_when_some_ids_missing(
+    db_session: AsyncSession,
+) -> None:
+    role_admin = await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="viewer",
+        role_label="Viewer",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    roles = await repository.list_by_ids(ids=[role_admin.id, 999_999])
+
+    assert all(isinstance(role, TargetRole) for role in roles)
+    assert {role.id for role in roles} == {role_admin.id}
+
+
+async def test_target_role_repository_list_by_ids_returns_empty_list_for_empty_input(
+    db_session: AsyncSession,
+) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    repository = TargetRoleRepository(trace_id="trace-123", session=db_session)
+
+    roles = await repository.list_by_ids(ids=[])
+
+    assert roles == []
