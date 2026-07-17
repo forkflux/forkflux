@@ -77,7 +77,7 @@ import urllib.request
 import os
 
 BASE_URL = os.getenv("FORKFLUX_API_URL") or "http://localhost:8000/api/v1"
-URL = f"{BASE_URL}/jobs?limit=5&status=published&status=in_progress"
+URL = f"{BASE_URL}/jobs?limit=5&status=published&status=in_progress&status=blocked"
 TOKEN = os.getenv("FORKFLUX_API_KEY")
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -126,12 +126,12 @@ def fetch_and_display_data():
 
 def display_table(data):
     headers = [
-        "id", "summary", "status", "priority",
+        "id", "summary", "status", "priority", "parent_id",
         "source_agent", "assignee_agent", "target_role", "created_at"
     ]
     key_mapping = {
         "id": "id", "summary": "summary", "status": "status",
-        "priority": "priority", "source_agent": "source_agent_label",
+        "priority": "priority", "parent_id": "parent_job_id", "source_agent": "source_agent_label",
         "assignee_agent": "assignee_agent_label", "target_role": "target_role_key",
         "created_at": "created_at"
     }
