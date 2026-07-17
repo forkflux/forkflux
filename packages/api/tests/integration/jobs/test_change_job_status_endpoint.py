@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime, timezone
 
-from forkflux_api.jobs.constants import JobStatusEnum
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from forkflux_api.jobs.models import HandoffJob, JobEvent
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -392,3 +392,71 @@ async def test_change_job_status_returns_422_when_assignee_mismatches_and_keeps_
 
     await _assert_no_events_for_job(db_session, job.id)
     assert caller_id != persisted_job.assignee_agent_id
+
+
+async def test_change_job_status_returns_200_and_restarts_from_failed_for_assignee(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-change-status-restart-token"
+    assignee_id, assignee_role_id = await _create_authenticated_agent(
+        db_session,
+        raw_token=raw_token,
+        role_key="change-status-restart-assignee-role",
+        role_label="Change status restart assignee role",
+        agent_label="change-status-restart-assignee-agent",
+    )
+
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="change-status-restart-source-agent",
+    )
+
+    old_timestamp = datetime(2026, 2, 6, 9, 0, tzinfo=timezone.utc)
+    job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=assignee_role_id,
+        status=JobStatusEnum.FAILED,
+        assignee_agent_id=assignee_id,
+        started_at=old_timestamp,
+        failed_at=old_timestamp,
+        failure_reason="executor timeout",
+        created_at=old_timestamp,
+        updated_at=old_timestamp,
+        published_at=old_timestamp,
+        claimed_at=old_timestamp,
+    )
+
+    response = await client.post(
+        f"/api/v1/jobs/{job.id}/status",
+        json={"status": JobStatusEnum.IN_PROGRESS.value},
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": job.id,
+        "previous_status": JobStatusEnum.FAILED.value,
+        "new_status": JobStatusEnum.IN_PROGRESS.value,
+    }
+
+    await db_session.refresh(job)
+    persisted_job = await db_session.get(HandoffJob, job.id)
+    assert persisted_job is not None
+    assert persisted_job.status == JobStatusEnum.IN_PROGRESS
+    assert persisted_job.assignee_agent_id == assignee_id
+    assert persisted_job.started_at is not None
+    assert persisted_job.started_at > old_timestamp
+    assert persisted_job.failed_at is None
+    assert persisted_job.failure_reason is None
+    assert persisted_job.updated_at > old_timestamp
+
+    event_rows = await db_session.execute(select(JobEvent).where(JobEvent.job_id == job.id).order_by(JobEvent.id.asc()))
+    events = list(event_rows.scalars())
+    assert len(events) == 1
+    assert events[0].event_type == JobEventTypeEnum.TASK_RESTARTED.value
+    assert events[0].previous_status == JobStatusEnum.FAILED
+    assert events[0].current_status == JobStatusEnum.IN_PROGRESS
+    assert events[0].actor_agent_id == assignee_id
+    assert "timestamp" in events[0].payload_json

@@ -388,7 +388,7 @@ class JobEventRepository:
     async def create(self, dto: JobEventCreate) -> JobEvent:
         job_event = JobEvent(
             job_id=dto.job_id,
-            event_type=dto.event_type,
+            event_type=dto.event_type.value,
             previous_status=dto.previous_status,
             current_status=dto.current_status,
             actor_agent_id=dto.actor_agent_id,

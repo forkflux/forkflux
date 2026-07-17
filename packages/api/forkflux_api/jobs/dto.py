@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, TypedDict
 
-from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.models import HandoffJob, JobArtifact
 
 
@@ -29,7 +29,7 @@ class JobArtifactCreate:
 @dataclass(slots=True)
 class JobEventCreate:
     job_id: int
-    event_type: str
+    event_type: JobEventTypeEnum
     previous_status: JobStatusEnum | None
     current_status: JobStatusEnum
     actor_agent_id: int | None

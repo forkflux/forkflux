@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from math import ceil, floor
 from statistics import median
+from typing import Any
 
 import structlog
 
@@ -168,7 +169,7 @@ class HandoffJobService:
         await self._job_event_repo.create(
             dto=JobEventCreate(
                 job_id=created_job.id,
-                event_type=JobEventTypeEnum.TASK_PUBLISHED.value,
+                event_type=JobEventTypeEnum.TASK_PUBLISHED,
                 previous_status=None,
                 current_status=JobStatusEnum.PUBLISHED,
                 actor_agent_id=source_agent_id,
@@ -281,6 +282,7 @@ class HandoffJobService:
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
+            (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED),
         }
@@ -323,16 +325,41 @@ class HandoffJobService:
         job.status = status
         job.updated_at = timestamp
 
+        event_type: JobEventTypeEnum
+        event_payload: dict[str, Any] = {"timestamp": timestamp.isoformat()}
+
         if status == JobStatusEnum.IN_PROGRESS:
             job.started_at = timestamp
+            if current_status == JobStatusEnum.FAILED:
+                job.failed_at = None
+                job.failure_reason = None
+                event_type = JobEventTypeEnum.TASK_RESTARTED
+            else:
+                event_type = JobEventTypeEnum.TASK_STARTED
         elif status == JobStatusEnum.COMPLETED:
             job.completed_at = timestamp
+            event_type = JobEventTypeEnum.TASK_COMPLETED
         elif status == JobStatusEnum.FAILED:
             job.failure_reason = failure_reason
             job.failed_at = timestamp
+            event_type = JobEventTypeEnum.TASK_FAILED
+            event_payload["failure_reason"] = failure_reason
         elif status == JobStatusEnum.CANCELLED:
             job.cancelled_at = timestamp
+            event_type = JobEventTypeEnum.TASK_CANCELLED
 
         await self._handoff_job_repo.save(job=job)
+
+        await self._job_event_repo.create(
+            dto=JobEventCreate(
+                job_id=job_id,
+                event_type=event_type,
+                previous_status=current_status,
+                current_status=status,
+                actor_agent_id=agent_id,
+                payload_json=event_payload,
+            )
+        )
+
         log.info("operation_completed", previous_status=current_status.value, current_status=status.value)
         return current_status, status
