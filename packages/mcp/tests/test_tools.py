@@ -204,7 +204,41 @@ async def test_change_job_status_in_progress_calls_api_request_with_expected_con
     mock_api_request.assert_called_once_with(
         "POST",
         "/jobs/77/status",
-        json_data={"status": "in_progress", "failure_reason": None},
+        json_data={"status": "in_progress", "failure_reason": None, "blocked_reason": None},
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_change_job_status_blocked_calls_api_request_with_blocked_reason_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {
+            "id": 77,
+            "status": "blocked",
+            "blocked_reason": "waiting on upstream API to be deployed",
+        },
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_change_job_status",
+            arguments={
+                "job_id": 77,
+                "status": JobChangeStatusEnum.BLOCKED,
+                "blocked_reason": "waiting on upstream API to be deployed",
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs/77/status",
+        json_data={
+            "status": "blocked",
+            "failure_reason": None,
+            "blocked_reason": "waiting on upstream API to be deployed",
+        },
     )
     _assert_tool_result_envelope(result, expected_payload)
 
@@ -237,6 +271,7 @@ async def test_change_job_status_failed_calls_api_request_with_failure_reason_an
         json_data={
             "status": "failed",
             "failure_reason": "pytest collection failed due to missing fixture",
+            "blocked_reason": None,
         },
     )
     _assert_tool_result_envelope(result, expected_payload)

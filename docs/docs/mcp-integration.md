@@ -515,7 +515,7 @@ The MCP server exposes a small tool set that maps to the ForkFlux job lifecycle.
 | `forkflux_job_details` | Retrieve full details for one job without changing ownership. | Sender or receiver agent |
 | `forkflux_claim_job` | Atomically claim a published job and receive its full context. | Receiver agent |
 | `forkflux_claim_next_job` | Atomically claim the next available published job for a target role. | Receiver agent |
-| `forkflux_change_job_status` | Close claimed work as completed, failed, or cancelled. | Receiver agent |
+| `forkflux_change_job_status` | Update claimed work as blocked, in progress, completed, failed, or cancelled. | Receiver agent |
 
 ### `forkflux_create_job`
 
@@ -600,7 +600,8 @@ Updates the lifecycle status of a claimed job.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `job_id` | integer | yes | Unique ID of the claimed job. |
-| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. |
+| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. Use `blocked` to temporarily pause. |
 | `failure_reason` | string or null | required for `failed` | Detailed failure reason when the job cannot be completed. |
+| `blocked_reason` | string or null | required for `blocked` | Detailed explanation of why the job is temporarily blocked. |
 
-The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition.
+The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition. Use `blocked` when the assignee cannot proceed temporarily, and transition back to `in_progress` to unblock once the blocker is resolved.

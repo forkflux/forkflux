@@ -240,6 +240,12 @@ async def change_job_status(
             description="A detailed explanation of why the job failed. REQUIRED if status is 'failed' otherwise ignore."
         ),
     ] = None,
+    blocked_reason: Annotated[
+        str | None,
+        Field(
+            description="A detailed explanation of why the job is blocked. REQUIRED if status is 'blocked' otherwise ignore."  # noqa: E501
+        ),
+    ] = None,
 ):
     """
     Updates the execution lifecycle status of a job you have claimed.
@@ -249,9 +255,13 @@ async def change_job_status(
     1. 'completed': Set this ONLY when you have successfully finished the job and met ALL constraints.
     2. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
     3. 'cancelled': Set this if the user explicitly asks you to abort.
+    4. 'blocked': Set this if the job is temporarily blocked by an external dependency or environment issue.
+        You MUST populate `blocked_reason`. Use 'in_progress' to unblock once the blocker is resolved.
     """
     return await _api_request(
-        "POST", f"/jobs/{job_id}/status", json_data={"status": status.value, "failure_reason": failure_reason}
+        "POST",
+        f"/jobs/{job_id}/status",
+        json_data={"status": status.value, "failure_reason": failure_reason, "blocked_reason": blocked_reason},
     )
 
 
@@ -355,45 +365,54 @@ def claim_prompt() -> str:
 @mcp.prompt("close")
 def close_prompt() -> str:
     """
-    Close a specific ForkFlux job by updating its lifecycle status to a terminal state
-    (completed, failed, or cancelled). Use this prompt when finishing execution.
+    Update a specific ForkFlux job lifecycle status, including temporary blocking,
+    resuming blocked work, or terminal closure.
     """
     return """
     You are an AI Agent operating within the ForkFlux Coordination Bus protocol.
-    Your current goal is to transition a specific job into its final terminal state, broadcasting this update to the decentralized bus.
+    Your current goal is to update a specific job lifecycle state, broadcasting this update to the decentralized bus.
 
     CRITICAL INFRASTRUCTURE RULE: NEVER attempt to use bash, curl, or terminal commands to execute this state transition. You MUST use the provided `forkflux_change_job_status` MCP tool.
 
     Follow these execution steps carefully:
 
-    1. PRE-CHECK: Ensure you have a valid `job_id` from your active context and the target termination status.
+    1. PRE-CHECK: Ensure you have a valid `job_id` from your active context and the target lifecycle status.
 
-    2. STATUS VALIDATION: Validate that the target status is strictly one of the allowed TERMINAL lifecycle states:
+    2. STATUS VALIDATION: Validate that the target status is one of the allowed lifecycle states:
+       - `blocked`
+       - `in_progress`
        - `completed`
        - `failed`
        - `cancelled`
-       * CRITICAL: Do NOT use this command to transition a job back to `in_progress` or `published`.
+       * CRITICAL: Do NOT use this command to transition a job to `published`.
+       * CRITICAL: Use `in_progress` only to resume a job that was previously `blocked` or `failed`; do not use it for normal claiming because `forkflux_claim_job` already performs that transition.
 
     3. STATE GATEKEEPING RULES (Verify before calling the tool):
        - If status is `completed`: Only call this if you have verified that all code is written, tests pass successfully, and every single constraint from the job context payload is fully met.
-       - If status is `failed`: Call this if an unrecoverable error occurs, tests persistently fail, environment blockers arise, or constraints cannot be resolved.
+       - If status is `blocked`: Call this if the assignee cannot proceed temporarily due to an external dependency, missing environment, unavailable input, or other condition that can plausibly be resolved later.
+       - If status is `in_progress`: Call this only to resume a previously `blocked` or `failed` job after the blocker is resolved or a restart is requested.
+       - If status is `failed`: Call this if an unrecoverable error occurs, tests persistently fail, a blocker becomes permanent, or constraints cannot be resolved.
        - If status is `cancelled`: Call this if the user explicitly instructs you to abort the execution midway.
 
     4. MANDATORY ERROR LOGGING: If you are setting the status to `failed`, you MUST populate the `failure_reason` argument with a highly detailed summary. Include stack trace excerpts, logs, or specific unmet constraints so human developers can trace and debug the handoff block.
 
-    5. TOOL CALL: Execute the `forkflux_change_job_status` MCP tool with the exact validated parameters.
+    5. MANDATORY BLOCKED LOGGING: If you are setting the status to `blocked`, you MUST populate the `blocked_reason` argument with a useful explanation of what is missing and what would unblock progress.
 
-    6. TRANSACTION FAILURE HANDLING: If the tool call fails or returns a state-machine transition error from the Coordination Bus, output the exact error message and STOP. Do not hallucinate or assume a successful update.
+    6. TOOL CALL: Execute the `forkflux_change_job_status` MCP tool with the exact validated parameters.
 
-    7. OUTPUT FORMATTING (STRICT RULE):
+    7. TRANSACTION FAILURE HANDLING: If the tool call fails or returns a state-machine transition error from the Coordination Bus, output the exact error message and STOP. Do not hallucinate or assume a successful update.
+
+    8. OUTPUT FORMATTING (STRICT RULE):
        - NEVER dump raw JSON response payloads from the tool directly to the user.
        - Provide a clear, high-visibility status update block in Markdown using the exact structure below:
 
-       🔄 **Job Closed**: [Insert the `job_id` as inline code]
-       🚦 **Final State**: `[completed, failed, or cancelled]`
+       🔄 **Job Updated**: [Insert the `job_id` as inline code]
+       🚦 **State**: `[blocked, in_progress, completed, failed, or cancelled]`
        📝 **Summary / Error Details**:
-         - (If completed): [Provide a brief 1-2 sentence human-readable summary of what was implemented to meet the constraints]
-         - (If failed): [Print the explicit `failure_reason` that was provided to the tool]
+          - (If completed): [Provide a brief 1-2 sentence human-readable summary of what was implemented to meet the constraints]
+          - (If blocked): [Print the explicit `blocked_reason` that was provided to the tool and what is needed to unblock]
+          - (If in_progress): [Provide a concise unblock/restart summary]
+          - (If failed): [Print the explicit `failure_reason` that was provided to the tool]
     """  # noqa: E501
 
 

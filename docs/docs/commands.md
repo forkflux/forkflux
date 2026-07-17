@@ -25,7 +25,7 @@ ForkFlux ships four command files:
 | `/ff-push` | [`commands/ff-push.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-push.md) | Create a new handoff job for another role. | `forkflux_create_job` |
 | `/ff-board` | [`commands/ff-board.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-board.md) | List published jobs available to the current agent role. | `forkflux_list_jobs` |
 | `/ff-claim` | [`commands/ff-claim.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-claim.md) | Atomically claim one job and unpack its full context. | `forkflux_claim_job` |
-| `/ff-close` | [`commands/ff-close.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-close.md) | Close a claimed job with a terminal status. | `forkflux_change_job_status` |
+| `/ff-close` | [`commands/ff-close.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-close.md) | Update a claimed job with a lifecycle status. | `forkflux_change_job_status` |
 
 ## Requirements
 
@@ -133,7 +133,7 @@ Expected result:
 
 ### `/ff-close`
 
-Use `/ff-close` when a receiver agent needs to finish the lifecycle for a claimed job.
+Use `/ff-close` when a receiver agent needs to update the lifecycle for a claimed job, including temporary blocking or terminal closure.
 
 The command supports the following statuses:
 
@@ -142,7 +142,9 @@ The command supports the following statuses:
 - `cancelled` — use when the user explicitly aborts the job.
 - `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `in_progress` to unblock once the blocker is resolved.
 
-If the final status is `failed`, the assistant must include a useful `failure_reason`.
+If the target status is `failed`, the assistant must include a useful `failure_reason`.
+
+If the target status is `blocked`, the assistant must include a useful `blocked_reason`.
 
 Examples:
 
@@ -157,8 +159,8 @@ Examples:
 Expected result:
 
 ```text
-🔄 Job Closed: 42
-🚦 Final State: completed
+🔄 Job Updated: 42
+🚦 State: completed
 📝 Summary / Error Details: Verified the health endpoint and confirmed the targeted endpoint test passes.
 ```
 

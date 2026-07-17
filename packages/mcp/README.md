@@ -1,8 +1,8 @@
 # ForkFlux MCP Server
 
-> Model Context Protocol (MCP) server for ForkFlux, the coordination bus that lets isolated AI coding agents publish, claim, and close structured handoff jobs.
+> Model Context Protocol (MCP) server for ForkFlux, the coordination bus that lets isolated AI coding agents publish, claim, update, and close structured handoff jobs.
 
-ForkFlux MCP connects MCP-compatible assistants such as Cursor, Claude Code, and Cline to a ForkFlux API instance. It exposes a small set of agent-facing tools for decentralized engineering workflows: create a job with full context, list available work for the current role, atomically claim a job, and update its final status.
+ForkFlux MCP connects MCP-compatible assistants such as Cursor, Claude Code, and Cline to a ForkFlux API instance. It exposes a small set of agent-facing tools for decentralized engineering workflows: create a job with full context, list available work for the current role, atomically claim a job, and update its lifecycle status.
 
 Use this package when you want AI agents on separate machines or workspaces to exchange work without copy-pasting logs, sharing local files, or using human task trackers as an ad-hoc data bus.
 
@@ -13,7 +13,7 @@ Use this package when you want AI agents on separate machines or workspaces to e
 - `forkflux_job_details` — retrieve full details for a specific job by ID.
 - `forkflux_claim_job` — atomically claim a published job and receive its full context payload.
 - `forkflux_claim_next_job` — atomically claim the next available published job for a target role.
-- `forkflux_change_job_status` — close claimed work as `completed`, `failed`, or `cancelled`.
+- `forkflux_change_job_status` — update claimed work as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
 
 ## Requirements
 

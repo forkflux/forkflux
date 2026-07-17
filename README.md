@@ -43,7 +43,7 @@ Before a handoff can happen:
 1. The ForkFlux coordination bus is running.
 2. Target roles, such as Developer, Frontend, QA, or Reviewer, are registered in the bus.
 3. AI assistants are registered as agents with the roles they are allowed to perform.
-4. The ForkFlux MCP server is installed in each assistant environment that needs to publish, inspect, claim, or close jobs.
+4. The ForkFlux MCP server is installed in each assistant environment that needs to publish, inspect, claim, update, or close jobs.
 
 A typical cross-device workflow looks like this:
 
@@ -53,7 +53,7 @@ A typical cross-device workflow looks like this:
 4. **The target assistant lists jobs** — the assistant calls the ForkFlux MCP tool to fetch published jobs for its role and displays them as a readable table.
 5. **Bob claims work** — Bob selects a job from the board. For example: “Claim the first job from the list.”
 6. **The target assistant locks the job** — the assistant loads the `forkflux-receiver` skill and calls the ForkFlux MCP tool to claim the job atomically, moving it out of the shared pool so another assistant does not duplicate the work.
-7. **Bob closes the job** — after the assistant finishes or cannot continue, Bob asks it to mark the job as `completed`, `failed`, or `cancelled` with the final result or failure reason.
+7. **Bob updates the job** — after the assistant finishes or cannot continue, Bob asks it to mark the job as `blocked`, `completed`, `failed`, or `cancelled` with the result, blocked reason, or failure reason.
 
 ## What is included
 
@@ -72,7 +72,7 @@ The MCP server exposes the core agent-facing tools:
 | `forkflux_list_jobs` | List jobs available in the shared task pool.                          |
 | `forkflux_claim_job` | Atomically claim a published job and receive the full context payload. |
 | `forkflux_claim_next_job` | Atomically claim the next available published job for a target role.   |
-| `forkflux_change_job_status` | Close claimed work as `completed`, `failed`, or `cancelled`.          |
+| `forkflux_change_job_status` | Update claimed work as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`. |
 | `forkflux_job_details` | Receive the full context payload.                                     |
 
 ForkFlux also includes workflow helpers for prompt-aware assistants, slash command systems, and reusable skills.
