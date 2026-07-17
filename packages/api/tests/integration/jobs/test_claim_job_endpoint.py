@@ -178,7 +178,7 @@ async def test_claim_job_returns_422_when_job_does_not_exist(
         "detail": [
             {
                 "loc": ["path", "job_id"],
-                "msg": "Handoff job claim is invalid.",
+                "msg": "Handoff job claim is invalid: Handoff job not found.",
                 "type": "handoff_job_claim.invalid",
                 "input": 999999,
                 "ctx": {},
@@ -230,7 +230,7 @@ async def test_claim_job_returns_422_when_job_status_is_not_published(
         "detail": [
             {
                 "loc": ["path", "job_id"],
-                "msg": "Handoff job claim is invalid.",
+                "msg": "Handoff job claim is invalid: Handoff job conflicts with existing data constraints.",
                 "type": "handoff_job_claim.invalid",
                 "input": job.id,
                 "ctx": {},
@@ -293,7 +293,7 @@ async def test_claim_job_returns_422_when_claimant_role_does_not_match_target_ro
         "detail": [
             {
                 "loc": ["path", "job_id"],
-                "msg": "Handoff job claim is invalid.",
+                "msg": "Handoff job claim is invalid: Handoff job conflicts with existing data constraints.",
                 "type": "handoff_job_claim.invalid",
                 "input": job.id,
                 "ctx": {},
@@ -355,7 +355,7 @@ async def test_claim_job_returns_422_when_job_is_already_assigned(
         "detail": [
             {
                 "loc": ["path", "job_id"],
-                "msg": "Handoff job claim is invalid.",
+                "msg": "Handoff job claim is invalid: Handoff job conflicts with existing data constraints.",
                 "type": "handoff_job_claim.invalid",
                 "input": job.id,
                 "ctx": {},
