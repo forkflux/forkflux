@@ -1,3 +1,13 @@
+## [0.4.0] - 2026-07-17
+
+### 🐛 Bug Fixes
+
+- Claim next job by my roles
+
+### 🚀 Features
+
+- Add `blocked` status
+
 ## [0.3.0] - 2026-07-11
 
 ### 🐛 Bug Fixes
