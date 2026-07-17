@@ -1,3 +1,19 @@
+## [0.6.0] - 2026-07-17
+
+### ⚙️ Miscellaneous Tasks
+
+- Add my roles endpoint
+- Add `parent_job_id` field to jobs list
+
+### 🐛 Bug Fixes
+
+- Include parent exception message in HandoffJobClaimValidationError
+- Allow change status from `failed` to `in_progress`
+
+### 🚀 Features
+
+- Added status `blocked`
+
 ## [0.5.0] - 2026-07-15
 
 ### 🐛 Bug Fixes
