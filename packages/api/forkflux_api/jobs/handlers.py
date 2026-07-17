@@ -112,8 +112,8 @@ async def claim_next_job(
 
     try:
         await job_service.claim_job(job_id=job_id, agent_id=current_agent.id, agent_role_ids=agent_role_ids)
-    except HandoffJobNotFoundError, HandoffJobConflictError:
-        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="body")
+    except (HandoffJobNotFoundError, HandoffJobConflictError) as err:
+        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="body", detail=err.msg)
 
     entity = await job_service.get_job_with_artifacts(job_id)
     return handoff_job_to_response_model(entity=entity)
@@ -142,8 +142,8 @@ async def claim_job(
     try:
         agent_role_ids = await agent_identity_role_service.list_role_ids(agent_identity_id=current_agent.id)
         await job_service.claim_job(job_id=job_id, agent_id=current_agent.id, agent_role_ids=agent_role_ids)
-    except HandoffJobNotFoundError, HandoffJobConflictError:
-        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path")
+    except (HandoffJobNotFoundError, HandoffJobConflictError) as err:
+        raise HandoffJobClaimValidationError(field_name="job_id", value=job_id, loc="path", detail=err.msg)
 
     entity = await job_service.get_job_with_artifacts(job_id)
     return handoff_job_to_response_model(entity=entity)

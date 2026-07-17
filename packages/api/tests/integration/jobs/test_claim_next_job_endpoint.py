@@ -331,7 +331,7 @@ async def test_claim_next_job_returns_422_when_claimant_role_does_not_match_targ
         "detail": [
             {
                 "loc": ["body", "job_id"],
-                "msg": "Handoff job claim is invalid.",
+                "msg": "Handoff job claim is invalid: Handoff job conflicts with existing data constraints.",
                 "type": "handoff_job_claim.invalid",
                 "input": job.id,
                 "ctx": {},
