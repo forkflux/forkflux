@@ -163,7 +163,7 @@ async def change_job_status(
 ):
     try:
         previous_status, new_status = await job_service.change_job_status(
-            job_id, data.status, current_agent.id, data.failure_reason
+            job_id, data.status, current_agent.id, data.failure_reason, data.blocked_reason
         )
     except HandoffJobNotFoundError:
         raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")

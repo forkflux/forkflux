@@ -64,12 +64,14 @@ class HandoffJob(Base):
 
     constraints: Mapped[list[Any]] = mapped_column(JSON_TYPE, nullable=False)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     published_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     claimed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    blocked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 

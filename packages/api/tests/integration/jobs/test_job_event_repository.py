@@ -1,5 +1,5 @@
 import pytest
-from forkflux_api.jobs.constants import JobStatusEnum
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
 from forkflux_api.jobs.dto import JobEventCreate
 from forkflux_api.jobs.exceptions import JobEventConflictError
 from forkflux_api.jobs.models import JobEvent
@@ -34,7 +34,7 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
     repository = JobEventRepository(session=db_session, trace_id="trace-123")
     dto = JobEventCreate(
         job_id=handoff_job.id,
-        event_type="status_transition",
+        event_type=JobEventTypeEnum.TASK_PUBLISHED,
         previous_status=JobStatusEnum.PUBLISHED,
         current_status=JobStatusEnum.CLAIMED,
         actor_agent_id=source_agent.id,
@@ -69,7 +69,7 @@ async def test_job_event_repository_create_raises_conflict_on_integrity_error(
     repository = JobEventRepository(session=db_session, trace_id="trace-123")
     dto = JobEventCreate(
         job_id=999_999,
-        event_type="status_transition",
+        event_type=JobEventTypeEnum.TASK_PUBLISHED,
         previous_status=JobStatusEnum.PUBLISHED,
         current_status=JobStatusEnum.CLAIMED,
         actor_agent_id=None,

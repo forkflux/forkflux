@@ -135,11 +135,12 @@ Expected result:
 
 Use `/ff-close` when a receiver agent needs to finish the lifecycle for a claimed job.
 
-The command only supports terminal statuses:
+The command supports the following statuses:
 
 - `completed` — use only after all acceptance criteria are met and relevant verification has passed.
 - `failed` — use when an unrecoverable error, persistent test failure, or unmet constraint blocks completion.
 - `cancelled` — use when the user explicitly aborts the job.
+- `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `in_progress` to unblock once the blocker is resolved.
 
 If the final status is `failed`, the assistant must include a useful `failure_reason`.
 

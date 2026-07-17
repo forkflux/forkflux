@@ -67,6 +67,7 @@ class HandoffJobStats:
     terminal_status_counts: dict[JobStatusEnum, int]
     completion_rate: float
     failure_rate: float
+    blocked_rate: float
     active_agents: int
     stuck_jobs: int
     total_handoffs: int
