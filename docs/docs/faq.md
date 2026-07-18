@@ -15,8 +15,9 @@ ForkFlux is intentionally narrow. It is not:
 - Another AI assistant, editor extension, or LLM wrapper.
 - A local agent framework running on a single machine.
 - Shared memory for local AI assistants.
+- A replacement for Jira, Linear, GitHub, Slack, or your existing AI coding tools.
 
-ForkFlux is infrastructure for passing clean, structured context from one AI agent to another agent, including across different developer machines, environments, repositories, or teammates.
+ForkFlux is infrastructure for teams that already use AI agents and need better visibility, coordination, and auditability around the engineering work those agents touch.
 
 ## Codex timeout
 
@@ -26,19 +27,20 @@ Codex may time out during longer-running tasks because its default timeout value
 
 Jira is a human project management system. Teams use it to plan roadmaps, manage backlogs, assign ownership, track sprint work, report status, and keep stakeholders aligned.
 
-ForkFlux is an agent handoff protocol and coordination bus. AI agents use it to publish, claim, execute, and close structured work packages without relying on chat history, issue comments, temporary Markdown files, or manual copy-paste as the transport layer.
+ForkFlux is a coordination and audit layer for AI-assisted engineering work. Agents and teammates use it to publish, claim, execute, block, review, approve, and close structured work packages without relying on chat history, issue comments, temporary Markdown files, or manual copy-paste as the source of truth.
 
-Use them together when you need both human planning and agent execution:
+Use them together when you need both human planning and a structured execution record for AI-assisted work:
 
 | Need | Use Jira | Use ForkFlux |
 |---|---|---|
 | Plan product work, epics, sprints, and ownership | Yes | No |
-| Give managers and teammates human-readable visibility | Yes | No |
-| Move executable task context between AI agents | No | Yes |
-| Atomically claim agent work from a shared role queue | No | Yes |
-| Preserve structured payloads, lifecycle states, artifacts, and close results for agent-to-agent handoff | No | Yes |
+| Give managers and teammates high-level project visibility | Yes | Partial |
+| Track what AI agents did, what context they used, and where work is stuck | Partial | Yes |
+| Move executable task context between people, roles, and AI agents | No | Yes |
+| Atomically claim AI-assisted work from a shared role queue | No | Yes |
+| Preserve structured payloads, lifecycle states, artifacts, blockers, review notes, approval events, and close results | Partial | Yes |
 
-In short: Jira tracks what humans want to happen and who owns it. ForkFlux transports the machine-readable execution context that lets AI agents safely continue work across tools, machines, and accounts.
+In short: Jira tracks what humans want to happen and who owns it at the project-management level. ForkFlux records the structured execution timeline that lets teams understand what happened inside AI-assisted engineering workflows across tools, machines, roles, and accounts.
 
 ## Where does the 24 hours per month context-transfer estimate come from?
 

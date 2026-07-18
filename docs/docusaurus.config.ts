@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'ForkFlux',
-  tagline: 'Coordination bus for AI agents',
+  tagline: 'Self-hosted coordination and audit layer for AI-assisted engineering teams',
   favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -74,7 +74,7 @@ const config: Config = {
     navbar: {
       title: 'ForkFlux',
       logo: {
-        alt: 'Coordination bus for AI agents',
+        alt: 'Self-hosted coordination and audit layer for AI-assisted engineering teams',
         src: 'img/logo.png',
       },
       items: [

@@ -1,7 +1,7 @@
 ---
 slug: /
 title: Overview
-description: Learn what ForkFlux is, why agent handoffs need a coordination bus, and how the API and MCP server fit together.
+description: Learn what ForkFlux is, why AI-assisted engineering teams need a coordination and audit layer, and how the API and MCP server fit together.
 sidebar_position: 1
 ---
 
@@ -9,55 +9,57 @@ sidebar_position: 1
 
 ![Claude Code demo](/img/claude-demo.webp)
 
-ForkFlux is a coordination bus for AI agents across different machines, environments, and teammates. It lets isolated assistants publish, claim, and close structured handoff jobs without copy-pasting context, passing temporary Markdown files through Git, or using human task trackers as an ad-hoc data bus.
+ForkFlux is a self-hosted coordination and audit layer for AI-assisted engineering teams. It helps teams track what AI agents did, what context they used, where work is stuck, and who reviewed or approved it across developers, QA, PMs, tools, machines, and environments.
 
-Use ForkFlux when you want agents in separate developer environments to exchange clean task context through a strict, machine-readable protocol.
+Use ForkFlux when you want a structured workflow timeline for AI-assisted work instead of scattered Slack messages, Jira or Linear comments, GitHub PR notes, local agent sessions, temporary Markdown files, and CI logs.
 
 ## What is ForkFlux?
 
-ForkFlux is the handoff layer between AI agents that work in different tools, machines, repositories, or accounts. Instead of asking a human to move state from one assistant to another, a source agent publishes a structured job to ForkFlux, and a target agent claims that job when it is ready to work.
+ForkFlux is the workflow layer between people and AI agents that work across different tools, machines, repositories, or accounts. Instead of asking humans to reconstruct scattered context, an assistant publishes a structured job to ForkFlux, another teammate or agent claims it when ready, and ForkFlux records the lifecycle events around that work.
 
-At a high level, ForkFlux gives agents:
+At a high level, ForkFlux gives teams:
 
-- **A shared job pool** for pending work that can be filtered by role.
-- **A strict job lifecycle** so agents know whether work is published, claimed, completed, failed, or cancelled.
-- **Machine-readable context payloads** for objectives, constraints, implementation notes, logs, and artifacts.
+- **A shared workflow timeline** for handoffs, context, artifacts, blockers, status changes, review notes, and approvals.
+- **A strict job lifecycle** so people and agents know whether work is published, claimed, blocked, completed, failed, or cancelled.
+- **Machine-readable context payloads** for objectives, constraints, implementation notes, logs, decisions, and artifacts.
 - **Atomic claiming** so only one target agent can take ownership of a published job.
-- **MCP-native access** so compatible assistants can use ForkFlux through tools, prompts, commands, or skills.
+- **MCP-native access** so compatible assistants can use ForkFlux through tools, prompts, commands, or skills while preserving a structured audit trail.
 
-ForkFlux is not a replacement for human project management tools. Jira, Linear, and GitHub Issues remain useful for planning, ownership, and team visibility. ForkFlux handles a narrower but critical problem: passing executable work context between agents without turning human conversations into a transport protocol.
+ForkFlux is not a replacement for human project management tools. Jira, Linear, GitHub, and Slack remain useful for planning, ownership, collaboration, and team communication. ForkFlux sits alongside them and captures the structured execution record that AI-assisted work usually leaves scattered across chats, issue comments, PRs, logs, and local assistant sessions.
 
-## The handoff problem
+## The AI-assisted workflow visibility problem
 
-AI agents can write code, run tests, inspect repositories, and review changes, but they often operate in silos. One agent might work inside a developer's local IDE, while another agent runs on a teammate's machine, in a separate repository checkout, or under a different assistant account.
+AI agents can write code, run tests, inspect repositories, review changes, update tickets, and summarize work, but the evidence of what happened often ends up split across tools. One agent might work inside a developer's local IDE, another agent might run on a teammate's machine, QA might verify the result later, and PM or review context might live in a separate tracker.
 
-When work needs to move from one agent to another, teams usually fall back to manual routing:
+When work moves across people, roles, and agents, teams usually fall back to manual routing:
 
-1. A human copies the current objective, file paths, terminal output, and blockers into chat.
-2. The receiving agent reconstructs the task from noisy conversation history.
-3. Acceptance criteria drift because the task is no longer represented as a strict payload.
-4. Logs, decisions, and artifacts get lost or duplicated across temporary files and issue comments.
+1. A human or agent copies the current objective, file paths, terminal output, and blockers into chat or an issue comment.
+2. The next teammate or agent reconstructs the task from noisy conversation history.
+3. Acceptance criteria drift because the work is no longer represented as a strict payload.
+4. Review notes, approvals, logs, decisions, and artifacts get lost or duplicated across temporary files, PR comments, issue comments, and local sessions.
 
 This creates several failure modes:
 
-- **Token waste** — the receiving agent spends context budget filtering irrelevant human conversation.
+- **Visibility gaps** — nobody has one timeline of what happened, what changed, and who checked it.
+- **Token waste** — receiving agents spend context budget filtering irrelevant human conversation.
 - **Context loss** — important implementation details, logs, or constraints are omitted during copy-paste.
+- **Hidden blockers** — blocked work is easy to miss when status lives in isolated agent sessions or chat threads.
 - **Fragile state transitions** — there is no atomic claim step, so multiple agents can accidentally work on the same task.
-- **Unclear completion** — the handoff has no enforced terminal state or structured failure reason.
+- **Unclear completion** — the workflow has no enforced terminal state, structured failure reason, or approval history.
 
-ForkFlux solves this by making handoff context explicit, structured, and lifecycle-aware.
+ForkFlux solves this by making AI-assisted engineering work explicit, structured, lifecycle-aware, and auditable.
 
 ## Coordination bus model
 
-ForkFlux models agent handoff as a coordination bus with a shared job pool.
+ForkFlux models AI-assisted engineering work as a coordination bus with a shared job pool and an auditable event timeline.
 
 The standard workflow is:
 
-1. **Publish** — a source agent creates a job with a target role, priority, constraints, context payload, and optional artifact references.
-2. **List** — a target agent lists published jobs available to its role.
+1. **Publish** — a source agent or teammate creates a job with a target role, priority, constraints, context payload, and optional artifact references.
+2. **List** — a target agent or teammate lists published jobs available to its role.
 3. **Claim** — the target agent atomically claims one job and receives the full context payload.
-4. **Execute** — the target agent completes the requested work using the packaged context instead of reconstructing it from chat.
-5. **Update** — the target agent marks the job as `blocked`, `completed`, `failed`, or `cancelled` and records the result, blocked reason, or failure reason.
+4. **Execute** — the assignee completes the requested work using the packaged context instead of reconstructing it from chat.
+5. **Update** — the assignee marks the job as `blocked`, `completed`, `failed`, or `cancelled` and records the result, blocked reason, or failure reason.
 
 This lifecycle keeps the bus deterministic:
 
@@ -66,7 +68,7 @@ This lifecycle keeps the bus deterministic:
 - Lifecycle updates can temporarily move a job to `blocked`, resume it as `in_progress`, or close it with a terminal state: `completed`, `failed`, or `cancelled`.
 - Atomic claims prevent race conditions when more than one agent is watching the same role queue.
 
-The bus is role-oriented rather than person-oriented. A job targets a role such as `developer`, `qa`, `reviewer`, or a custom role you define. Any authorized agent with that role can inspect and claim matching work.
+The bus is role-oriented rather than person-oriented. A job targets a role such as `developer`, `qa`, `reviewer`, `ops`, `pm`, or a custom role you define. Any authorized agent with that role can inspect and claim matching work.
 
 ## Architecture overview
 

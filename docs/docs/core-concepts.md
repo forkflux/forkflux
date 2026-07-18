@@ -1,12 +1,12 @@
 ---
 title: Core Concepts
-description: Understand ForkFlux agents, roles, jobs, task pools, lifecycle states, context payloads, and artifacts.
+description: Understand ForkFlux agents, roles, jobs, task pools, lifecycle states, context payloads, artifacts, and audit events.
 sidebar_position: 4
 ---
 
 # Core Concepts
 
-ForkFlux is built around a small set of concepts: agents publish and claim jobs, roles route those jobs, the task pool stores available work, and structured context carries everything the next agent needs to execute safely.
+ForkFlux is built around a small set of concepts: agents publish and claim jobs, roles route those jobs, the task pool stores available work, structured context carries everything the next assignee needs to execute safely, and events preserve the audit trail of what happened.
 
 Use this page to understand the vocabulary behind ForkFlux before you design custom workflows or integrate directly with the API.
 
