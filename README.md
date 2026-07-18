@@ -1,6 +1,8 @@
 # ForkFlux 🐜
 
-**Coordination bus for AI agents to hand off structured work across different machines, environments, and teammates without copy-pasting context, sharing temporary Markdown files, or using human task trackers as a data bus.**
+**Self-hosted coordination and audit layer for AI-assisted engineering teams.**
+
+ForkFlux helps teams track what AI agents did, what context they used, where work is stuck, and who reviewed or approved it across developers, QA, PMs, tools, machines, and environments.
 
 📚 **Documentation:** [https://docs.forkflux.ai/](https://docs.forkflux.ai/)
 
@@ -12,48 +14,68 @@
 
 ## Why ForkFlux exists
 
-AI agents can write code, run tests, and review changes, but they often work in isolated tools, machines, repositories, or accounts. When work needs to move from one agent to another, teams usually route context manually through chat, issue comments, or temporary files.
+AI coding agents are becoming part of real engineering workflows. They write code, review changes, run tests, update tickets, summarize work, and hand tasks between developers, QA, PMs, and other agents.
 
-That creates fragile handoffs:
+But most teams still track AI-assisted work through a messy mix of Slack messages, Jira or Linear comments, GitHub PRs, temporary markdown files, local agent sessions, and CI logs.
 
-- context gets lost or duplicated
-- receiving agents waste tokens reconstructing state
-- acceptance criteria drift
-- multiple agents can accidentally work on the same task
-- final results and failure reasons are not captured consistently
+That creates a visibility gap:
 
-ForkFlux replaces manual routing with a strict, machine-readable handoff protocol.
+- nobody has one timeline of what happened
+- agent-generated context gets scattered across tools
+- blocked work is easy to miss
+- review and approval status is unclear
+- QA and developer loops are hard to trace
+- AI-generated summaries, artifacts, and decisions are not captured consistently
+- teams cannot easily answer "what did the agent do, why, and who checked it?"
+
+ForkFlux gives AI-assisted engineering teams a shared workflow timeline for handoffs, context, artifacts, blockers, status changes, and approvals.
+
+## What ForkFlux is
+
+ForkFlux is a self-hosted coordination and audit layer for AI-assisted engineering work.
+
+It captures structured workflow events from agents and humans, including:
+
+- task handoffs
+- context payloads
+- changed files, branches, commits, PRs, and other artifacts
+- status changes
+- blocked and failed work
+- review notes
+- approval events
+- handoff history between roles and teammates
+
+The goal is not to replace Jira, Linear, GitHub, Slack, or your AI coding tools.
+
+ForkFlux sits alongside your existing workflow and gives your team a structured record of AI-assisted work that would otherwise be scattered across comments, chats, local sessions, and temporary files.
 
 # What it is NOT
 
-❌ NOT another AI assistant, extension, or LLM wrapper.
+❌ ForkFlux is not another AI assistant.
 
-❌ NOT a local agent framework running on a single machine.
+❌ ForkFlux is not a local agent framework.
 
-❌ NOT a shared memory for local AI assistants.
+❌ ForkFlux is not shared memory for one developer’s local agents.
 
-🔗 IT IS an infrastructure-grade data stream to pass clean context from a developer's local AI agent to another engineer's AI agent on another device.
+❌ ForkFlux is not a replacement for Jira, Linear, GitHub, or Slack.
+
+🔗 ForkFlux is infrastructure for teams that already use AI agents and need better visibility, coordination, and auditability around the work those agents touch.
 
 ## How it works
 
-ForkFlux coordinates handoffs between human operators and their AI assistants through a shared coordination bus.
+ForkFlux coordinates AI-assisted work through a shared, self-hosted workflow layer.
 
-Before a handoff can happen:
+A typical workflow looks like this:
 
-1. The ForkFlux coordination bus is running.
-2. Target roles, such as Developer, Frontend, QA, or Reviewer, are registered in the bus.
-3. AI assistants are registered as agents with the roles they are allowed to perform.
-4. The ForkFlux MCP server is installed in each assistant environment that needs to publish, inspect, claim, update, or close jobs.
+1. A developer or PM starts a task in their normal workflow.
+2. An AI assistant performs work, such as changing code, updating an API contract, writing tests, or preparing a review.
+3. The assistant publishes structured context to ForkFlux: summary, target role, constraints, artifacts, links, and next action.
+4. Another teammate or agent claims the work, such as QA, reviewer, frontend, backend, DevOps, or PM.
+5. ForkFlux records the status transition and keeps the full handoff history.
+6. If work is blocked, failed, completed, or needs human approval, that event is captured in the timeline.
+7. The team can inspect what happened, where work is stuck, and what needs attention next.
 
-A typical cross-device workflow looks like this:
-
-1. **Alice starts the handoff** — Alice asks her AI assistant, such as Codex, to make changes and hand them to another role. For example: “Update the API contract and hand it off to Frontend.”
-2. **The source assistant publishes a job** — the assistant loads the `forkflux-sender` skill and calls the ForkFlux MCP tool to create a job with the target role, context payload, constraints, priority, and artifacts.
-3. **Bob checks the board** — Bob asks his AI assistant, such as Claude, to check for available jobs. For example: “Show me available ForkFlux jobs.”
-4. **The target assistant lists jobs** — the assistant calls the ForkFlux MCP tool to fetch published jobs for its role and displays them as a readable table.
-5. **Bob claims work** — Bob selects a job from the board. For example: “Claim the first job from the list.”
-6. **The target assistant locks the job** — the assistant loads the `forkflux-receiver` skill and calls the ForkFlux MCP tool to claim the job atomically, moving it out of the shared pool so another assistant does not duplicate the work.
-7. **Bob updates the job** — after the assistant finishes or cannot continue, Bob asks it to mark the job as `blocked`, `completed`, `failed`, or `cancelled` with the result, blocked reason, or failure reason.
+ForkFlux started with agent-to-agent handoffs. The broader goal is to provide an audit trail and control layer for AI-assisted engineering workflows.
 
 ## What is included
 
@@ -64,16 +86,7 @@ ForkFlux is a monorepo with two main packages:
 | `forkflux-api` | Stateful FastAPI coordination service for agents, roles, jobs, events, artifacts, and lifecycle transitions. |
 | `forkflux-mcp` | Model Context Protocol server that exposes ForkFlux tools and prompts to AI assistants. |
 
-The MCP server exposes the core agent-facing tools:
-
-| Tool | Purpose                                                               |
-|---|-----------------------------------------------------------------------|
-| `forkflux_create_job` | Publish a structured handoff job.                                     |
-| `forkflux_list_jobs` | List jobs available in the shared task pool.                          |
-| `forkflux_claim_job` | Atomically claim a published job and receive the full context payload. |
-| `forkflux_claim_next_job` | Atomically claim the next available published job for a target role.   |
-| `forkflux_change_job_status` | Update claimed work as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`. |
-| `forkflux_job_details` | Receive the full context payload.                                     |
+The MCP server exposes agent-facing tools for creating jobs, listing available work, claiming tasks, updating status, and fetching job details.
 
 ForkFlux also includes workflow helpers for prompt-aware assistants, slash command systems, and reusable skills.
 
@@ -91,31 +104,21 @@ Start the API server:
 uvx --from forkflux-api forkflux serve
 ```
 
-The quickstart flow creates example Developer and QA agents, installs supported workflow helpers, and registers the MCP server with supported local assistant CLIs.
+The quickstart creates example roles and agents, installs supported workflow helpers, and registers the MCP server with supported local assistant CLIs.
 
 For complete setup instructions, see the [Quickstart](https://docs.forkflux.ai/quickstart).
 
-## Documentation
+## Who ForkFlux is for
 
-Start with the [documentation](https://docs.forkflux.ai/) or jump directly to the page you need:
+ForkFlux is for engineering teams that already use AI coding agents in real work and need better coordination across people, tools, and environments.
 
-| Page | What you will find |
-|---|---|
-| [Overview](https://docs.forkflux.ai/) | What ForkFlux is, why agent handoffs need a coordination bus, and how the API and MCP server fit together. |
-| [Quickstart](https://docs.forkflux.ai/quickstart) | Run ForkFlux locally, complete your first agent handoff, and use the zero-config demo path. |
-| [Manual Setup](https://docs.forkflux.ai/manual-setup) | Initialize storage, create roles and agents, configure MCP, install skills, and run a handoff manually. |
-| [Core Concepts](https://docs.forkflux.ai/core-concepts) | Agents, roles, jobs, task pools, lifecycle states, context payloads, constraints, and artifacts. |
-| [Agent Workflows](https://docs.forkflux.ai/agent-workflows) | Standard sender and receiver workflows, lifecycle steps, workflow helpers, and human escalation points. |
-| [CLI](https://docs.forkflux.ai/cli) | ForkFlux CLI commands, arguments, options, and examples. |
-| [MCP Integration](https://docs.forkflux.ai/mcp-integration) | MCP server installation, client configuration, authentication, and available tools. |
-| [Plugins](https://docs.forkflux.ai/plugins) | Install ForkFlux plugins that bring the MCP server, skills, and dashboard workflows into supported AI coding tools. |
-| [Skills](https://docs.forkflux.ai/skills) | Available ForkFlux skills, installation options, and when to use skills instead of prompts or commands. |
-| [Commands](https://docs.forkflux.ai/commands) | Slash command files, assistant compatibility, installation, and usage examples. |
-| [MCP Prompts](https://docs.forkflux.ai/mcp-prompts) | Available MCP prompts and prompt-driven handoff workflows. |
-| [API Reference](https://docs.forkflux.ai/api-reference) | Authentication, agents, jobs, roles, artifacts, events, schemas, and error responses. |
-| [Self-Hosting](https://docs.forkflux.ai/self-hosting) | Docker setup, configuration, security guidance, and production-like deployment notes. |
-| [FAQ](https://docs.forkflux.ai/faq) | Common questions about what ForkFlux is, what it is not, and how it differs from Jira. |
-| [Contributing](https://docs.forkflux.ai/contributing) | How to report bugs, suggest features, make changes, and submit pull requests. |
+It is especially useful for teams that have:
+
+- multiple developers using local or isolated AI assistants
+- QA, review, PM, frontend, backend, or DevOps handoffs
+- self-hosting or security requirements
+- AI-generated work moving through GitHub, Jira, Linear, Slack, or CI
+- a need to understand where AI-assisted work is blocked, reviewed, or approved
 
 ## Community and contributing
 
