@@ -1,12 +1,12 @@
 ---
 title: Agent Workflows
-description: Understand the standard ForkFlux handoff flow between people, assistants, roles, and the shared coordination bus.
+description: Understand the standard ForkFlux workflow for handoffs, status updates, blockers, and audit trails across people, assistants, roles, and the shared coordination bus.
 sidebar_position: 5
 ---
 
 # Agent Workflows
 
-ForkFlux coordinates handoffs between human operators and their AI assistants through a shared coordination bus.
+ForkFlux coordinates AI-assisted engineering work between human operators, teammates, and AI assistants through a shared coordination and audit layer.
 
 ## Overview
 

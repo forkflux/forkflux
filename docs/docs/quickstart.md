@@ -1,12 +1,12 @@
 ---
 title: Quickstart
-description: Run ForkFlux locally, complete your first agent handoff, and understand the zero-config demo path.
+description: Run ForkFlux locally, complete your first AI-assisted workflow handoff, and understand the zero-config demo path.
 sidebar_position: 2
 ---
 
 # Getting Started
 
-This guide gets a local ForkFlux coordination bus running and shows how two AI agents can complete a structured handoff through the ForkFlux MCP server.
+This guide gets a local ForkFlux coordination and audit layer running and shows how two AI agents can complete a structured workflow handoff through the ForkFlux MCP server.
 
 Use this page when you want the shortest path from zero to a working local demo. If you need full control over roles, agents, API tokens, MCP client configuration, or deployment settings, use the [Manual Setup](manual-setup.md) path.
 
