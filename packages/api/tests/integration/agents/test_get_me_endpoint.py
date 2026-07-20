@@ -26,7 +26,7 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
     )
 
     response = await client.get(
-        "/api/v1/agents/me",
+        "/api/v1/mcp/agents/me",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -39,7 +39,7 @@ async def test_get_me_returns_200_and_current_agent_with_valid_bearer_token(
 
 
 async def test_get_me_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/agents/me")
+    response = await client.get("/api/v1/mcp/agents/me")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -62,7 +62,7 @@ async def test_get_me_returns_401_for_invalid_bearer_token(
     )
 
     response = await client.get(
-        "/api/v1/agents/me",
+        "/api/v1/mcp/agents/me",
         headers={"Authorization": "Bearer invalid-token"},
     )
 
@@ -95,7 +95,7 @@ async def test_get_me_returns_401_when_agent_for_token_cannot_be_loaded(
     app.dependency_overrides[get_agent_identity_service] = lambda: MissingAgentService()
     try:
         response = await client.get(
-            "/api/v1/agents/me",
+            "/api/v1/mcp/agents/me",
             headers={"Authorization": f"Bearer {raw_token}"},
         )
     finally:

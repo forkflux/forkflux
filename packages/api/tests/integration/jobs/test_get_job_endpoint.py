@@ -104,7 +104,7 @@ async def test_get_job_returns_200_and_job_with_artifacts(client: AsyncClient, d
     )
 
     response = await client.get(
-        f"/api/v1/jobs/{job.id}",
+        f"/api/v1/mcp/jobs/{job.id}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -150,7 +150,7 @@ async def test_get_job_returns_200_and_job_with_artifacts(client: AsyncClient, d
 
 
 async def test_get_job_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/jobs/1")
+    response = await client.get("/api/v1/mcp/jobs/1")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -172,7 +172,7 @@ async def test_get_job_returns_401_for_invalid_bearer_token(client: AsyncClient,
     )
 
     response = await client.get(
-        "/api/v1/jobs/1",
+        "/api/v1/mcp/jobs/1",
         headers={"Authorization": "Bearer invalid-token"},
     )
 
@@ -189,7 +189,7 @@ async def test_get_job_returns_404_when_job_does_not_exist(
     await _create_auth_context(db_session, raw_token)
 
     response = await client.get(
-        "/api/v1/jobs/999999",
+        "/api/v1/mcp/jobs/999999",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 

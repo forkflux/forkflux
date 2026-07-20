@@ -90,7 +90,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
     )
 
     response = await client.get(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -172,7 +172,7 @@ async def test_list_jobs_filters_by_status_and_target_role_key_when_my_roles_onl
     )
 
     response = await client.get(
-        f"/api/v1/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key={reviewer_role.role_key}",
+        f"/api/v1/mcp/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key={reviewer_role.role_key}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -234,7 +234,7 @@ async def test_list_jobs_with_my_roles_only_false_and_no_target_role_key_returns
     )
 
     response = await client.get(
-        f"/api/v1/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}",
+        f"/api/v1/mcp/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -282,7 +282,7 @@ async def test_list_jobs_filters_by_multiple_repeated_status_query_params(
     )
 
     response = await client.get(
-        f"/api/v1/jobs?status={JobStatusEnum.PUBLISHED.value}&status={JobStatusEnum.CLAIMED.value}",
+        f"/api/v1/mcp/jobs?status={JobStatusEnum.PUBLISHED.value}&status={JobStatusEnum.CLAIMED.value}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -320,7 +320,7 @@ async def test_list_jobs_treats_omitted_status_as_empty_status_list(
     )
 
     response = await client.get(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -364,7 +364,7 @@ async def test_list_jobs_with_my_roles_only_true_and_empty_target_role_key_treat
     )
 
     response = await client.get(
-        f"/api/v1/jobs?limit=10&status={JobStatusEnum.PUBLISHED.value}&target_role_key=&my_roles_only=true",
+        f"/api/v1/mcp/jobs?limit=10&status={JobStatusEnum.PUBLISHED.value}&target_role_key=&my_roles_only=true",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -408,7 +408,7 @@ async def test_list_jobs_with_my_roles_only_false_and_empty_target_role_key_trea
     )
 
     response = await client.get(
-        f"/api/v1/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key=",
+        f"/api/v1/mcp/jobs?my_roles_only=false&status={JobStatusEnum.PUBLISHED.value}&target_role_key=",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -449,7 +449,7 @@ async def test_list_jobs_applies_limit_and_preserves_ascending_created_order(
             second_job = created_job
 
     response = await client.get(
-        "/api/v1/jobs?limit=50",
+        "/api/v1/mcp/jobs?limit=50",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -504,7 +504,7 @@ async def test_list_jobs_orders_by_priority_desc_then_created_at_asc_when_order_
     )
 
     response = await client.get(
-        "/api/v1/jobs?order=priority_desc&order=created_at_asc",
+        "/api/v1/mcp/jobs?order=priority_desc&order=created_at_asc",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -555,7 +555,7 @@ async def test_list_jobs_orders_by_created_at_asc_then_priority_desc_when_order_
     )
 
     response = await client.get(
-        "/api/v1/jobs?order=created_at_asc&order=priority_desc",
+        "/api/v1/mcp/jobs?order=created_at_asc&order=priority_desc",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -572,7 +572,7 @@ async def test_list_jobs_returns_422_when_order_contains_invalid_value(
     await _create_auth_context(db_session, raw_token)
 
     response = await client.get(
-        "/api/v1/jobs?order=priority_desc&order=unknown",
+        "/api/v1/mcp/jobs?order=priority_desc&order=unknown",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -581,7 +581,7 @@ async def test_list_jobs_returns_422_when_order_contains_invalid_value(
 
 
 async def test_list_jobs_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/jobs")
+    response = await client.get("/api/v1/mcp/jobs")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -595,7 +595,7 @@ async def test_list_jobs_returns_401_for_invalid_bearer_token(
     await _create_auth_context(db_session, valid_raw_token)
 
     response = await client.get(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": "Bearer invalid-token"},
     )
 
@@ -612,7 +612,7 @@ async def test_list_jobs_returns_422_when_target_role_key_is_invalid(
     await _create_auth_context(db_session, raw_token)
 
     response = await client.get(
-        "/api/v1/jobs?my_roles_only=false&target_role_key=missing-role-key",
+        "/api/v1/mcp/jobs?my_roles_only=false&target_role_key=missing-role-key",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 

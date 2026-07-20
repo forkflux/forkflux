@@ -4,9 +4,9 @@ from uuid import uuid4
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from forkflux_api.agents.handlers import router as agents_router
+from forkflux_api.agents.mcp_handlers import router as mcp_agents_router
 from forkflux_api.exceptions import BaseValidationError
-from forkflux_api.jobs.handlers import router as jobs_router
+from forkflux_api.jobs.mcp_handlers import router as mcp_jobs_router
 
 
 def create_app() -> FastAPI:
@@ -22,8 +22,8 @@ def create_app() -> FastAPI:
     def health() -> None:
         return None
 
-    application.include_router(agents_router, prefix="/api/v1")
-    application.include_router(jobs_router, prefix="/api/v1")
+    application.include_router(mcp_agents_router, prefix="/api/v1/mcp")
+    application.include_router(mcp_jobs_router, prefix="/api/v1/mcp")
 
     return application
 

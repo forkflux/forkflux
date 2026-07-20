@@ -83,7 +83,7 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
     )
 
     response = await client.post(
-        f"/api/v1/jobs/{job.id}/claim",
+        f"/api/v1/mcp/jobs/{job.id}/claim",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -126,7 +126,7 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
 
 
 async def test_claim_job_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/jobs/1/claim")
+    response = await client.post("/api/v1/mcp/jobs/1/claim")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -146,7 +146,7 @@ async def test_claim_job_returns_401_for_invalid_bearer_token(
     )
 
     response = await client.post(
-        "/api/v1/jobs/1/claim",
+        "/api/v1/mcp/jobs/1/claim",
         headers={"Authorization": "Bearer invalid-token"},
     )
 
@@ -169,7 +169,7 @@ async def test_claim_job_returns_422_when_job_does_not_exist(
     )
 
     response = await client.post(
-        "/api/v1/jobs/999999/claim",
+        "/api/v1/mcp/jobs/999999/claim",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -221,7 +221,7 @@ async def test_claim_job_returns_422_when_job_status_is_not_published(
     )
 
     response = await client.post(
-        f"/api/v1/jobs/{job.id}/claim",
+        f"/api/v1/mcp/jobs/{job.id}/claim",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -284,7 +284,7 @@ async def test_claim_job_returns_422_when_claimant_role_does_not_match_target_ro
     )
 
     response = await client.post(
-        f"/api/v1/jobs/{job.id}/claim",
+        f"/api/v1/mcp/jobs/{job.id}/claim",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -346,7 +346,7 @@ async def test_claim_job_returns_422_when_job_is_already_assigned(
     )
 
     response = await client.post(
-        f"/api/v1/jobs/{job.id}/claim",
+        f"/api/v1/mcp/jobs/{job.id}/claim",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
