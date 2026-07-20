@@ -42,7 +42,7 @@ async def test_list_my_roles_returns_200_and_only_assigned_roles(
     )
 
     response = await client.get(
-        "/api/v1/agents/me/roles",
+        "/api/v1/mcp/agents/me/roles",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -74,7 +74,7 @@ async def test_list_my_roles_returns_200_and_empty_list_when_no_roles_assigned(
     )
 
     response = await client.get(
-        "/api/v1/agents/me/roles",
+        "/api/v1/mcp/agents/me/roles",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -83,7 +83,7 @@ async def test_list_my_roles_returns_200_and_empty_list_when_no_roles_assigned(
 
 
 async def test_list_my_roles_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/agents/me/roles")
+    response = await client.get("/api/v1/mcp/agents/me/roles")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -106,7 +106,7 @@ async def test_list_my_roles_returns_401_for_invalid_bearer_token(
     )
 
     response = await client.get(
-        "/api/v1/agents/me/roles",
+        "/api/v1/mcp/agents/me/roles",
         headers={"Authorization": "Bearer invalid-token"},
     )
 

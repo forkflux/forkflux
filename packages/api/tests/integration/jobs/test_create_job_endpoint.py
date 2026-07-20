@@ -62,7 +62,7 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
     payload = _build_create_job_payload(target_role_key=target_role.role_key, parent_job_id=parent_job.id)
 
     response = await client.post(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": f"Bearer {raw_token}"},
         json=payload,
     )
@@ -129,7 +129,7 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
 async def test_create_job_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
     payload = _build_create_job_payload(target_role_key="role-missing-auth", parent_job_id=None)
 
-    response = await client.post("/api/v1/jobs", json=payload)
+    response = await client.post("/api/v1/mcp/jobs", json=payload)
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Not authenticated"}
@@ -153,7 +153,7 @@ async def test_create_job_returns_401_for_invalid_bearer_token(
     payload = _build_create_job_payload(target_role_key="any-target-role", parent_job_id=None)
 
     response = await client.post(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": "Bearer invalid-token"},
         json=payload,
     )
@@ -186,7 +186,7 @@ async def test_create_job_returns_422_when_parent_job_id_is_invalid(
     payload = _build_create_job_payload(target_role_key=target_role.role_key, parent_job_id=999_999)
 
     response = await client.post(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": f"Bearer {raw_token}"},
         json=payload,
     )
@@ -223,7 +223,7 @@ async def test_create_job_returns_422_when_target_role_key_is_invalid(
     payload = _build_create_job_payload(target_role_key="missing-role-key", parent_job_id=None)
 
     response = await client.post(
-        "/api/v1/jobs",
+        "/api/v1/mcp/jobs",
         headers={"Authorization": f"Bearer {raw_token}"},
         json=payload,
     )

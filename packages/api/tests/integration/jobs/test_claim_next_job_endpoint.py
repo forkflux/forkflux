@@ -77,7 +77,7 @@ async def test_claim_next_job_returns_201_and_claims_published_job(
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": f"Bearer {raw_token}"},
         json={"target_role_key": "claim-next-job-claimant-role"},
     )
@@ -157,7 +157,7 @@ async def test_claim_next_job_selects_highest_priority_then_oldest(
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": f"Bearer {raw_token}"},
         json={"target_role_key": "claim-next-job-priority-role"},
     )
@@ -175,7 +175,7 @@ async def test_claim_next_job_selects_highest_priority_then_oldest(
 
 async def test_claim_next_job_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         json={"target_role_key": "some-role"},
     )
 
@@ -197,7 +197,7 @@ async def test_claim_next_job_returns_401_for_invalid_bearer_token(
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": "Bearer invalid-token"},
         json={"target_role_key": "claim-next-job-auth-role"},
     )
@@ -221,7 +221,7 @@ async def test_claim_next_job_returns_422_when_target_role_key_is_invalid(
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": f"Bearer {raw_token}"},
         json={"target_role_key": "non-existent-role-key"},
     )
@@ -276,7 +276,7 @@ async def test_claim_next_job_returns_404_when_no_published_jobs_available(
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": f"Bearer {raw_token}"},
         json={"target_role_key": "claim-next-job-no-jobs-target-role"},
     )
@@ -321,7 +321,7 @@ async def test_claim_next_job_returns_422_when_claimant_role_does_not_match_targ
     )
 
     response = await client.post(
-        "/api/v1/jobs/claim-next",
+        "/api/v1/mcp/jobs/claim-next",
         headers={"Authorization": f"Bearer {raw_token}"},
         json={"target_role_key": "claim-next-job-role-mismatch-target-role"},
     )
