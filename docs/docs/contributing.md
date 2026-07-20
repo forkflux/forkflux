@@ -72,7 +72,12 @@ ForkFlux uses Conventional Commits:
 <type>(<scope>): short description
 ```
 
-Use the `api` or `mcp` scope when a commit focuses on one package.
+Use one scope from the list above when a commit focuses on one package:
+
+- `api`
+- `mcp`
+- `plugin`
+- `ui`
 
 Common types:
 

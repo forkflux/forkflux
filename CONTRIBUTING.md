@@ -85,7 +85,11 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) c
 <type>(<scope>): short description
 ```
 
-Use the `api` or `mcp` scope when a commit focuses on one package.
+Use one scope from the list above when a commit focuses on one package:
+- `api`
+- `mcp`
+- `plugin`
+- `ui`
 
 Examples:
 - `feat: add support for Gemini model`
