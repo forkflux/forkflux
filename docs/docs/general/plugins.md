@@ -2,6 +2,7 @@
 title: Plugins
 description: Install ForkFlux plugins that bring the MCP server, skills, and dashboard workflows into supported AI coding tools.
 sidebar_position: 11
+slug: /plugins
 ---
 
 # Plugins

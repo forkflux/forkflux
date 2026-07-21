@@ -2,6 +2,7 @@
 title: Core Concepts
 description: Understand ForkFlux agents, roles, jobs, task pools, lifecycle states, context payloads, artifacts, and audit events.
 sidebar_position: 4
+slug: /core-concepts
 ---
 
 # Core Concepts
