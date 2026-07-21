@@ -8,10 +8,13 @@ from forkflux_api.jobs.dto import (
     HandoffJobFilterParams,
     HandoffJobItem,
     HandoffJobRawStats,
+    HandoffJobUiDetailItem,
+    HandoffJobUiItem,
     JobEventCreate,
+    JobEventUiItem,
 )
 from forkflux_api.jobs.exceptions import HandoffJobConflictError
-from forkflux_api.jobs.schemas import HandoffJobCreateRequest, JobArtifact
+from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest, JobArtifact
 from forkflux_api.jobs.services import HandoffJobService
 
 
@@ -72,6 +75,70 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
     assert result["artifacts"] == expected_artifacts
 
 
+async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegates_and_returns_payload() -> None:
+    job_id = 123
+    expected_job = HandoffJobUiDetailItem(
+        id=job_id,
+        parent_job_id=None,
+        parent_job_summary=None,
+        summary="UI detail job",
+        context_payload={"key": "value"},
+        status=JobStatusEnum.PUBLISHED,
+        priority=20,
+        source_agent_label="source-agent",
+        assignee_agent_label=None,
+        target_role_label="Backend",
+        constraints=["deadline:today"],
+        failure_reason=None,
+        blocked_reason=None,
+        published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        claimed_at=None,
+        started_at=None,
+        completed_at=None,
+        failed_at=None,
+        blocked_at=None,
+        cancelled_at=None,
+        expires_at=None,
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    expected_artifacts = [object(), object()]
+    expected_events = [
+        JobEventUiItem(
+            event_type="task_published",
+            previous_status=None,
+            current_status=JobStatusEnum.PUBLISHED,
+            actor_agent_label="source-agent",
+            payload_json={"priority": "normal"},
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+    ]
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    repository.ui_get = AsyncMock(return_value=expected_job)
+    job_artifact_repo.list = AsyncMock(return_value=expected_artifacts)
+    job_event_repo.ui_list = AsyncMock(return_value=expected_events)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.get_ui_job_with_artifacts_and_events(job_id=job_id)
+
+    repository.ui_get.assert_awaited_once_with(job_id)
+    job_artifact_repo.list.assert_awaited_once_with(job_id=job_id)
+    job_event_repo.ui_list.assert_awaited_once_with(job_id=job_id)
+    assert result["job"] is expected_job
+    assert result["artifacts"] == expected_artifacts
+    assert result["events"] == expected_events
+
+
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
     filter_params = HandoffJobFilterParams(
         limit=50,
@@ -97,6 +164,94 @@ async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> Non
 
     repository.list.assert_awaited_once_with(filter_params=filter_params)
     assert jobs == expected_jobs
+
+
+async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> None:
+    filter_params = HandoffJobFilterParams(
+        limit=20,
+        statuses=[JobStatusEnum.PUBLISHED],
+        target_role_ids=[1, 2],
+        order=[JobListOrderEnum.CREATED_AT_ASC],
+        offset=10,
+    )
+    expected_items = [
+        HandoffJobUiItem(
+            id=1,
+            parent_job_id=None,
+            parent_job_summary=None,
+            summary="Job 1",
+            status=JobStatusEnum.PUBLISHED,
+            priority=20,
+            source_agent_label="source-agent",
+            assignee_agent_label=None,
+            target_role_label="Backend",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+        HandoffJobUiItem(
+            id=2,
+            parent_job_id=1,
+            parent_job_summary="Job 1",
+            summary="Job 2",
+            status=JobStatusEnum.PUBLISHED,
+            priority=40,
+            source_agent_label="source-agent",
+            assignee_agent_label="assignee-agent",
+            target_role_label="Backend",
+            created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        ),
+    ]
+    expected_total = 42
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    repository.ui_list = AsyncMock(return_value=expected_items)
+    repository.ui_count = AsyncMock(return_value=expected_total)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    page = await service.list_ui_jobs(filter_params=filter_params)
+
+    repository.ui_list.assert_awaited_once_with(filter_params=filter_params)
+    repository.ui_count.assert_awaited_once_with(filter_params=filter_params)
+    assert page.items == expected_items
+    assert page.total == expected_total
+    assert page.limit == 20
+    assert page.offset == 10
+
+
+async def test_handoff_job_service_count_jobs_by_status_delegates_and_returns_counts() -> None:
+    expected_counts = {
+        JobStatusEnum.PUBLISHED: 5,
+        JobStatusEnum.CLAIMED: 0,
+        JobStatusEnum.IN_PROGRESS: 2,
+        JobStatusEnum.BLOCKED: 1,
+        JobStatusEnum.COMPLETED: 10,
+        JobStatusEnum.FAILED: 3,
+        JobStatusEnum.CANCELLED: 1,
+    }
+
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    repository.count_by_status = AsyncMock(return_value=expected_counts)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    status_counts = await service.count_jobs_by_status()
+
+    repository.count_by_status.assert_awaited_once_with()
+    assert status_counts == expected_counts
 
 
 async def test_handoff_job_service_delete_job_delegates_to_repository_delete() -> None:

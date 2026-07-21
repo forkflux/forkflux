@@ -1,6 +1,6 @@
 from forkflux_api.jobs.constants import JobPriorityEnum
 from forkflux_api.jobs.dto import HandoffJobWithArtifacts
-from forkflux_api.jobs.schemas import HandoffJobWithArtifactsItem, JobArtifact
+from forkflux_api.jobs.mcp_schemas import HandoffJobWithArtifactsItem, JobArtifact
 
 
 def handoff_job_to_response_model(entity: HandoffJobWithArtifacts) -> HandoffJobWithArtifactsItem:

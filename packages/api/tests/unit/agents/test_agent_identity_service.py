@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from forkflux_api.agents.dto import AgentIdentityCreate
+from forkflux_api.agents.dto import AgentIdentityCreate, AgentIdentityWithRoles, RoleSummary
 from forkflux_api.agents.exceptions import AgentIdentityConflictError, AgentIdentityNotFoundError
 from forkflux_api.agents.services import AgentIdentityService
 
@@ -74,3 +75,31 @@ async def test_agent_identity_service_create_agent_propagates_conflict_error() -
         await service.create_agent(dto=dto)
 
     repository.create.assert_awaited_once_with(dto)
+
+
+async def test_agent_identity_service_list_with_roles_maps_orm_to_dto() -> None:
+    target_role = Mock(role_key="backend", role_label="Backend")
+    assignment = Mock(target_role=target_role)
+    agent = Mock(
+        id=1,
+        agent_label="agent-1",
+        tool_family="backend",
+        created_at=datetime.now(timezone.utc),
+        role_assignments=[assignment],
+    )
+    repository = Mock()
+    repository.list_with_roles = AsyncMock(return_value=[agent])
+    service = AgentIdentityService(agent_identity_repo=repository, trace_id="trace-123")
+
+    result = await service.list_with_roles()
+
+    repository.list_with_roles.assert_awaited_once_with()
+    assert len(result) == 1
+    assert isinstance(result[0], AgentIdentityWithRoles)
+    assert result[0].id == 1
+    assert result[0].agent_label == "agent-1"
+    assert result[0].tool_family == "backend"
+    assert len(result[0].roles) == 1
+    assert isinstance(result[0].roles[0], RoleSummary)
+    assert result[0].roles[0].role_key == "backend"
+    assert result[0].roles[0].role_label == "Backend"

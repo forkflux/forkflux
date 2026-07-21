@@ -9,8 +9,8 @@ from forkflux_api.database import get_session
 from forkflux_api.jobs.api_exceptions import ParentJobValidationError, TargetRoleValidationError
 from forkflux_api.jobs.dto import HandoffJobItem
 from forkflux_api.jobs.exceptions import HandoffJobNotFoundError
+from forkflux_api.jobs.mcp_schemas import HandoffJobClaimNextRequest, HandoffJobCreateRequest
 from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from forkflux_api.jobs.schemas import HandoffJobClaimNextRequest, HandoffJobCreateRequest
 from forkflux_api.jobs.services import HandoffJobService
 
 

@@ -21,7 +21,7 @@ from forkflux_api.jobs.dependencies import (
 from forkflux_api.jobs.dto import HandoffJobFilterParams
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
-from forkflux_api.jobs.schemas import (
+from forkflux_api.jobs.mcp_schemas import (
     HandoffJobChangeStatusRequest,
     HandoffJobChangeStatusResponse,
     HandoffJobClaimNextRequest,
@@ -32,7 +32,7 @@ from forkflux_api.jobs.schemas import (
 )
 from forkflux_api.jobs.services import HandoffJobService
 
-router = APIRouter(prefix="/jobs", tags=["jobs"], dependencies=[Depends(verify_token)])
+router = APIRouter(prefix="/jobs", tags=["mcp"], dependencies=[Depends(verify_token)])
 
 
 @router.post(

@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
 from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
+from forkflux_api.profile.models import Profile
 from polyfactory import AsyncPersistenceProtocol
 from polyfactory.factories.sqlalchemy_factory import SQLAASyncPersistence, SQLAlchemyFactory
 from polyfactory.fields import Use
@@ -66,10 +67,21 @@ class AgentIdentityFactory(BaseSQLAlchemyFactory):
 
     agent_label = Use(lambda: f"agent-{next(AgentIdentityFactory._counter)}")
     created_at: datetime = datetime.now(timezone.utc)
+    role_assignments: list[AgentIdentityRole] = []
 
 
 class AgentIdentityRoleFactory(BaseSQLAlchemyFactory):
     __model__ = AgentIdentityRole
+
+    # Disable auto-generation of the bidirectional relationships
+    # (agent_identity, target_role). When left to the default, polyfactory
+    # generates phantom AgentIdentity/TargetRole instances for these
+    # relationship-typed fields, and SQLAlchemy's flush gives the relationship
+    # objects precedence over the explicit FK ids (agent_identity_id /
+    # target_role_id), silently overwriting them. Tests that pass the
+    # relationship objects explicitly still work, since explicit kwargs are
+    # applied regardless of this flag.
+    __set_relationships__ = False
 
     agent_identity_id: int
     target_role_id: int
@@ -129,3 +141,9 @@ class JobEventFactory(BaseSQLAlchemyFactory):
     actor_agent_id: int | None = None
     payload_json = Use(lambda: {"source": "factory", "version": 1})
     created_at: datetime = datetime.now(timezone.utc)
+
+
+class ProfileFactory(BaseSQLAlchemyFactory):
+    __model__ = Profile
+
+    is_onboarded: bool = False

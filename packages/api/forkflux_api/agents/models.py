@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from forkflux_api.database import Base, UTCDateTime
 
@@ -25,6 +25,16 @@ class AgentIdentity(Base):
     tool_family: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
+    role_assignments: Mapped[list["AgentIdentityRole"]] = relationship(
+        back_populates="agent_identity",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+
+    @property
+    def roles(self) -> list["TargetRole"]:
+        return [assignment.target_role for assignment in self.role_assignments]
+
 
 class AgentIdentityRole(Base):
     __tablename__ = "agent_identity_role"
@@ -34,6 +44,9 @@ class AgentIdentityRole(Base):
     agent_identity_id: Mapped[int] = mapped_column(ForeignKey("agent_identity.id", ondelete="CASCADE"), nullable=False)
     target_role_id: Mapped[int] = mapped_column(ForeignKey("target_role.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+    agent_identity: Mapped["AgentIdentity"] = relationship(back_populates="role_assignments")
+    target_role: Mapped["TargetRole"] = relationship()
 
 
 class AgentApiToken(Base):
