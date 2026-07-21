@@ -24,3 +24,8 @@ class HandoffJobIdentityValidationError(BaseValidationError):
 class HandoffJobStatusValidationError(BaseValidationError):
     code = "handoff_job_status.invalid"
     msg = "Handoff job status transition is invalid."
+
+
+class HandoffJobUpdateValidationError(BaseValidationError):
+    code = "handoff_job_update.invalid"
+    msg = "Handoff job update is invalid."

@@ -34,3 +34,4 @@ class JobEventTypeEnum(str, Enum):
     TASK_RESTARTED = "task_restarted"
     TASK_BLOCKED = "task_blocked"
     TASK_UNBLOCKED = "task_unblocked"
+    TASK_UPDATED = "task_updated"
