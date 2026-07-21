@@ -2,6 +2,7 @@
 title: MCP Integration
 description: Install and configure the ForkFlux MCP server, authenticate agent clients, and understand the MCP tools exposed to assistants.
 sidebar_position: 7
+slug: /mcp-integration
 ---
 
 # MCP Integration

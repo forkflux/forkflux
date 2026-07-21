@@ -1,0 +1,1059 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ForkFlux API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/agents/roles": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "List Roles",
+        "operationId": "list_roles_api_v1_mcp_agents_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ListRolesResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Roles Api V1 Mcp Agents Roles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mcp/agents/me": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Me",
+        "operationId": "get_me_api_v1_mcp_agents_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mcp/agents/me/roles": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "List My Roles",
+        "operationId": "list_my_roles_api_v1_mcp_agents_me_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ListRolesResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List My Roles Api V1 Mcp Agents Me Roles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mcp/jobs": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create Job",
+        "operationId": "create_job_api_v1_mcp_jobs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffJobCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_api_v1_mcp_jobs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobStatusEnum"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/JobListOrderEnum"
+              },
+              "default": [
+                "created_at_asc"
+              ],
+              "title": "Order"
+            }
+          },
+          {
+            "name": "my_roles_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "My Roles Only"
+            }
+          },
+          {
+            "name": "target_role_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Role Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HandoffJobListItem"
+                  },
+                  "title": "Response List Jobs Api V1 Mcp Jobs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/jobs/claim-next": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Claim Next Job",
+        "operationId": "claim_next_job_api_v1_mcp_jobs_claim_next_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffJobClaimNextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobWithArtifactsItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mcp/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_api_v1_mcp_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobWithArtifactsItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/jobs/{job_id}/claim": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Claim Job",
+        "operationId": "claim_job_api_v1_mcp_jobs__job_id__claim_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobWithArtifactsItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/jobs/{job_id}/status": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Change Job Status",
+        "operationId": "change_job_status_api_v1_mcp_jobs__job_id__status_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffJobChangeStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobChangeStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GetMeResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "agent_label": {
+            "type": "string",
+            "title": "Agent Label"
+          },
+          "tool_family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Family"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent_label",
+          "tool_family"
+        ],
+        "title": "GetMeResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HandoffJobChangeStatusRequest": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HandoffJobChangeStatusRequest"
+      },
+      "HandoffJobChangeStatusResponse": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "previous_status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          },
+          "new_status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "previous_status",
+          "new_status"
+        ],
+        "title": "HandoffJobChangeStatusResponse"
+      },
+      "HandoffJobClaimNextRequest": {
+        "properties": {
+          "target_role_key": {
+            "type": "string",
+            "title": "Target Role Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_role_key"
+        ],
+        "title": "HandoffJobClaimNextRequest"
+      },
+      "HandoffJobCreateRequest": {
+        "properties": {
+          "parent_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Job Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "context_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Context Payload"
+          },
+          "target_role_key": {
+            "type": "string",
+            "title": "Target Role Key"
+          },
+          "constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Constraints"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/JobArtifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parent_job_id",
+          "summary",
+          "context_payload",
+          "target_role_key",
+          "constraints",
+          "artifacts",
+          "priority"
+        ],
+        "title": "HandoffJobCreateRequest"
+      },
+      "HandoffJobCreateResponse": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id"
+        ],
+        "title": "HandoffJobCreateResponse"
+      },
+      "HandoffJobListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Job Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityEnum"
+          },
+          "source_agent_label": {
+            "type": "string",
+            "title": "Source Agent Label"
+          },
+          "assignee_agent_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Agent Label"
+          },
+          "target_role_key": {
+            "type": "string",
+            "title": "Target Role Key"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "parent_job_id",
+          "summary",
+          "status",
+          "priority",
+          "source_agent_label",
+          "assignee_agent_label",
+          "target_role_key",
+          "created_at"
+        ],
+        "title": "HandoffJobListItem"
+      },
+      "HandoffJobWithArtifactsItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent_job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Job Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "context_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Context Payload"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityEnum"
+          },
+          "source_agent_label": {
+            "type": "string",
+            "title": "Source Agent Label"
+          },
+          "assignee_agent_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Agent Label"
+          },
+          "target_role_key": {
+            "type": "string",
+            "title": "Target Role Key"
+          },
+          "constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Constraints"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/JobArtifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "failed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed At"
+          },
+          "blocked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked At"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "parent_job_id",
+          "summary",
+          "context_payload",
+          "status",
+          "priority",
+          "source_agent_label",
+          "assignee_agent_label",
+          "target_role_key",
+          "constraints",
+          "artifacts",
+          "failure_reason",
+          "blocked_reason",
+          "published_at",
+          "claimed_at",
+          "started_at",
+          "completed_at",
+          "failed_at",
+          "blocked_at",
+          "cancelled_at",
+          "expires_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "HandoffJobWithArtifactsItem"
+      },
+      "JobArtifact": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "uri": {
+            "type": "string",
+            "title": "Uri"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
+          "metadata_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "uri",
+          "checksum",
+          "metadata_json"
+        ],
+        "title": "JobArtifact"
+      },
+      "JobListOrderEnum": {
+        "type": "string",
+        "enum": [
+          "created_at_asc",
+          "created_at_desc",
+          "priority_asc",
+          "priority_desc"
+        ],
+        "title": "JobListOrderEnum"
+      },
+      "JobPriorityEnum": {
+        "type": "integer",
+        "enum": [
+          10,
+          20,
+          30,
+          40
+        ],
+        "title": "JobPriorityEnum"
+      },
+      "JobStatusEnum": {
+        "type": "string",
+        "enum": [
+          "published",
+          "claimed",
+          "in_progress",
+          "blocked",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "JobStatusEnum"
+      },
+      "ListRolesResponse": {
+        "properties": {
+          "role_key": {
+            "type": "string",
+            "title": "Role Key"
+          },
+          "role_label": {
+            "type": "string",
+            "title": "Role Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role_key",
+          "role_label"
+        ],
+        "title": "ListRolesResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

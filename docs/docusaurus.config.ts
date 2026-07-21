@@ -3,6 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import type * as OpenApiPlugin from "docusaurus-plugin-openapi-docs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -55,6 +56,7 @@ const config: Config = {
           routeBasePath: '/',
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
+          docItemComponent: "@theme/ApiItem",
         },
         blog: false,
         theme: {
@@ -63,6 +65,28 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
+
+  plugins: [
+    [
+      'docusaurus-plugin-openapi-docs',
+      {
+        id: "api",
+        docsPluginId: "classic",
+        config: {
+          apiReference: {
+            specPath: "static/openapi.json",
+            outputDir: "docs/api-reference",
+            maskCredentials: false,
+            sidebarOptions: {
+              groupPathsBy: "tag",
+            },
+          } satisfies OpenApiPlugin.Options,
+        }
+      },
+    ]
+  ],
+
+  themes: ["docusaurus-theme-openapi-docs"],
 
   themeConfig: {
     // Replace with your project's social card
@@ -78,6 +102,11 @@ const config: Config = {
         src: 'img/logo.png',
       },
       items: [
+        {
+          href: '/api-reference/forkflux-api',
+          label: 'API Reference',
+          position: 'left',
+        },
         {
           href: 'https://github.com/forkflux/forkflux',
           label: 'GitHub',

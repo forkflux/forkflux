@@ -2,6 +2,7 @@
 title: Skills
 description: Learn which ForkFlux skills are available, what each skill does, and how to install them in skill-enabled assistants.
 sidebar_position: 8
+slug: /skills
 ---
 
 # Skills

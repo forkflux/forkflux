@@ -2,6 +2,7 @@
 title: Quickstart
 description: Run ForkFlux locally, complete your first AI-assisted workflow handoff, and understand the zero-config demo path.
 sidebar_position: 2
+slug: /quickstart
 ---
 
 # Getting Started

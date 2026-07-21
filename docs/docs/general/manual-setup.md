@@ -2,6 +2,7 @@
 title: Manual Setup
 description: Set up ForkFlux manually by initializing storage, creating roles and agents, configuring MCP, installing skills, and running your first handoff.
 sidebar_position: 3
+slug: /manual-setup
 ---
 
 import Tabs from '@theme/Tabs';

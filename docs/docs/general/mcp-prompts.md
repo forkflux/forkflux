@@ -2,6 +2,7 @@
 title: MCP Prompts
 description: Learn what ForkFlux MCP prompts are, which assistants can use them, which prompts are available, and how to run prompt-driven handoff workflows.
 sidebar_position: 10
+slug: /mcp-prompts
 ---
 
 # MCP Prompts
