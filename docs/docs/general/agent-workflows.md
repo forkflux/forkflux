@@ -2,6 +2,7 @@
 title: Agent Workflows
 description: Understand the standard ForkFlux workflow for handoffs, status updates, blockers, and audit trails across people, assistants, roles, and the shared coordination bus.
 sidebar_position: 5
+slug: /agent-workflows
 ---
 
 # Agent Workflows

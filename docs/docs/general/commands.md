@@ -2,6 +2,7 @@
 title: Commands
 description: Reference for ForkFlux command files, assistant compatibility, installation, and usage examples.
 sidebar_position: 9
+slug: /commands
 ---
 
 # Commands

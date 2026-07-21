@@ -2,6 +2,7 @@
 title: CLI
 description: Complete reference for ForkFlux CLI commands, arguments, options, and examples.
 sidebar_position: 6
+slug: /cli
 ---
 
 import Tabs from '@theme/Tabs';
