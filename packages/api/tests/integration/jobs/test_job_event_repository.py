@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
-from forkflux_api.jobs.dto import JobEventCreate
+from forkflux_api.jobs.dto import JobEventCreate, JobEventUiItem
 from forkflux_api.jobs.exceptions import JobEventConflictError
 from forkflux_api.jobs.models import JobEvent
 from forkflux_api.jobs.repositories import JobEventRepository
@@ -105,3 +107,159 @@ async def test_job_event_factory_creates_event_with_valid_job(db_session: AsyncS
     assert isinstance(event, JobEvent)
     assert event.id is not None
     assert event.job_id == handoff_job.id
+
+
+async def test_job_event_repository_ui_list_returns_events_ordered_by_created_at_desc(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-event-ui-list-order-role",
+        role_label="Job event ui list order role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-event-ui-list-order-source",
+    )
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    created_at_base = datetime.now(timezone.utc)
+    first_event = await JobEventFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        actor_agent_id=source_agent.id,
+        created_at=created_at_base,
+    )
+    second_event = await JobEventFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        actor_agent_id=source_agent.id,
+        created_at=created_at_base + timedelta(seconds=10),
+    )
+    third_event = await JobEventFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        actor_agent_id=source_agent.id,
+        created_at=created_at_base + timedelta(seconds=20),
+    )
+
+    repository = JobEventRepository(session=db_session, trace_id="trace-123")
+    events = await repository.ui_list(job_id=handoff_job.id)
+
+    assert len(events) == 3
+    assert all(isinstance(event, JobEventUiItem) for event in events)
+    assert [event.created_at for event in events] == [
+        third_event.created_at,
+        second_event.created_at,
+        first_event.created_at,
+    ]
+
+
+async def test_job_event_repository_ui_list_returns_empty_list_when_no_events(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-event-ui-list-empty-role",
+        role_label="Job event ui list empty role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-event-ui-list-empty-source",
+    )
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    repository = JobEventRepository(session=db_session, trace_id="trace-123")
+    events = await repository.ui_list(job_id=handoff_job.id)
+
+    assert events == []
+
+
+async def test_job_event_repository_ui_list_resolves_actor_agent_label(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-event-ui-list-label-role",
+        role_label="Job event ui list label role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-event-ui-list-label-source",
+    )
+    actor_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-event-ui-list-label-actor",
+    )
+    handoff_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    await JobEventFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        actor_agent_id=actor_agent.id,
+    )
+    await JobEventFactory.create(
+        db_session,
+        job_id=handoff_job.id,
+        actor_agent_id=None,
+    )
+
+    repository = JobEventRepository(session=db_session, trace_id="trace-123")
+    events = await repository.ui_list(job_id=handoff_job.id)
+
+    assert len(events) == 2
+    actor_labels = {event.actor_agent_label for event in events}
+    assert actor_labels == {actor_agent.agent_label, None}
+
+
+async def test_job_event_repository_ui_list_isolates_by_job_id(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="job-event-ui-list-isolate-role",
+        role_label="Job event ui list isolate role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="job-event-ui-list-isolate-source",
+    )
+    first_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    second_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    await JobEventFactory.create(
+        db_session,
+        job_id=first_job.id,
+        actor_agent_id=source_agent.id,
+    )
+    await JobEventFactory.create(
+        db_session,
+        job_id=second_job.id,
+        actor_agent_id=source_agent.id,
+    )
+
+    repository = JobEventRepository(session=db_session, trace_id="trace-123")
+    events = await repository.ui_list(job_id=first_job.id)
+
+    assert len(events) == 1
+    assert events[0].event_type is not None

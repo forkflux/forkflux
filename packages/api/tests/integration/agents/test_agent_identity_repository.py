@@ -9,7 +9,7 @@ from forkflux_api.agents.exceptions import (
 from forkflux_api.agents.models import AgentIdentity, AgentIdentityRole
 from forkflux_api.agents.repositories import AgentIdentityRepository, AgentIdentityRoleRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.factories import AgentIdentityFactory, TargetRoleFactory
+from tests.factories import AgentIdentityFactory, AgentIdentityRoleFactory, TargetRoleFactory
 
 
 async def test_agent_identity_repository_init_sets_session_and_logger(db_session: AsyncSession) -> None:
@@ -196,3 +196,55 @@ async def test_agent_identity_role_repository_remove_raises_not_found_for_missin
 
     with pytest.raises(AgentIdentityRoleNotFoundError):
         await repository.remove(agent_identity_id=999_999, target_role_id=999_998)
+
+
+async def test_agent_identity_repository_list_with_roles_returns_agents_with_eagerly_loaded_roles(
+    db_session: AsyncSession,
+) -> None:
+    backend_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="backend",
+        role_label="Backend",
+    )
+    frontend_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="frontend",
+        role_label="Frontend",
+    )
+    agent_with_roles = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-with-roles",
+    )
+    agent_without_roles = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-without-roles",
+    )
+    await AgentIdentityRoleFactory.create(
+        db_session,
+        agent_identity_id=agent_with_roles.id,
+        target_role_id=backend_role.id,
+        agent_identity=agent_with_roles,
+        target_role=backend_role,
+    )
+    await AgentIdentityRoleFactory.create(
+        db_session,
+        agent_identity_id=agent_with_roles.id,
+        target_role_id=frontend_role.id,
+        agent_identity=agent_with_roles,
+        target_role=frontend_role,
+    )
+
+    repository = AgentIdentityRepository(session=db_session, trace_id="trace-123")
+    agents = await repository.list_with_roles()
+
+    by_label = {agent.agent_label: agent for agent in agents}
+
+    agent_with = by_label[agent_with_roles.agent_label]
+    assert len(agent_with.role_assignments) == 2
+    role_keys = {assignment.target_role.role_key for assignment in agent_with.role_assignments}
+    role_labels = {assignment.target_role.role_label for assignment in agent_with.role_assignments}
+    assert role_keys == {"backend", "frontend"}
+    assert role_labels == {"Backend", "Frontend"}
+
+    agent_without = by_label[agent_without_roles.agent_label]
+    assert agent_without.role_assignments == []

@@ -13,7 +13,7 @@ alembic-revision:
 	@alembic revision --autogenerate -m "$(name)"
 
 run:
-	@uvicorn src.main:app --reload
+	@uvicorn forkflux_api.main:app --reload
 
 changelog:
 	@git cliff --unreleased --prepend CHANGELOG.md

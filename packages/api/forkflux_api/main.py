@@ -5,8 +5,11 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from forkflux_api.agents.mcp_handlers import router as mcp_agents_router
+from forkflux_api.agents.ui_handlers import router as ui_agents_router
 from forkflux_api.exceptions import BaseValidationError
 from forkflux_api.jobs.mcp_handlers import router as mcp_jobs_router
+from forkflux_api.jobs.ui_handlers import router as ui_jobs_router
+from forkflux_api.profile.ui_handlers import router as ui_profile_router
 
 
 def create_app() -> FastAPI:
@@ -22,8 +25,14 @@ def create_app() -> FastAPI:
     def health() -> None:
         return None
 
+    # agents
     application.include_router(mcp_agents_router, prefix="/api/v1/mcp")
+    application.include_router(ui_agents_router, prefix="/api/v1/ui")
+    # jobs
     application.include_router(mcp_jobs_router, prefix="/api/v1/mcp")
+    application.include_router(ui_jobs_router, prefix="/api/v1/ui")
+    # profile
+    application.include_router(ui_profile_router, prefix="/api/v1/ui")
 
     return application
 

@@ -820,3 +820,483 @@ async def test_handoff_job_repository_stats_limits_duration_samples_to_bounded_s
     assert len(result.published_to_resolution_pairs) == MAX_STATS_DURATION_SAMPLES
     assert (base, base + timedelta(minutes=1)) not in result.published_to_claimed_pairs
     assert (base, base + timedelta(minutes=5)) not in result.published_to_resolution_pairs
+
+
+async def test_handoff_job_repository_ui_list_returns_items_with_all_fields(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-reviewer",
+        role_label="UI List Reviewer",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-source-agent",
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-assignee-agent",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    parent_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Parent job summary",
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    child_job = await HandoffJobFactory.create(
+        db_session,
+        parent_job_id=parent_job.id,
+        summary="Child job summary",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+
+    items = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    assert len(items) == 2
+
+    parent_item = items[0]
+    assert parent_item.id == parent_job.id
+    assert parent_item.parent_job_id is None
+    assert parent_item.parent_job_summary is None
+    assert parent_item.summary == "Parent job summary"
+    assert parent_item.status == JobStatusEnum.COMPLETED
+    assert parent_item.priority == parent_job.priority
+    assert parent_item.source_agent_label == source_agent.agent_label
+    assert parent_item.assignee_agent_label == assignee_agent.agent_label
+    assert parent_item.target_role_label == target_role.role_label
+    assert parent_item.created_at == parent_job.created_at
+
+    child_item = items[1]
+    assert child_item.id == child_job.id
+    assert child_item.parent_job_id == parent_job.id
+    assert child_item.parent_job_summary == "Parent job summary"
+    assert child_item.summary == "Child job summary"
+    assert child_item.status == JobStatusEnum.PUBLISHED
+    assert child_item.source_agent_label == source_agent.agent_label
+    assert child_item.assignee_agent_label == assignee_agent.agent_label
+    assert child_item.target_role_label == target_role.role_label
+
+
+async def test_handoff_job_repository_ui_list_returns_none_assignee_label_for_unassigned(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-unassigned-role",
+        role_label="UI List Unassigned Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-unassigned-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Unassigned job",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=None,
+    )
+
+    items = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    assert len(items) == 1
+    assert items[0].assignee_agent_label is None
+
+
+async def test_handoff_job_repository_ui_list_filters_by_status(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-filter-status-role",
+        role_label="UI List Filter Status Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-filter-status-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    published_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Published job",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Completed job",
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    items = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    assert len(items) == 1
+    assert items[0].id == published_job.id
+    assert items[0].status == JobStatusEnum.PUBLISHED
+
+
+async def test_handoff_job_repository_ui_list_filters_by_target_role_ids(db_session: AsyncSession) -> None:
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-filter-role-reviewer",
+        role_label="UI List Filter Reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-filter-role-operator",
+        role_label="UI List Filter Operator",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-filter-role-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    matching_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Matching role job",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        summary="Non matching role job",
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+    )
+
+    items = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[reviewer_role.id],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    assert len(items) == 1
+    assert items[0].id == matching_job.id
+    assert items[0].target_role_label == reviewer_role.role_label
+
+
+async def test_handoff_job_repository_ui_list_applies_limit_and_offset(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-pagination-role",
+        role_label="UI List Pagination Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-pagination-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    base_dt = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    created_jobs = []
+    for day_offset in range(5):
+        current_dt = base_dt + timedelta(days=day_offset)
+        job = await HandoffJobFactory.create(
+            db_session,
+            summary=f"Job day {day_offset}",
+            status=JobStatusEnum.PUBLISHED,
+            source_agent_id=source_agent.id,
+            target_role_id=target_role.id,
+            created_at=current_dt,
+            updated_at=current_dt,
+            published_at=current_dt,
+        )
+        created_jobs.append(job)
+
+    first_page = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=2,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+            offset=0,
+        )
+    )
+    assert [item.id for item in first_page] == [created_jobs[0].id, created_jobs[1].id]
+
+    second_page = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=2,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+            offset=2,
+        )
+    )
+    assert [item.id for item in second_page] == [created_jobs[2].id, created_jobs[3].id]
+
+    third_page = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=2,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+            offset=4,
+        )
+    )
+    assert [item.id for item in third_page] == [created_jobs[4].id]
+
+
+async def test_handoff_job_repository_ui_list_orders_by_priority_desc(db_session: AsyncSession) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-list-order-priority-role",
+        role_label="UI List Order Priority Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-list-order-priority-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    low_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Low priority",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.LOW.value,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    urgent_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Urgent priority",
+        status=JobStatusEnum.PUBLISHED,
+        priority=JobPriorityEnum.URGENT.value,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    items = await repository.ui_list(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.PRIORITY_DESC],
+        )
+    )
+
+    assert [item.id for item in items] == [urgent_job.id, low_job.id]
+    assert items[0].priority == JobPriorityEnum.URGENT.value
+    assert items[1].priority == JobPriorityEnum.LOW.value
+
+
+async def test_handoff_job_repository_ui_count_returns_total_matching_filters(db_session: AsyncSession) -> None:
+    reviewer_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-count-reviewer",
+        role_label="UI Count Reviewer",
+    )
+    operator_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-count-operator",
+        role_label="UI Count Operator",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-count-source-agent",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=reviewer_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=operator_role.id,
+    )
+
+    total_all = await repository.ui_count(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+    assert total_all == 4
+
+    total_published = await repository.ui_count(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+    assert total_published == 3
+
+    total_reviewer_published = await repository.ui_count(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[JobStatusEnum.PUBLISHED],
+            target_role_ids=[reviewer_role.id],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+    assert total_reviewer_published == 2
+
+
+async def test_handoff_job_repository_ui_count_returns_zero_for_empty_database(db_session: AsyncSession) -> None:
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    total = await repository.ui_count(
+        filter_params=HandoffJobFilterParams(
+            limit=200,
+            statuses=[],
+            target_role_ids=[],
+            order=[JobListOrderEnum.CREATED_AT_ASC],
+        )
+    )
+
+    assert total == 0
+
+
+async def test_handoff_job_repository_count_by_status_returns_zeroed_counts_for_empty_database(
+    db_session: AsyncSession,
+) -> None:
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    status_counts = await repository.count_by_status()
+
+    assert status_counts[JobStatusEnum.PUBLISHED] == 0
+    assert status_counts[JobStatusEnum.CLAIMED] == 0
+    assert status_counts[JobStatusEnum.IN_PROGRESS] == 0
+    assert status_counts[JobStatusEnum.BLOCKED] == 0
+    assert status_counts[JobStatusEnum.COMPLETED] == 0
+    assert status_counts[JobStatusEnum.FAILED] == 0
+    assert status_counts[JobStatusEnum.CANCELLED] == 0
+
+
+async def test_handoff_job_repository_count_by_status_returns_correct_counts_for_mixed_statuses(
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="count-by-status-role",
+        role_label="Count By Status Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="count-by-status-source",
+    )
+    repository = HandoffJobRepository(session=db_session, trace_id="trace-123")
+
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.PUBLISHED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.IN_PROGRESS,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.COMPLETED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.FAILED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        status=JobStatusEnum.CANCELLED,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+
+    status_counts = await repository.count_by_status()
+
+    assert status_counts[JobStatusEnum.PUBLISHED] == 2
+    assert status_counts[JobStatusEnum.CLAIMED] == 0
+    assert status_counts[JobStatusEnum.IN_PROGRESS] == 1
+    assert status_counts[JobStatusEnum.BLOCKED] == 0
+    assert status_counts[JobStatusEnum.COMPLETED] == 3
+    assert status_counts[JobStatusEnum.FAILED] == 1
+    assert status_counts[JobStatusEnum.CANCELLED] == 1

@@ -3,7 +3,17 @@ import secrets
 
 import structlog
 
-from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
+from forkflux_api.agents.dto import (
+    AgentApiTokenCreate,
+    AgentIdentityCreate,
+    AgentIdentityRoleAssign,
+    AgentIdentityWithRoles,
+    AgentRegistration,
+    AgentRegistrationResult,
+    RoleSummary,
+    TargetRoleCreate,
+)
+from forkflux_api.agents.exceptions import TargetRoleNotFoundError
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
 from forkflux_api.agents.repositories import (
     AgentApiTokenRepository,
@@ -122,6 +132,32 @@ class AgentIdentityService:
         log.info("operation_completed", agents_count=len(agents))
         return agents
 
+    async def list_with_roles(self) -> list[AgentIdentityWithRoles]:
+        log = self._logger.bind(method="list_with_roles")
+        log.info("operation_started")
+
+        agents = await self._agent_identity_repo.list_with_roles()
+
+        result = [
+            AgentIdentityWithRoles(
+                id=agent.id,
+                agent_label=agent.agent_label,
+                tool_family=agent.tool_family,
+                created_at=agent.created_at,
+                roles=[
+                    RoleSummary(
+                        role_key=assignment.target_role.role_key,
+                        role_label=assignment.target_role.role_label,
+                    )
+                    for assignment in agent.role_assignments
+                ],
+            )
+            for agent in agents
+        ]
+
+        log.info("operation_completed", agents_count=len(result))
+        return result
+
     async def get_by_id(self, agent_identity_id: int) -> AgentIdentity:
         log = self._logger.bind(method="get_by_id", agent_identity_id=agent_identity_id)
         log.info("operation_started")
@@ -182,3 +218,50 @@ class AgentIdentityRoleService:
 
         log.info("operation_completed", roles_count=len(role_ids))
         return role_ids
+
+
+class AgentRegistrationUseCase:
+    def __init__(
+        self,
+        target_role_service: TargetRoleService,
+        agent_identity_service: AgentIdentityService,
+        agent_identity_role_service: AgentIdentityRoleService,
+        agent_api_token_service: AgentApiTokenService,
+        trace_id: str,
+    ) -> None:
+        self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
+        self._target_role_service = target_role_service
+        self._agent_identity_service = agent_identity_service
+        self._agent_identity_role_service = agent_identity_role_service
+        self._agent_api_token_service = agent_api_token_service
+
+    async def register_agent(self, dto: AgentRegistration) -> AgentRegistrationResult:
+        log = self._logger.bind(
+            method="register_agent", agent_label=dto.agent_label, target_role_ids=dto.target_role_ids
+        )
+        log.info("operation_started")
+
+        roles = await self._target_role_service.get_roles_by_ids(dto.target_role_ids)
+        if len(roles) != len(dto.target_role_ids):
+            log.info("target_roles_not_found", requested=len(dto.target_role_ids), found=len(roles))
+            raise TargetRoleNotFoundError
+
+        agent = await self._agent_identity_service.create_agent(
+            AgentIdentityCreate(agent_label=dto.agent_label, tool_family=dto.tool_family)
+        )
+
+        for target_role_id in dto.target_role_ids:
+            await self._agent_identity_role_service.assign_role(
+                AgentIdentityRoleAssign(agent_identity_id=agent.id, target_role_id=target_role_id)
+            )
+
+        api_token = await self._agent_api_token_service.create_token(AgentApiTokenCreate(agent_id=agent.id))
+
+        log.info("operation_completed", agent_identity_id=agent.id)
+        return AgentRegistrationResult(
+            agent_id=agent.id,
+            agent_label=dto.agent_label,
+            tool_family=dto.tool_family,
+            target_role_ids=list(dto.target_role_ids),
+            api_token=api_token,
+        )

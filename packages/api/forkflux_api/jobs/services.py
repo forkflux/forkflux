@@ -12,13 +12,15 @@ from forkflux_api.jobs.dto import (
     HandoffJobItem,
     HandoffJobRawStats,
     HandoffJobStats,
+    HandoffJobUiPage,
     HandoffJobWithArtifacts,
+    HandoffJobWithArtifactsAndEvents,
     JobArtifactCreate,
     JobEventCreate,
 )
 from forkflux_api.jobs.exceptions import HandoffJobConflictError
+from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest
 from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
-from forkflux_api.jobs.schemas import HandoffJobCreateRequest
 
 
 class HandoffJobService:
@@ -208,6 +210,17 @@ class HandoffJobService:
         log.info("operation_completed", artifact_count=len(artifacts))
         return {"job": job, "artifacts": artifacts}
 
+    async def get_ui_job_with_artifacts_and_events(self, job_id: int) -> HandoffJobWithArtifactsAndEvents:
+        log = self._logger.bind(method="get_ui_job_with_artifacts_and_events", job_id=job_id)
+        log.info("operation_started")
+
+        job = await self._handoff_job_repo.ui_get(job_id)
+        artifacts = await self._job_artifact_repo.list(job_id=job_id)
+        events = await self._job_event_repo.ui_list(job_id=job_id)
+
+        log.info("operation_completed", artifact_count=len(artifacts), event_count=len(events))
+        return {"job": job, "artifacts": artifacts, "events": events}
+
     async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         log = self._logger.bind(
             method="list_jobs",
@@ -222,6 +235,37 @@ class HandoffJobService:
 
         log.info("operation_completed", jobs_count=len(jobs))
         return jobs
+
+    async def list_ui_jobs(self, filter_params: HandoffJobFilterParams) -> HandoffJobUiPage:
+        log = self._logger.bind(
+            method="list_ui_jobs",
+            statuses=[status.value for status in filter_params.statuses],
+            target_role_ids=filter_params.target_role_ids,
+            limit=filter_params.limit,
+            offset=filter_params.offset,
+            order=[order.value for order in filter_params.order],
+        )
+        log.info("operation_started")
+
+        items = await self._handoff_job_repo.ui_list(filter_params=filter_params)
+        total = await self._handoff_job_repo.ui_count(filter_params=filter_params)
+
+        log.info("operation_completed", items_count=len(items), total=total)
+        return HandoffJobUiPage(
+            items=items,
+            total=total,
+            limit=filter_params.limit,
+            offset=filter_params.offset,
+        )
+
+    async def count_jobs_by_status(self) -> dict[JobStatusEnum, int]:
+        log = self._logger.bind(method="count_jobs_by_status")
+        log.info("operation_started")
+
+        status_counts = await self._handoff_job_repo.count_by_status()
+
+        log.info("operation_completed", status_counts=status_counts)
+        return status_counts
 
     async def delete_job(self, job_id: int) -> None:
         log = self._logger.bind(method="delete_job", job_id=job_id)

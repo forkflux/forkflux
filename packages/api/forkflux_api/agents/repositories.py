@@ -5,6 +5,7 @@ import structlog
 from sqlalchemy import delete, exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
 from forkflux_api.agents.exceptions import (
@@ -150,6 +151,20 @@ class AgentIdentityRepository:
     async def list(self) -> list[AgentIdentity]:
         result = await self._session.execute(select(AgentIdentity))
         return list(result.scalars().all())
+
+    async def list_with_roles(self) -> List[AgentIdentity]:
+        log = self._logger.bind(method="list_with_roles")
+        log.info("operation_started")
+
+        result = await self._session.execute(
+            select(AgentIdentity).options(
+                selectinload(AgentIdentity.role_assignments).selectinload(AgentIdentityRole.target_role)
+            )
+        )
+        agents = list(result.scalars().all())
+
+        log.info("operation_completed", agents_count=len(agents))
+        return agents
 
     async def get_by_id(self, agent_identity_id: int) -> AgentIdentity:
         result = await self._session.execute(select(AgentIdentity).where(AgentIdentity.id == agent_identity_id))
