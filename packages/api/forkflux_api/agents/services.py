@@ -241,16 +241,19 @@ class AgentRegistrationUseCase:
         )
         log.info("operation_started")
 
-        roles = await self._target_role_service.get_roles_by_ids(dto.target_role_ids)
-        if len(roles) != len(dto.target_role_ids):
-            log.info("target_roles_not_found", requested=len(dto.target_role_ids), found=len(roles))
+        seen: set[int] = set()
+        target_role_ids = [rid for rid in dto.target_role_ids if not (rid in seen or seen.add(rid))]
+
+        roles = await self._target_role_service.get_roles_by_ids(target_role_ids)
+        if len(roles) != len(target_role_ids):
+            log.info("target_roles_not_found", requested=len(target_role_ids), found=len(roles))
             raise TargetRoleNotFoundError
 
         agent = await self._agent_identity_service.create_agent(
             AgentIdentityCreate(agent_label=dto.agent_label, tool_family=dto.tool_family)
         )
 
-        for target_role_id in dto.target_role_ids:
+        for target_role_id in target_role_ids:
             await self._agent_identity_role_service.assign_role(
                 AgentIdentityRoleAssign(agent_identity_id=agent.id, target_role_id=target_role_id)
             )
@@ -262,6 +265,6 @@ class AgentRegistrationUseCase:
             agent_id=agent.id,
             agent_label=dto.agent_label,
             tool_family=dto.tool_family,
-            target_role_ids=list(dto.target_role_ids),
+            target_role_ids=list(target_role_ids),
             api_token=api_token,
         )

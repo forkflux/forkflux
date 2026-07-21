@@ -130,3 +130,28 @@ async def test_register_agent_propagates_role_assignment_conflict_error() -> Non
         await use_case.register_agent(dto)
 
     mocks["agent_api_token_service"].create_token.assert_not_called()
+
+
+async def test_register_agent_deduplicates_target_role_ids_preserving_order() -> None:
+    use_case, mocks = _build_use_case()
+    dto = AgentRegistration(agent_label="agent-1", tool_family="backend", target_role_ids=[1, 2, 1])
+
+    role_one = Mock(id=1)
+    role_two = Mock(id=2)
+    mocks["target_role_service"].get_roles_by_ids.return_value = [role_one, role_two]
+    created_agent = Mock(id=42)
+    mocks["agent_identity_service"].create_agent.return_value = created_agent
+    mocks["agent_api_token_service"].create_token.return_value = "raw-token"
+
+    result = await use_case.register_agent(dto)
+
+    mocks["target_role_service"].get_roles_by_ids.assert_awaited_once_with([1, 2])
+    assert mocks["agent_identity_role_service"].assign_role.await_count == 2
+    mocks["agent_identity_role_service"].assign_role.assert_any_await(
+        AgentIdentityRoleAssign(agent_identity_id=42, target_role_id=1)
+    )
+    mocks["agent_identity_role_service"].assign_role.assert_any_await(
+        AgentIdentityRoleAssign(agent_identity_id=42, target_role_id=2)
+    )
+
+    assert result.target_role_ids == [1, 2]
