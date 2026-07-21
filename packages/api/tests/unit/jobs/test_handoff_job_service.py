@@ -10,10 +10,11 @@ from forkflux_api.jobs.dto import (
     HandoffJobRawStats,
     HandoffJobUiDetailItem,
     HandoffJobUiItem,
+    HandoffJobUpdate,
     JobEventCreate,
     JobEventUiItem,
 )
-from forkflux_api.jobs.exceptions import HandoffJobConflictError
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest, JobArtifact
 from forkflux_api.jobs.services import HandoffJobService
 
@@ -1116,4 +1117,158 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
         await service.change_job_status(job_id=123, status=JobStatusEnum.BLOCKED, agent_id=99, blocked_reason="reason")
 
     repository.save.assert_not_called()
+    job_event_repo.create.assert_not_called()
+
+
+async def test_handoff_job_service_update_job_updates_context_payload_and_creates_event() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.update = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    old_context = {"ticket_id": "TCK-1"}
+    new_context = {"ticket_id": "TCK-2"}
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.context_payload = old_context
+    job.constraints = ["deadline:today"]
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    dto = HandoffJobUpdate(context_payload=new_context)
+    await service.update_job(job_id=123, dto=dto, agent_id=10)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.update.assert_awaited_once_with(job=job, dto=dto)
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.job_id == 123
+    assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
+    assert event_dto.previous_status == JobStatusEnum.PUBLISHED
+    assert event_dto.current_status == JobStatusEnum.PUBLISHED
+    assert event_dto.actor_agent_id == 10
+    assert "timestamp" in event_dto.payload_json
+    assert event_dto.payload_json["changes"]["context_payload"]["old"] == old_context
+    assert event_dto.payload_json["changes"]["context_payload"]["new"] == new_context
+    assert "constraints" not in event_dto.payload_json["changes"]
+
+
+async def test_handoff_job_service_update_job_updates_constraints_and_creates_event() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.update = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    old_constraints = ["deadline:today"]
+    new_constraints = ["deadline:tomorrow", "priority:high"]
+    job = Mock()
+    job.status = JobStatusEnum.IN_PROGRESS
+    job.context_payload = {"key": "value"}
+    job.constraints = old_constraints
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    dto = HandoffJobUpdate(constraints=new_constraints)
+    await service.update_job(job_id=456, dto=dto, agent_id=20)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=456)
+    repository.update.assert_awaited_once_with(job=job, dto=dto)
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.job_id == 456
+    assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
+    assert event_dto.previous_status == JobStatusEnum.IN_PROGRESS
+    assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
+    assert event_dto.actor_agent_id == 20
+    assert "timestamp" in event_dto.payload_json
+    assert event_dto.payload_json["changes"]["constraints"]["old"] == old_constraints
+    assert event_dto.payload_json["changes"]["constraints"]["new"] == new_constraints
+    assert "context_payload" not in event_dto.payload_json["changes"]
+
+
+async def test_handoff_job_service_update_job_updates_both_fields_and_creates_event() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.update = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    old_context = {"ticket_id": "TCK-1"}
+    new_context = {"ticket_id": "TCK-2"}
+    old_constraints = ["deadline:today"]
+    new_constraints = ["deadline:tomorrow"]
+    job = Mock()
+    job.status = JobStatusEnum.PUBLISHED
+    job.context_payload = old_context
+    job.constraints = old_constraints
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    dto = HandoffJobUpdate(context_payload=new_context, constraints=new_constraints)
+    await service.update_job(job_id=789, dto=dto, agent_id=30)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=789)
+    repository.update.assert_awaited_once_with(job=job, dto=dto)
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.job_id == 789
+    assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
+    assert event_dto.previous_status == JobStatusEnum.PUBLISHED
+    assert event_dto.current_status == JobStatusEnum.PUBLISHED
+    assert event_dto.actor_agent_id == 30
+    assert "timestamp" in event_dto.payload_json
+    assert event_dto.payload_json["changes"]["context_payload"]["old"] == old_context
+    assert event_dto.payload_json["changes"]["context_payload"]["new"] == new_context
+    assert event_dto.payload_json["changes"]["constraints"]["old"] == old_constraints
+    assert event_dto.payload_json["changes"]["constraints"]["new"] == new_constraints
+
+
+async def test_handoff_job_service_update_job_raises_not_found_when_job_missing() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock(side_effect=HandoffJobNotFoundError)
+    repository.update = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    dto = HandoffJobUpdate(context_payload={"key": "value"})
+    with pytest.raises(HandoffJobNotFoundError):
+        await service.update_job(job_id=999, dto=dto, agent_id=10)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=999)
+    repository.update.assert_not_called()
     job_event_repo.create.assert_not_called()

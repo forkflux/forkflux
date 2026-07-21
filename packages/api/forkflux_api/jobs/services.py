@@ -13,6 +13,7 @@ from forkflux_api.jobs.dto import (
     HandoffJobRawStats,
     HandoffJobStats,
     HandoffJobUiPage,
+    HandoffJobUpdate,
     HandoffJobWithArtifacts,
     HandoffJobWithArtifactsAndEvents,
     JobArtifactCreate,
@@ -436,3 +437,35 @@ class HandoffJobService:
 
         log.info("operation_completed", previous_status=current_status.value, current_status=status.value)
         return current_status, status
+
+    async def update_job(self, job_id: int, dto: HandoffJobUpdate, agent_id: int) -> None:
+        log = self._logger.bind(method="update_job", job_id=job_id, agent_id=agent_id)
+        log.info("operation_started")
+
+        job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+        current_status = job.status
+
+        changes: dict[str, dict[str, Any]] = {}
+        if dto.context_payload is not None:
+            changes["context_payload"] = {"old": job.context_payload, "new": dto.context_payload}
+        if dto.constraints is not None:
+            changes["constraints"] = {"old": job.constraints, "new": dto.constraints}
+
+        await self._handoff_job_repo.update(job=job, dto=dto)
+
+        timestamp = datetime.now(timezone.utc)
+        await self._job_event_repo.create(
+            dto=JobEventCreate(
+                job_id=job_id,
+                event_type=JobEventTypeEnum.TASK_UPDATED,
+                previous_status=current_status,
+                current_status=current_status,
+                actor_agent_id=agent_id,
+                payload_json={
+                    "timestamp": timestamp.isoformat(),
+                    "changes": changes,
+                },
+            )
+        )
+
+        log.info("operation_completed", updated_fields=list(changes.keys()))

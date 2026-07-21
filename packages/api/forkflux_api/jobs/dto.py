@@ -18,6 +18,12 @@ class HandoffJobCreate:
 
 
 @dataclass(slots=True)
+class HandoffJobUpdate:
+    context_payload: dict[str, Any] | None = None
+    constraints: list[str] | None = None
+
+
+@dataclass(slots=True)
 class JobArtifactCreate:
     job_id: int
     artifact_type: str

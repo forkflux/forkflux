@@ -241,8 +241,7 @@ class AgentRegistrationUseCase:
         )
         log.info("operation_started")
 
-        seen: set[int] = set()
-        target_role_ids = [rid for rid in dto.target_role_ids if not (rid in seen or seen.add(rid))]
+        target_role_ids = list(dict.fromkeys(dto.target_role_ids))
 
         roles = await self._target_role_service.get_roles_by_ids(target_role_ids)
         if len(roles) != len(target_role_ids):
@@ -265,6 +264,6 @@ class AgentRegistrationUseCase:
             agent_id=agent.id,
             agent_label=dto.agent_label,
             tool_family=dto.tool_family,
-            target_role_ids=list(target_role_ids),
+            target_role_ids=target_role_ids,
             api_token=api_token,
         )

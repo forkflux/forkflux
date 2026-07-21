@@ -9,6 +9,7 @@ from forkflux_api.jobs.api_exceptions import (
     HandoffJobClaimValidationError,
     HandoffJobIdentityValidationError,
     HandoffJobStatusValidationError,
+    HandoffJobUpdateValidationError,
 )
 from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.dependencies import (
@@ -18,7 +19,7 @@ from forkflux_api.jobs.dependencies import (
     validate_target_role_claim_next,
     validate_target_role_query_param,
 )
-from forkflux_api.jobs.dto import HandoffJobFilterParams
+from forkflux_api.jobs.dto import HandoffJobFilterParams, HandoffJobUpdate
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
 from forkflux_api.jobs.mcp_schemas import (
@@ -28,6 +29,8 @@ from forkflux_api.jobs.mcp_schemas import (
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobListItem,
+    HandoffJobUpdateRequest,
+    HandoffJobUpdateResponse,
     HandoffJobWithArtifactsItem,
 )
 from forkflux_api.jobs.services import HandoffJobService
@@ -171,3 +174,29 @@ async def change_job_status(
         raise HandoffJobStatusValidationError(field_name="status", value=data.status, loc="body")
 
     return {"job_id": job_id, "previous_status": previous_status, "new_status": new_status}
+
+
+@router.patch(
+    "/{job_id}",
+    status_code=http_status.HTTP_200_OK,
+    response_model=HandoffJobUpdateResponse,
+)
+async def update_job(
+    job_id: int,
+    data: HandoffJobUpdateRequest,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+):
+    update_dto = HandoffJobUpdate(
+        context_payload=data.context_payload,
+        constraints=data.constraints,
+    )
+
+    try:
+        await job_service.update_job(job_id=job_id, dto=update_dto, agent_id=current_agent.id)
+    except HandoffJobNotFoundError:
+        raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")
+    except HandoffJobConflictError:
+        raise HandoffJobUpdateValidationError(field_name="job_id", value=job_id, loc="path")
+
+    return {"job_id": job_id, "message": f"job with job_id {job_id} updated successfully"}

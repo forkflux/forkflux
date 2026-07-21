@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 
@@ -97,3 +97,23 @@ class HandoffJobClaimNextRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     target_role_key: str
+
+
+class HandoffJobUpdateRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    context_payload: dict[str, Any] | None = None
+    constraints: list[str] | None = None
+
+    @model_validator(mode="after")
+    def _require_at_least_one_field(self) -> "HandoffJobUpdateRequest":
+        if self.context_payload is None and self.constraints is None:
+            raise ValueError("At least one of context_payload or constraints must be provided")
+        return self
+
+
+class HandoffJobUpdateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: int
+    message: str

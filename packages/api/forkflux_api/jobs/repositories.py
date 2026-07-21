@@ -15,6 +15,7 @@ from forkflux_api.jobs.dto import (
     HandoffJobRawStats,
     HandoffJobUiDetailItem,
     HandoffJobUiItem,
+    HandoffJobUpdate,
     JobArtifactCreate,
     JobEventCreate,
     JobEventUiItem,
@@ -76,6 +77,21 @@ class HandoffJobRepository:
         return handoff_job
 
     async def save(self, job: HandoffJob) -> HandoffJob:
+        job.updated_at = datetime.now(timezone.utc)
+
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise HandoffJobConflictError from err
+
+        return job
+
+    async def update(self, job: HandoffJob, dto: HandoffJobUpdate) -> HandoffJob:
+        if dto.context_payload is not None:
+            job.context_payload = dto.context_payload
+        if dto.constraints is not None:
+            job.constraints = dto.constraints
         job.updated_at = datetime.now(timezone.utc)
 
         try:
