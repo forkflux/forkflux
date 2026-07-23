@@ -65,6 +65,7 @@ class HandoffJob(Base):
     constraints: Mapped[list[Any]] = mapped_column(JSON_TYPE, nullable=False)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    unblock_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     published_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     claimed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
@@ -72,6 +73,7 @@ class HandoffJob(Base):
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     blocked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    unblocked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 
@@ -99,10 +101,6 @@ class JobEvent(Base):
     id: Mapped[int] = mapped_column(PK_TYPE, primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("handoff_job.id", ondelete="CASCADE"), nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
-    previous_status: Mapped[JobStatusEnum | None] = mapped_column(
-        Enum(JobStatusEnum, name="job_status", native_enum=True),
-        nullable=True,
-    )
     current_status: Mapped[JobStatusEnum] = mapped_column(
         Enum(JobStatusEnum, name="job_status", native_enum=True),
         nullable=False,

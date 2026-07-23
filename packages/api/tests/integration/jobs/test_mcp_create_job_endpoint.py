@@ -116,7 +116,6 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
 
     assert len(created_events) == 1
     assert created_events[0].event_type == JobEventTypeEnum.TASK_PUBLISHED.value
-    assert created_events[0].previous_status is None
     assert created_events[0].current_status == JobStatusEnum.PUBLISHED
     assert created_events[0].actor_agent_id == source_agent.id
     assert created_events[0].payload_json == {

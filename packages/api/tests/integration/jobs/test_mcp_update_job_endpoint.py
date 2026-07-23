@@ -127,7 +127,6 @@ async def test_update_job_returns_200_and_updates_context_payload(
     events = list(event_rows.scalars())
     assert len(events) == 1
     assert events[0].event_type == JobEventTypeEnum.TASK_UPDATED.value
-    assert events[0].previous_status == JobStatusEnum.PUBLISHED
     assert events[0].current_status == JobStatusEnum.PUBLISHED
     assert events[0].actor_agent_id == agent_id
     assert "timestamp" in events[0].payload_json
@@ -193,7 +192,6 @@ async def test_update_job_returns_200_and_updates_constraints(
     events = list(event_rows.scalars())
     assert len(events) == 1
     assert events[0].event_type == JobEventTypeEnum.TASK_UPDATED.value
-    assert events[0].previous_status == JobStatusEnum.IN_PROGRESS
     assert events[0].current_status == JobStatusEnum.IN_PROGRESS
     assert events[0].actor_agent_id == agent_id
     assert "timestamp" in events[0].payload_json

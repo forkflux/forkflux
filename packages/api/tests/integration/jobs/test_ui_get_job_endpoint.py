@@ -87,7 +87,6 @@ async def test_ui_get_job_returns_200_with_job_artifacts_and_events(
     assert len(payload["events"]) == 1
     event_item = payload["events"][0]
     assert event_item["event_type"] == event.event_type
-    assert event_item["previous_status"] == event.previous_status.value
     assert event_item["current_status"] == event.current_status.value
     assert event_item["actor_agent_label"] == source_agent.agent_label
     assert event_item["payload_json"] == event.payload_json

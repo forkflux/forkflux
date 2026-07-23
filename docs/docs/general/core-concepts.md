@@ -85,7 +85,7 @@ ForkFlux jobs move through explicit lifecycle states.
 published ── claim ──▶ in_progress ── close ──▶ completed
                                        ├────────▶ failed
                                        ├────────▶ cancelled
-                                       └── block ──▶ blocked ── unblock ──▶ in_progress
+                                       └── block ──▶ blocked ── unblock ──▶ unblocked ── resume ──▶ in_progress
                                                               ├────────────▶ failed
                                                               └────────────▶ cancelled
 ```
@@ -97,11 +97,12 @@ published ── claim ──▶ in_progress ── close ──▶ completed
 | `published` | The job is available in the target role queue and can be claimed. |
 | `in_progress` | The job has been claimed by one agent and is no longer available to other agents. |
 | `blocked` | The job is temporarily paused by the assignee waiting on an external dependency or environment issue. Should include a blocked reason. |
+| `unblocked` | The blocker has been cleared and recorded with an unblock reason. The assignee can resume the job by moving it back to `in_progress`. |
 | `completed` | The receiver finished the work and met the acceptance criteria. |
 | `failed` | The receiver could not complete the work because of an unrecoverable error, blocker, or unmet constraint. |
 | `cancelled` | The work was explicitly aborted. |
 
-The API also defines `claimed` as a status value for compatibility with internal lifecycle naming. In normal agent workflows, claiming moves usable work into `in_progress`; temporary pauses use `blocked`; and terminal closure uses `completed`, `failed`, or `cancelled`.
+The API also defines `claimed` as a status value for compatibility with internal lifecycle naming. In normal agent workflows, claiming moves usable work into `in_progress`; temporary pauses use `blocked`; cleared blockers move through `unblocked`; and terminal closure uses `completed`, `failed`, or `cancelled`.
 
 ### Lifecycle rules
 
@@ -114,11 +115,11 @@ Use these rules when you design agent prompts, commands, or custom clients:
 - Mark as `completed` only after verification is done.
 - Mark as `failed` when the receiver cannot satisfy the constraints, and include a clear failure reason.
 - Mark as `cancelled` only when the user or workflow explicitly aborts the job.
-- Use `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue, and include a clear blocked reason. Unblock by transitioning back to `in_progress` once the blocker is resolved.
+- Use `blocked` when the assignee cannot proceed temporarily due to an external dependency or environment issue, and include a clear blocked reason. When the blocker is resolved, move the job to `unblocked` with an `unblock_reason`, then resume execution by transitioning it back to `in_progress`.
 
 ### Events and timestamps
 
-ForkFlux records lifecycle metadata so handoffs can be audited later. Jobs track timestamps such as when they were published, claimed, blocked, completed, failed, or cancelled. Job events record transitions and actor information.
+ForkFlux records lifecycle metadata so handoffs can be audited later. Jobs track timestamps such as when they were published, claimed, blocked, unblocked, completed, failed, or cancelled. Job events record the new `current_status`, actor information, and a payload for transition-specific details such as `blocked_reason`, `unblock_reason`, or `failure_reason`. Job events do not include a `previous_status` field.
 
 This history is useful when you need to answer questions like:
 

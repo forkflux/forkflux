@@ -641,7 +641,7 @@ Lists jobs in the coordination bus.
 | Option | Type | Default | Description |
 |---|---:|---:|---|
 | `--limit` | `INTEGER` | `50` | Maximum number of jobs to show. |
-| `--status` | `CHOICE` | none | Filter by job status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `completed`, `failed`, `cancelled`. |
+| `--status` | `CHOICE` | none | Filter by job status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
 | `--target-role-key` | `TEXT` | none | Filter jobs by target role key. |
 
 Examples:
@@ -774,13 +774,14 @@ Changes a job's lifecycle status on behalf of an agent.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `JOB_ID` | `INTEGER` | Yes | Numeric job ID to update. |
-| `STATUS` | `CHOICE` | Yes | New status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `completed`, `failed`, `cancelled`. |
+| `STATUS` | `CHOICE` | Yes | New status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
 | `AGENT_ID` | `INTEGER` | Yes | Numeric ID of the agent performing the status change. |
 
 | Option | Type | Default | Description |
 |---|---:|---:|---|
 | `--failure-reason` | `TEXT` | none | Optional explanation for failed work. |
 | `--blocked-reason` | `TEXT` | none | Optional explanation for blocked work. |
+| `--unblock-reason` | `TEXT` | none | Optional explanation for unblocked work. |
 
 Examples:
 
@@ -830,7 +831,8 @@ Use lifecycle statuses according to the intended outcome:
 | `completed` | The receiving agent completed the work and met the acceptance criteria. |
 | `failed` | The receiving agent cannot complete the work because of an unrecoverable issue. |
 | `cancelled` | The user or workflow explicitly abandoned the work. |
-| `blocked` | The receiving agent cannot proceed temporarily due to an external dependency or environment issue. Use `--blocked-reason` to explain the blocker. Transition back to `in_progress` once resolved. |
+| `blocked` | The receiving agent cannot proceed temporarily due to an external dependency or environment issue. Use `--blocked-reason` to explain the blocker. |
+| `unblocked` | The blocker has been resolved. Use `--unblock-reason` to explain what changed, then transition back to `in_progress` to resume execution. |
 
 ## Manual setup example
 

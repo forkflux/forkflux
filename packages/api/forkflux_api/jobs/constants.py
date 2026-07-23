@@ -6,6 +6,7 @@ class JobStatusEnum(str, Enum):
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     BLOCKED = "blocked"
+    UNBLOCKED = "unblocked"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -35,3 +36,34 @@ class JobEventTypeEnum(str, Enum):
     TASK_BLOCKED = "task_blocked"
     TASK_UNBLOCKED = "task_unblocked"
     TASK_UPDATED = "task_updated"
+
+
+_DEFAULT_EVENT_TYPE_BY_TARGET: dict[JobStatusEnum, JobEventTypeEnum] = {
+    JobStatusEnum.IN_PROGRESS: JobEventTypeEnum.TASK_STARTED,
+    JobStatusEnum.COMPLETED: JobEventTypeEnum.TASK_COMPLETED,
+    JobStatusEnum.FAILED: JobEventTypeEnum.TASK_FAILED,
+    JobStatusEnum.BLOCKED: JobEventTypeEnum.TASK_BLOCKED,
+    JobStatusEnum.UNBLOCKED: JobEventTypeEnum.TASK_UNBLOCKED,
+    JobStatusEnum.CANCELLED: JobEventTypeEnum.TASK_CANCELLED,
+}
+
+_EVENT_TYPE_OVERRIDES: dict[tuple[JobStatusEnum, JobStatusEnum], JobEventTypeEnum] = {
+    (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS): JobEventTypeEnum.TASK_RESTARTED,
+    (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS): JobEventTypeEnum.TASK_UNBLOCKED,
+}
+
+
+def resolve_event_type(previous: JobStatusEnum, target: JobStatusEnum) -> JobEventTypeEnum:
+    """Resolve the event type for a status transition.
+
+    Most transitions map to a default event type based solely on the target
+    status. Two transitions override this default because they represent
+    recovery from a problem state rather than a fresh start:
+
+    * ``FAILED -> IN_PROGRESS``  → ``TASK_RESTARTED``
+    * ``BLOCKED -> IN_PROGRESS`` → ``TASK_UNBLOCKED``
+    """
+    return _EVENT_TYPE_OVERRIDES.get(
+        (previous, target),
+        _DEFAULT_EVENT_TYPE_BY_TARGET[target],
+    )

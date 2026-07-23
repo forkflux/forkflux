@@ -92,12 +92,14 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
         constraints=["deadline:today"],
         failure_reason=None,
         blocked_reason=None,
+        unblock_reason=None,
         published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         claimed_at=None,
         started_at=None,
         completed_at=None,
         failed_at=None,
         blocked_at=None,
+        unblocked_at=None,
         cancelled_at=None,
         expires_at=None,
         created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
@@ -107,7 +109,6 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
     expected_events = [
         JobEventUiItem(
             event_type="task_published",
-            previous_status=None,
             current_status=JobStatusEnum.PUBLISHED,
             actor_agent_label="source-agent",
             payload_json={"priority": "normal"},
@@ -232,6 +233,7 @@ async def test_handoff_job_service_count_jobs_by_status_delegates_and_returns_co
         JobStatusEnum.CLAIMED: 0,
         JobStatusEnum.IN_PROGRESS: 2,
         JobStatusEnum.BLOCKED: 1,
+        JobStatusEnum.UNBLOCKED: 0,
         JobStatusEnum.COMPLETED: 10,
         JobStatusEnum.FAILED: 3,
         JobStatusEnum.CANCELLED: 1,
@@ -291,6 +293,7 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
                 JobStatusEnum.CLAIMED: 3,
                 JobStatusEnum.IN_PROGRESS: 2,
                 JobStatusEnum.BLOCKED: 5,
+                JobStatusEnum.UNBLOCKED: 2,
                 JobStatusEnum.COMPLETED: 30,
                 JobStatusEnum.FAILED: 4,
                 JobStatusEnum.CANCELLED: 1,
@@ -300,6 +303,7 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
                 JobStatusEnum.CLAIMED: 1,
                 JobStatusEnum.IN_PROGRESS: 1,
                 JobStatusEnum.BLOCKED: 1,
+                JobStatusEnum.UNBLOCKED: 1,
                 JobStatusEnum.COMPLETED: 3,
                 JobStatusEnum.FAILED: 1,
                 JobStatusEnum.CANCELLED: 1,
@@ -340,11 +344,13 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
     assert result.queue_status_counts[JobStatusEnum.CLAIMED] == 1
     assert result.queue_status_counts[JobStatusEnum.IN_PROGRESS] == 1
     assert result.queue_status_counts[JobStatusEnum.BLOCKED] == 1
+    assert result.queue_status_counts[JobStatusEnum.UNBLOCKED] == 1
     assert result.terminal_status_counts[JobStatusEnum.COMPLETED] == 3
     assert result.terminal_status_counts[JobStatusEnum.FAILED] == 1
     assert result.terminal_status_counts[JobStatusEnum.CANCELLED] == 1
     assert result.all_time_status_counts[JobStatusEnum.COMPLETED] == 30
     assert result.all_time_status_counts[JobStatusEnum.BLOCKED] == 5
+    assert result.all_time_status_counts[JobStatusEnum.UNBLOCKED] == 2
     assert result.completion_rate == pytest.approx(3 / 8)
     assert result.failure_rate == pytest.approx(1 / 8)
     assert result.blocked_rate == pytest.approx(1 / 8)
@@ -404,7 +410,13 @@ async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data()
     assert result.p50_time_to_resolution_minutes is None
     assert result.p90_time_to_resolution_minutes is None
     for status in JobStatusEnum:
-        if status in {JobStatusEnum.PUBLISHED, JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED}:
+        if status in {
+            JobStatusEnum.PUBLISHED,
+            JobStatusEnum.CLAIMED,
+            JobStatusEnum.IN_PROGRESS,
+            JobStatusEnum.BLOCKED,
+            JobStatusEnum.UNBLOCKED,
+        }:
             assert result.queue_status_counts[status] == 0
         if status in {JobStatusEnum.COMPLETED, JobStatusEnum.FAILED, JobStatusEnum.CANCELLED}:
             assert result.terminal_status_counts[status] == 0
@@ -471,7 +483,6 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
         dto=JobEventCreate(
             job_id=created_job.id,
             event_type=JobEventTypeEnum.TASK_PUBLISHED,
-            previous_status=None,
             current_status=JobStatusEnum.PUBLISHED,
             actor_agent_id=10,
             payload_json={
@@ -647,7 +658,6 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_STARTED
-    assert event_dto.previous_status == JobStatusEnum.CLAIMED
     assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
@@ -685,7 +695,6 @@ async def test_handoff_job_service_change_job_status_sets_completed_at_for_assig
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_COMPLETED
-    assert event_dto.previous_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.current_status == JobStatusEnum.COMPLETED
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
@@ -731,7 +740,6 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_FAILED
-    assert event_dto.previous_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.current_status == JobStatusEnum.FAILED
     assert event_dto.actor_agent_id == 10
     assert event_dto.payload_json["failure_reason"] == failure_reason
@@ -770,7 +778,6 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_CANCELLED
-    assert event_dto.previous_status == JobStatusEnum.CLAIMED
     assert event_dto.current_status == JobStatusEnum.CANCELLED
     assert event_dto.actor_agent_id == 42
     assert "timestamp" in event_dto.payload_json
@@ -892,7 +899,6 @@ async def test_handoff_job_service_change_job_status_restarts_from_failed_for_as
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_RESTARTED
-    assert event_dto.previous_status == JobStatusEnum.FAILED
     assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
@@ -966,7 +972,6 @@ async def test_handoff_job_service_change_job_status_sets_blocked_at_and_blocked
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_BLOCKED
-    assert event_dto.previous_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.current_status == JobStatusEnum.BLOCKED
     assert event_dto.actor_agent_id == 10
     assert event_dto.payload_json["blocked_reason"] == blocked_reason
@@ -1007,7 +1012,6 @@ async def test_handoff_job_service_change_job_status_unblocks_and_clears_blocked
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_UNBLOCKED
-    assert event_dto.previous_status == JobStatusEnum.BLOCKED
     assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
@@ -1052,7 +1056,6 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_failed_clea
     job_event_repo.create.assert_awaited_once()
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.event_type == JobEventTypeEnum.TASK_FAILED
-    assert event_dto.previous_status == JobStatusEnum.BLOCKED
     assert event_dto.current_status == JobStatusEnum.FAILED
 
 
@@ -1088,7 +1091,6 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_cancelled_c
     job_event_repo.create.assert_awaited_once()
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.event_type == JobEventTypeEnum.TASK_CANCELLED
-    assert event_dto.previous_status == JobStatusEnum.BLOCKED
     assert event_dto.current_status == JobStatusEnum.CANCELLED
 
 
@@ -1153,7 +1155,6 @@ async def test_handoff_job_service_update_job_updates_context_payload_and_create
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 123
     assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
-    assert event_dto.previous_status == JobStatusEnum.PUBLISHED
     assert event_dto.current_status == JobStatusEnum.PUBLISHED
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
@@ -1195,7 +1196,6 @@ async def test_handoff_job_service_update_job_updates_constraints_and_creates_ev
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 456
     assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
-    assert event_dto.previous_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.actor_agent_id == 20
     assert "timestamp" in event_dto.payload_json
@@ -1239,7 +1239,6 @@ async def test_handoff_job_service_update_job_updates_both_fields_and_creates_ev
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.job_id == 789
     assert event_dto.event_type == JobEventTypeEnum.TASK_UPDATED
-    assert event_dto.previous_status == JobStatusEnum.PUBLISHED
     assert event_dto.current_status == JobStatusEnum.PUBLISHED
     assert event_dto.actor_agent_id == 30
     assert "timestamp" in event_dto.payload_json
@@ -1271,4 +1270,263 @@ async def test_handoff_job_service_update_job_raises_not_found_when_job_missing(
 
     repository.get_by_id_for_update.assert_awaited_once_with(job_id=999)
     repository.update.assert_not_called()
+    job_event_repo.create.assert_not_called()
+
+
+async def test_handoff_job_service_change_job_status_sets_unblock_reason_and_unblocked_at() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.BLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    unblock_reason = "dependency resolved, ready to resume"
+    await service.change_job_status(
+        job_id=123,
+        status=JobStatusEnum.UNBLOCKED,
+        unblock_reason=unblock_reason,
+    )
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.UNBLOCKED
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.unblocked_at, datetime)
+    assert job.unblock_reason == unblock_reason
+    assert job.blocked_at is None
+    assert job.blocked_reason is None
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.job_id == 123
+    assert event_dto.event_type == JobEventTypeEnum.TASK_UNBLOCKED
+    assert event_dto.current_status == JobStatusEnum.UNBLOCKED
+    assert event_dto.actor_agent_id is None
+    assert event_dto.payload_json["unblock_reason"] == unblock_reason
+    assert "timestamp" in event_dto.payload_json
+
+
+async def test_handoff_job_service_change_job_status_unblocks_without_agent_id() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.BLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    unblock_reason = "external blocker resolved by admin"
+    await service.change_job_status(
+        job_id=123,
+        status=JobStatusEnum.UNBLOCKED,
+        unblock_reason=unblock_reason,
+    )
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.UNBLOCKED
+    assert job.unblock_reason == unblock_reason
+
+
+async def test_handoff_job_service_change_job_status_resumes_from_unblocked_for_assignee() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.UNBLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
+
+    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.IN_PROGRESS
+    assert isinstance(job.updated_at, datetime)
+    assert isinstance(job.started_at, datetime)
+    assert job.unblock_reason is None
+    assert job.unblocked_at is None
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.job_id == 123
+    assert event_dto.event_type == JobEventTypeEnum.TASK_STARTED
+    assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
+    assert event_dto.actor_agent_id == 10
+    assert "timestamp" in event_dto.payload_json
+
+
+async def test_handoff_job_service_change_job_status_fails_from_unblocked_clears_unblock_fields() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.UNBLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    failure_reason = "unblock revealed unrecoverable issue"
+    await service.change_job_status(
+        job_id=123,
+        status=JobStatusEnum.FAILED,
+        agent_id=10,
+        failure_reason=failure_reason,
+    )
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.FAILED
+    assert job.failure_reason == failure_reason
+    assert isinstance(job.failed_at, datetime)
+    assert job.unblock_reason is None
+    assert job.unblocked_at is None
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.event_type == JobEventTypeEnum.TASK_FAILED
+    assert event_dto.current_status == JobStatusEnum.FAILED
+
+
+async def test_handoff_job_service_change_job_status_cancels_from_unblocked_clears_unblock_fields() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.UNBLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent_id=10)
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.CANCELLED
+    assert isinstance(job.cancelled_at, datetime)
+    assert job.unblock_reason is None
+    assert job.unblocked_at is None
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.event_type == JobEventTypeEnum.TASK_CANCELLED
+    assert event_dto.current_status == JobStatusEnum.CANCELLED
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_when_non_assignee_resumes_from_unblocked() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.UNBLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=99)
+
+    repository.save.assert_not_called()
+    job_event_repo.create.assert_not_called()
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_when_non_assignee_unblocks() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.BLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(
+            job_id=123,
+            status=JobStatusEnum.UNBLOCKED,
+            agent_id=99,
+            unblock_reason="non-assignee trying to unblock",
+        )
+
+    repository.save.assert_not_called()
     job_event_repo.create.assert_not_called()

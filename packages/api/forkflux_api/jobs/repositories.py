@@ -55,12 +55,14 @@ class HandoffJobRepository:
             constraints=dto.constraints,
             failure_reason=None,
             blocked_reason=None,
+            unblock_reason=None,
             published_at=now,
             claimed_at=None,
             started_at=None,
             completed_at=None,
             failed_at=None,
             blocked_at=None,
+            unblocked_at=None,
             cancelled_at=None,
             expires_at=None,
             created_at=now,
@@ -157,12 +159,14 @@ class HandoffJobRepository:
             constraints=row.constraints,
             failure_reason=row.failure_reason,
             blocked_reason=row.blocked_reason,
+            unblock_reason=row.unblock_reason,
             published_at=row.published_at,
             claimed_at=row.claimed_at,
             started_at=row.started_at,
             completed_at=row.completed_at,
             failed_at=row.failed_at,
             blocked_at=row.blocked_at,
+            unblocked_at=row.unblocked_at,
             cancelled_at=row.cancelled_at,
             expires_at=row.expires_at,
             created_at=row.created_at,
@@ -192,12 +196,14 @@ class HandoffJobRepository:
                 HandoffJob.constraints.label("constraints"),
                 HandoffJob.failure_reason.label("failure_reason"),
                 HandoffJob.blocked_reason.label("blocked_reason"),
+                HandoffJob.unblock_reason.label("unblock_reason"),
                 HandoffJob.published_at.label("published_at"),
                 HandoffJob.claimed_at.label("claimed_at"),
                 HandoffJob.started_at.label("started_at"),
                 HandoffJob.completed_at.label("completed_at"),
                 HandoffJob.failed_at.label("failed_at"),
                 HandoffJob.blocked_at.label("blocked_at"),
+                HandoffJob.unblocked_at.label("unblocked_at"),
                 HandoffJob.cancelled_at.label("cancelled_at"),
                 HandoffJob.expires_at.label("expires_at"),
                 HandoffJob.created_at.label("created_at"),
@@ -382,7 +388,12 @@ class HandoffJobRepository:
         window_start = now - timedelta(hours=window_hours)
         stuck_before = now - timedelta(minutes=stuck_minutes)
 
-        active_statuses = [JobStatusEnum.PUBLISHED, JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS]
+        active_statuses = [
+            JobStatusEnum.PUBLISHED,
+            JobStatusEnum.CLAIMED,
+            JobStatusEnum.IN_PROGRESS,
+            JobStatusEnum.UNBLOCKED,
+        ]
 
         total_jobs = int(
             (
@@ -587,7 +598,6 @@ class JobEventRepository:
         job_event = JobEvent(
             job_id=dto.job_id,
             event_type=dto.event_type.value,
-            previous_status=dto.previous_status,
             current_status=dto.current_status,
             actor_agent_id=dto.actor_agent_id,
             payload_json=dto.payload_json,
@@ -607,7 +617,6 @@ class JobEventRepository:
     def _map_row_to_ui_item(row: Row[tuple[Any]]) -> JobEventUiItem:
         return JobEventUiItem(
             event_type=row.event_type,
-            previous_status=row.previous_status,
             current_status=row.current_status,
             actor_agent_label=row.actor_agent_label,
             payload_json=row.payload_json,
@@ -623,7 +632,6 @@ class JobEventRepository:
         stmt = (
             select(
                 JobEvent.event_type.label("event_type"),
-                JobEvent.previous_status.label("previous_status"),
                 JobEvent.current_status.label("current_status"),
                 actor_agent.c.agent_label.label("actor_agent_label"),
                 JobEvent.payload_json.label("payload_json"),
