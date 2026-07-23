@@ -26,7 +26,7 @@ A typical cross-device workflow looks like this:
 4. **The target assistant lists jobs** — the assistant fetches published jobs for its role and displays them as a readable table.
 5. **Bob claims work** — Bob selects a job from the board. For example: “Claim the first job from the list.”
 6. **The target assistant locks the job** — the assistant loads the `forkflux-receiver` skill and claims the job atomically, so another assistant does not duplicate the work.
-7. **Bob updates the job** — after the assistant finishes or cannot continue, Bob asks it to mark the job as `blocked`, `completed`, `failed`, or `cancelled` with the result, blocked reason, or failure reason.
+7. **Bob updates the job** — after the assistant finishes or cannot continue, Bob asks it to mark the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled` with the result, blocked reason, unblock reason, or failure reason.
 
 ## Lifecycle
 
@@ -36,7 +36,7 @@ Every handoff follows the same state flow:
 2. **List** — a receiver lists published jobs available to its role.
 3. **Claim** — the receiver atomically claims one job.
 4. **Execute** — the receiver completes the work using the packaged context.
-5. **Update** — the receiver marks the job as `blocked`, `completed`, `failed`, or `cancelled`, or resumes blocked work as `in_progress`.
+5. **Update** — the receiver marks the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled`, or resumes unblocked work as `in_progress`.
 
 ## Sender workflow
 

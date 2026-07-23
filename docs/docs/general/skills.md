@@ -48,7 +48,7 @@ The skill guides the target agent to:
 3. Claim the selected job atomically.
 4. Unpack constraints, context, and artifacts before execution.
 5. Execute the task locally.
-6. Update the job as `blocked`, `completed`, `failed`, or `cancelled` with useful evidence, or resume blocked work as `in_progress`.
+6. Update the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled` with useful evidence, or resume unblocked work as `in_progress`.
 
 The receiver skill is strict about lifecycle states. It should not mark work as `completed` unless acceptance criteria are met and relevant verification has passed, and it should use `blocked` instead of `failed` for temporary blockers.
 

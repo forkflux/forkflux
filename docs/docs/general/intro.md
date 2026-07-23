@@ -59,13 +59,13 @@ The standard workflow is:
 2. **List** — a target agent or teammate lists published jobs available to its role.
 3. **Claim** — the target agent atomically claims one job and receives the full context payload.
 4. **Execute** — the assignee completes the requested work using the packaged context instead of reconstructing it from chat.
-5. **Update** — the assignee marks the job as `blocked`, `completed`, `failed`, or `cancelled` and records the result, blocked reason, or failure reason.
+5. **Update** — the assignee marks the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled` and records the result, blocked reason, unblock reason, or failure reason.
 
 This lifecycle keeps the bus deterministic:
 
 - Jobs start as `published`.
 - Claiming moves a job to `in_progress`.
-- Lifecycle updates can temporarily move a job to `blocked`, resume it as `in_progress`, or close it with a terminal state: `completed`, `failed`, or `cancelled`.
+- Lifecycle updates can temporarily move a job to `blocked`, record a cleared blocker as `unblocked`, resume it as `in_progress`, or close it with a terminal state: `completed`, `failed`, or `cancelled`.
 - Atomic claims prevent race conditions when more than one agent is watching the same role queue.
 
 The bus is role-oriented rather than person-oriented. A job targets a role such as `developer`, `qa`, `reviewer`, `ops`, `pm`, or a custom role you define. Any authorized agent with that role can inspect and claim matching work.

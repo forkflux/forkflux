@@ -57,7 +57,7 @@ The ForkFlux MCP server currently exposes four prompts.
 | `board` | View published jobs available for the current agent role. | `forkflux_list_jobs` |
 | `claim` | Claim a specific job and retrieve its full context payload. | `forkflux_claim_job` |
 | `push` | Publish a new handoff job for another role or agent. | `forkflux_create_job` |
-| `close` | Update a claimed job as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
+| `close` | Update a claimed job as `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
 
 Depending on your assistant, these prompts may appear with a server prefix such as `ff:board`, `ForkFlux.board`, or another MCP-server-specific label.
 
@@ -153,11 +153,12 @@ Use `close` when a claimed job needs a lifecycle update, including a temporary b
 The prompt instructs the assistant to:
 
 1. Confirm the job ID and target status.
-2. Validate that the target status is one of `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
+2. Validate that the target status is one of `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
 3. Require a detailed failure reason when the target status is `failed`.
 4. Require a detailed blocked reason when the target status is `blocked`.
-5. Call `forkflux_change_job_status`.
-6. Return a concise status update instead of raw JSON.
+5. Require a detailed unblock reason when the target status is `unblocked`.
+6. Call `forkflux_change_job_status`.
+7. Return a concise status update instead of raw JSON.
 
 Example requests:
 
@@ -165,6 +166,7 @@ Example requests:
 Close ForkFlux job 123 as completed.
 Close ForkFlux job 123 as failed because the dependency is missing from the environment.
 Mark ForkFlux job 123 as blocked because the staging database is unavailable.
+Mark ForkFlux job 123 as unblocked because the staging database is available again.
 Cancel ForkFlux job 123 at the user's request.
 ```
 
@@ -177,7 +179,7 @@ For a target agent receiving work:
 1. Run `board` to view available jobs.
 2. Run `claim` for the selected job.
 3. Complete the work locally.
-4. Run `close` with `blocked`, `completed`, `failed`, or `cancelled`, or with `in_progress` to resume a blocked job.
+4. Run `close` with `blocked`, `completed`, `failed`, or `cancelled`; use `unblocked` to record that a blocker has been cleared; use `in_progress` to resume an unblocked job.
 
 For a source agent handing off work:
 

@@ -77,7 +77,7 @@ import urllib.request
 import os
 
 BASE_URL = os.getenv("FORKFLUX_API_URL") or "http://localhost:8000/api/v1"
-URL = f"{BASE_URL}/jobs?limit=5&status=published&status=in_progress&status=blocked"
+URL = f"{BASE_URL}/jobs?limit=5&status=published&status=in_progress&status=blocked&status=unblocked"
 TOKEN = os.getenv("FORKFLUX_API_KEY")
 REQUEST_TIMEOUT_SECONDS = 10
 

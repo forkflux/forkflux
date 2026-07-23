@@ -694,6 +694,7 @@ async def change_job_status(
     agent_id: int,
     failure_reason: str | None = None,
     blocked_reason: str | None = None,
+    unblock_reason: str | None = None,
 ) -> None:
     _configure_cli_logging()
     trace_id = str(uuid4())
@@ -725,6 +726,7 @@ async def change_job_status(
                 agent_id=agent.id,
                 failure_reason=failure_reason,
                 blocked_reason=blocked_reason,
+                unblock_reason=unblock_reason,
             )
         except HandoffJobNotFoundError:
             console.print(f"Job with id {job_id} not found", style="bold red")

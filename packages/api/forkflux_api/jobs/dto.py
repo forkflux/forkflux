@@ -36,7 +36,6 @@ class JobArtifactCreate:
 class JobEventCreate:
     job_id: int
     event_type: JobEventTypeEnum
-    previous_status: JobStatusEnum | None
     current_status: JobStatusEnum
     actor_agent_id: int | None
     payload_json: dict[str, Any]
@@ -132,7 +131,6 @@ class HandoffJobUiPage:
 @dataclass(slots=True)
 class JobEventUiItem:
     event_type: str
-    previous_status: JobStatusEnum | None
     current_status: JobStatusEnum
     actor_agent_label: str | None
     payload_json: dict[str, Any]
@@ -154,12 +152,14 @@ class HandoffJobUiDetailItem:
     constraints: list[Any]
     failure_reason: str | None
     blocked_reason: str | None
+    unblock_reason: str | None
     published_at: datetime
     claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     failed_at: datetime | None
     blocked_at: datetime | None
+    unblocked_at: datetime | None
     cancelled_at: datetime | None
     expires_at: datetime | None
     created_at: datetime

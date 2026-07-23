@@ -13,7 +13,7 @@ Use this package when you want AI agents on separate machines or workspaces to e
 - `forkflux_job_details` — retrieve full details for a specific job by ID.
 - `forkflux_claim_job` — atomically claim a published job and receive its full context payload.
 - `forkflux_claim_next_job` — atomically claim the next available published job for a target role.
-- `forkflux_change_job_status` — update claimed work as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
+- `forkflux_change_job_status` — update claimed work as `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
 
 ## Requirements
 

@@ -601,8 +601,9 @@ Updates the lifecycle status of a claimed job.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `job_id` | integer | yes | Unique ID of the claimed job. |
-| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. Use `blocked` to temporarily pause. |
+| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. Use `blocked` to temporarily pause and `unblocked` when the blocker is resolved. |
 | `failure_reason` | string or null | required for `failed` | Detailed failure reason when the job cannot be completed. |
 | `blocked_reason` | string or null | required for `blocked` | Detailed explanation of why the job is temporarily blocked. |
+| `unblock_reason` | string or null | required for `unblocked` | Detailed explanation of what changed so the job can resume. |
 
-The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition. Use `blocked` when the assignee cannot proceed temporarily, and transition back to `in_progress` to unblock once the blocker is resolved.
+The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition. Use `blocked` when the assignee cannot proceed temporarily, move the job to `unblocked` with an `unblock_reason` once the blocker is resolved, and then transition back to `in_progress` to resume execution.

@@ -108,12 +108,14 @@ class HandoffJobFactory(BaseSQLAlchemyFactory):
     constraints: list[str] = []
     failure_reason: str | None = None
     blocked_reason: str | None = None
+    unblock_reason: str | None = None
     published_at: datetime = datetime.now(timezone.utc)
     claimed_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
     failed_at: datetime | None = None
     blocked_at: datetime | None = None
+    unblocked_at: datetime | None = None
     cancelled_at: datetime | None = None
     expires_at: datetime | None = None
     created_at: datetime = datetime.now(timezone.utc)
@@ -136,7 +138,6 @@ class JobEventFactory(BaseSQLAlchemyFactory):
     __model__ = JobEvent
 
     event_type = Use(lambda: f"event-type-{next(JobEventFactory._counter)}")
-    previous_status: JobStatusEnum | None = JobStatusEnum.PUBLISHED
     current_status: JobStatusEnum = JobStatusEnum.CLAIMED
     actor_agent_id: int | None = None
     payload_json = Use(lambda: {"source": "factory", "version": 1})

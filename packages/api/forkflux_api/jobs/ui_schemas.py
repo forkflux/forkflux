@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 
@@ -51,7 +51,6 @@ class JobEventUiItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     event_type: str
-    previous_status: JobStatusEnum | None
     current_status: JobStatusEnum
     actor_agent_label: str | None
     payload_json: dict[str, Any]
@@ -78,6 +77,7 @@ class JobUiDetailItem(BaseModel):
     events: list[JobEventUiItem]
     failure_reason: str | None
     blocked_reason: str | None
+    unblock_reason: str | None
 
     published_at: datetime
     claimed_at: datetime | None
@@ -85,8 +85,32 @@ class JobUiDetailItem(BaseModel):
     completed_at: datetime | None
     failed_at: datetime | None
     blocked_at: datetime | None
+    unblocked_at: datetime | None
     cancelled_at: datetime | None
     expires_at: datetime | None
 
     created_at: datetime
     updated_at: datetime
+
+
+class UnblockJobRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    unblock_reason: str
+
+    @field_validator("unblock_reason")
+    @classmethod
+    def _strip_and_require_non_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("unblock_reason must not be blank or whitespace-only")
+        return stripped
+
+
+class UnblockJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: int
+    previous_status: JobStatusEnum
+    new_status: JobStatusEnum
+    unblock_reason: str

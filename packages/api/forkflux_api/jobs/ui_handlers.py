@@ -4,7 +4,7 @@ from fastapi import status as http_status
 from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.dependencies import get_handoff_job_service
 from forkflux_api.jobs.dto import HandoffJobFilterParams
-from forkflux_api.jobs.exceptions import HandoffJobNotFoundError
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.services import HandoffJobService
 from forkflux_api.jobs.ui_schemas import (
     JobArtifactUiItem,
@@ -13,6 +13,8 @@ from forkflux_api.jobs.ui_schemas import (
     JobUiDetailItem,
     JobUiListItem,
     JobUiListResponse,
+    UnblockJobRequest,
+    UnblockJobResponse,
 )
 
 router = APIRouter(prefix="/jobs", tags=["ui"])
@@ -105,7 +107,6 @@ async def get_job(
         events=[
             JobEventUiItem(
                 event_type=event.event_type,
-                previous_status=event.previous_status,
                 current_status=event.current_status,
                 actor_agent_label=event.actor_agent_label,
                 payload_json=event.payload_json,
@@ -115,14 +116,44 @@ async def get_job(
         ],
         failure_reason=job.failure_reason,
         blocked_reason=job.blocked_reason,
+        unblock_reason=job.unblock_reason,
         published_at=job.published_at,
         claimed_at=job.claimed_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
         failed_at=job.failed_at,
         blocked_at=job.blocked_at,
+        unblocked_at=job.unblocked_at,
         cancelled_at=job.cancelled_at,
         expires_at=job.expires_at,
         created_at=job.created_at,
         updated_at=job.updated_at,
+    )
+
+
+@router.post("/{job_id}/unblock", response_model=UnblockJobResponse)
+async def unblock_job(
+    job_id: int,
+    data: UnblockJobRequest,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+):
+    try:
+        previous_status, new_status = await job_service.change_job_status(
+            job_id=job_id,
+            status=JobStatusEnum.UNBLOCKED,
+            unblock_reason=data.unblock_reason,
+        )
+    except HandoffJobNotFoundError:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=HandoffJobNotFoundError.msg)
+    except HandoffJobConflictError:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Handoff job cannot be unblocked from its current status.",
+        )
+
+    return UnblockJobResponse(
+        job_id=job_id,
+        previous_status=previous_status,
+        new_status=new_status,
+        unblock_reason=data.unblock_reason,
     )

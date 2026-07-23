@@ -5,7 +5,7 @@ from typing import Any
 
 import structlog
 
-from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum
+from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum, resolve_event_type
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
@@ -83,6 +83,7 @@ class HandoffJobService:
             JobStatusEnum.CLAIMED: status_counts[JobStatusEnum.CLAIMED],
             JobStatusEnum.IN_PROGRESS: status_counts[JobStatusEnum.IN_PROGRESS],
             JobStatusEnum.BLOCKED: status_counts[JobStatusEnum.BLOCKED],
+            JobStatusEnum.UNBLOCKED: status_counts[JobStatusEnum.UNBLOCKED],
         }
         terminal_status_counts = {
             JobStatusEnum.COMPLETED: status_counts[JobStatusEnum.COMPLETED],
@@ -178,7 +179,6 @@ class HandoffJobService:
             dto=JobEventCreate(
                 job_id=created_job.id,
                 event_type=JobEventTypeEnum.TASK_PUBLISHED,
-                previous_status=None,
                 current_status=JobStatusEnum.PUBLISHED,
                 actor_agent_id=source_agent_id,
                 payload_json={
@@ -320,9 +320,10 @@ class HandoffJobService:
         self,
         job_id: int,
         status: JobStatusEnum,
-        agent_id: int,
+        agent_id: int | None = None,
         failure_reason: str | None = None,
         blocked_reason: str | None = None,
+        unblock_reason: str | None = None,
     ) -> tuple[JobStatusEnum, JobStatusEnum]:
         log = self._logger.bind(
             method="change_job_status", job_id=job_id, target_status=status.value, agent_id=agent_id
@@ -339,9 +340,12 @@ class HandoffJobService:
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
             (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS),
-            (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS),
+            (JobStatusEnum.BLOCKED, JobStatusEnum.UNBLOCKED),
             (JobStatusEnum.BLOCKED, JobStatusEnum.FAILED),
             (JobStatusEnum.BLOCKED, JobStatusEnum.CANCELLED),
+            (JobStatusEnum.UNBLOCKED, JobStatusEnum.IN_PROGRESS),
+            (JobStatusEnum.UNBLOCKED, JobStatusEnum.FAILED),
+            (JobStatusEnum.UNBLOCKED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED),
         }
@@ -354,7 +358,9 @@ class HandoffJobService:
             )
             raise HandoffJobConflictError
 
-        if current_status == JobStatusEnum.PUBLISHED and status == JobStatusEnum.CANCELLED:
+        if status == JobStatusEnum.UNBLOCKED and agent_id is None:
+            pass  # UI/admin unblock — skip assignee authorization check
+        elif current_status == JobStatusEnum.PUBLISHED and status == JobStatusEnum.CANCELLED:
             if job.source_agent_id != agent_id:
                 log.warning(
                     "operation_failed",
@@ -384,43 +390,44 @@ class HandoffJobService:
         job.status = status
         job.updated_at = timestamp
 
-        event_type: JobEventTypeEnum
+        event_type = resolve_event_type(current_status, status)
         event_payload: dict[str, Any] = {"timestamp": timestamp.isoformat()}
 
+        # Clear fields from the previous problem state (if any).
+        job.cancelled_at = None
+        job.failed_at = None
+        job.failure_reason = None
+        job.blocked_at = None
+        job.blocked_reason = None
+        job.unblock_reason = None
+        job.unblocked_at = None
+
+        # Set fields for the target state.
         if status == JobStatusEnum.IN_PROGRESS:
             job.started_at = timestamp
-            if current_status == JobStatusEnum.FAILED:
-                job.failed_at = None
-                job.failure_reason = None
-                event_type = JobEventTypeEnum.TASK_RESTARTED
-            elif current_status == JobStatusEnum.BLOCKED:
-                job.blocked_at = None
-                job.blocked_reason = None
-                event_type = JobEventTypeEnum.TASK_UNBLOCKED
-            else:
-                event_type = JobEventTypeEnum.TASK_STARTED
         elif status == JobStatusEnum.COMPLETED:
             job.completed_at = timestamp
-            event_type = JobEventTypeEnum.TASK_COMPLETED
         elif status == JobStatusEnum.FAILED:
             job.failure_reason = failure_reason
             job.failed_at = timestamp
-            if current_status == JobStatusEnum.BLOCKED:
-                job.blocked_at = None
-                job.blocked_reason = None
-            event_type = JobEventTypeEnum.TASK_FAILED
             event_payload["failure_reason"] = failure_reason
         elif status == JobStatusEnum.BLOCKED:
             job.blocked_reason = blocked_reason
             job.blocked_at = timestamp
-            event_type = JobEventTypeEnum.TASK_BLOCKED
             event_payload["blocked_reason"] = blocked_reason
+        elif status == JobStatusEnum.UNBLOCKED:
+            if not unblock_reason:
+                log.warning(
+                    "operation_failed",
+                    reason="missing_unblock_reason",
+                    current_status=current_status.value,
+                )
+                raise HandoffJobConflictError
+            job.unblock_reason = unblock_reason
+            job.unblocked_at = timestamp
+            event_payload["unblock_reason"] = unblock_reason
         elif status == JobStatusEnum.CANCELLED:
             job.cancelled_at = timestamp
-            if current_status == JobStatusEnum.BLOCKED:
-                job.blocked_at = None
-                job.blocked_reason = None
-            event_type = JobEventTypeEnum.TASK_CANCELLED
 
         await self._handoff_job_repo.save(job=job)
 
@@ -428,7 +435,6 @@ class HandoffJobService:
             dto=JobEventCreate(
                 job_id=job_id,
                 event_type=event_type,
-                previous_status=current_status,
                 current_status=status,
                 actor_agent_id=agent_id,
                 payload_json=event_payload,
@@ -458,7 +464,6 @@ class HandoffJobService:
             dto=JobEventCreate(
                 job_id=job_id,
                 event_type=JobEventTypeEnum.TASK_UPDATED,
-                previous_status=current_status,
                 current_status=current_status,
                 actor_agent_id=agent_id,
                 payload_json={

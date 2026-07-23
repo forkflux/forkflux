@@ -37,7 +37,6 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
     dto = JobEventCreate(
         job_id=handoff_job.id,
         event_type=JobEventTypeEnum.TASK_PUBLISHED,
-        previous_status=JobStatusEnum.PUBLISHED,
         current_status=JobStatusEnum.CLAIMED,
         actor_agent_id=source_agent.id,
         payload_json={"source": "integration-test", "reason": "claimed"},
@@ -50,7 +49,6 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
     assert created_event.id is not None
     assert created_event.job_id == handoff_job.id
     assert created_event.event_type == dto.event_type
-    assert created_event.previous_status == dto.previous_status
     assert created_event.current_status == dto.current_status
     assert created_event.actor_agent_id == dto.actor_agent_id
     assert created_event.payload_json == dto.payload_json
@@ -59,7 +57,6 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
     assert fetched_event is not None
     assert fetched_event.job_id == handoff_job.id
     assert fetched_event.event_type == dto.event_type
-    assert fetched_event.previous_status == dto.previous_status
     assert fetched_event.current_status == dto.current_status
     assert fetched_event.actor_agent_id == dto.actor_agent_id
     assert fetched_event.payload_json == dto.payload_json
@@ -72,7 +69,6 @@ async def test_job_event_repository_create_raises_conflict_on_integrity_error(
     dto = JobEventCreate(
         job_id=999_999,
         event_type=JobEventTypeEnum.TASK_PUBLISHED,
-        previous_status=JobStatusEnum.PUBLISHED,
         current_status=JobStatusEnum.CLAIMED,
         actor_agent_id=None,
         payload_json={"source": "integration-test"},
