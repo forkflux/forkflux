@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
 
@@ -97,6 +97,14 @@ class UnblockJobRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     unblock_reason: str
+
+    @field_validator("unblock_reason")
+    @classmethod
+    def _strip_and_require_non_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("unblock_reason must not be blank or whitespace-only")
+        return stripped
 
 
 class UnblockJobResponse(BaseModel):

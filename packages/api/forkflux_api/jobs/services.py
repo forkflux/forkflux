@@ -340,7 +340,6 @@ class HandoffJobService:
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
             (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS),
-            (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.BLOCKED, JobStatusEnum.UNBLOCKED),
             (JobStatusEnum.BLOCKED, JobStatusEnum.FAILED),
             (JobStatusEnum.BLOCKED, JobStatusEnum.CANCELLED),
@@ -417,6 +416,13 @@ class HandoffJobService:
             job.blocked_at = timestamp
             event_payload["blocked_reason"] = blocked_reason
         elif status == JobStatusEnum.UNBLOCKED:
+            if not unblock_reason:
+                log.warning(
+                    "operation_failed",
+                    reason="missing_unblock_reason",
+                    current_status=current_status.value,
+                )
+                raise HandoffJobConflictError
             job.unblock_reason = unblock_reason
             job.unblocked_at = timestamp
             event_payload["unblock_reason"] = unblock_reason

@@ -15,7 +15,6 @@ from forkflux_api.jobs.constants import (
 _TRANSITION_CASES = [
     # --- overrides (previous status matters) ---
     (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_RESTARTED),
-    (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_UNBLOCKED),
     # --- defaults (target status drives the event type) ---
     (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_STARTED),
     (JobStatusEnum.UNBLOCKED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_STARTED),

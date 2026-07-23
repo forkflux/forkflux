@@ -978,14 +978,13 @@ async def test_handoff_job_service_change_job_status_sets_blocked_at_and_blocked
     assert "timestamp" in event_dto.payload_json
 
 
-async def test_handoff_job_service_change_job_status_unblocks_and_clears_blocked_fields_for_assignee() -> None:
+async def test_handoff_job_service_change_job_status_raises_conflict_when_resuming_directly_from_blocked() -> None:
     repository = Mock()
     repository.get_by_id_for_update = AsyncMock()
     repository.save = AsyncMock()
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
-    job_event_repo.create = AsyncMock()
 
     job = Mock()
     job.status = JobStatusEnum.BLOCKED
@@ -1000,21 +999,11 @@ async def test_handoff_job_service_change_job_status_unblocks_and_clears_blocked
         trace_id="trace-123",
     )
 
-    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
 
-    repository.save.assert_awaited_once_with(job=job)
-    assert job.status == JobStatusEnum.IN_PROGRESS
-    assert isinstance(job.updated_at, datetime)
-    assert isinstance(job.started_at, datetime)
-    assert job.blocked_at is None
-    assert job.blocked_reason is None
-    job_event_repo.create.assert_awaited_once()
-    event_dto = job_event_repo.create.await_args.kwargs["dto"]
-    assert event_dto.job_id == 123
-    assert event_dto.event_type == JobEventTypeEnum.TASK_UNBLOCKED
-    assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
-    assert event_dto.actor_agent_id == 10
-    assert "timestamp" in event_dto.payload_json
+    repository.save.assert_not_called()
+    job_event_repo.create.assert_not_called()
 
 
 async def test_handoff_job_service_change_job_status_from_blocked_to_failed_clears_blocked_fields() -> None:
@@ -1352,6 +1341,38 @@ async def test_handoff_job_service_change_job_status_unblocks_without_agent_id()
     repository.save.assert_awaited_once_with(job=job)
     assert job.status == JobStatusEnum.UNBLOCKED
     assert job.unblock_reason == unblock_reason
+
+
+async def test_handoff_job_service_change_job_status_raises_conflict_when_unblock_reason_missing() -> None:
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.BLOCKED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        trace_id="trace-123",
+    )
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(
+            job_id=123,
+            status=JobStatusEnum.UNBLOCKED,
+            unblock_reason=None,
+        )
+
+    repository.save.assert_not_called()
+    job_event_repo.create.assert_not_called()
 
 
 async def test_handoff_job_service_change_job_status_resumes_from_unblocked_for_assignee() -> None:

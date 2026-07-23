@@ -141,11 +141,13 @@ The command supports the following statuses:
 - `completed` — use only after all acceptance criteria are met and relevant verification has passed.
 - `failed` — use when an unrecoverable error, persistent test failure, or unmet constraint blocks completion.
 - `cancelled` — use when the user explicitly aborts the job.
-- `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `in_progress` to unblock once the blocker is resolved.
+- `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `unblocked` once the blocker is resolved, then `in_progress` to resume execution.
 
 If the target status is `failed`, the assistant must include a useful `failure_reason`.
 
 If the target status is `blocked`, the assistant must include a useful `blocked_reason`.
+
+If the target status is `unblocked`, the assistant must include a useful `unblock_reason`.
 
 Examples:
 

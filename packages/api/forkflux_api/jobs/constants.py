@@ -49,7 +49,6 @@ _DEFAULT_EVENT_TYPE_BY_TARGET: dict[JobStatusEnum, JobEventTypeEnum] = {
 
 _EVENT_TYPE_OVERRIDES: dict[tuple[JobStatusEnum, JobStatusEnum], JobEventTypeEnum] = {
     (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS): JobEventTypeEnum.TASK_RESTARTED,
-    (JobStatusEnum.BLOCKED, JobStatusEnum.IN_PROGRESS): JobEventTypeEnum.TASK_UNBLOCKED,
 }
 
 
@@ -57,11 +56,10 @@ def resolve_event_type(previous: JobStatusEnum, target: JobStatusEnum) -> JobEve
     """Resolve the event type for a status transition.
 
     Most transitions map to a default event type based solely on the target
-    status. Two transitions override this default because they represent
+    status. One transition overrides this default because it represents
     recovery from a problem state rather than a fresh start:
 
-    * ``FAILED -> IN_PROGRESS``  → ``TASK_RESTARTED``
-    * ``BLOCKED -> IN_PROGRESS`` → ``TASK_UNBLOCKED``
+    * ``FAILED -> IN_PROGRESS`` → ``TASK_RESTARTED``
     """
     return _EVENT_TYPE_OVERRIDES.get(
         (previous, target),

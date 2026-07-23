@@ -185,6 +185,104 @@ async def test_ui_unblock_job_returns_422_when_unblock_reason_missing(
     await _assert_no_events_for_job(db_session, job.id)
 
 
+async def test_ui_unblock_job_returns_422_when_unblock_reason_blank(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-unblock-blank-reason-role",
+        role_label="UI Unblock Blank Reason Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-unblock-blank-reason-source-agent",
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-unblock-blank-reason-assignee-agent",
+    )
+
+    old_timestamp = datetime(2026, 2, 14, 9, 0, tzinfo=timezone.utc)
+    job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.BLOCKED,
+        assignee_agent_id=assignee_agent.id,
+        started_at=old_timestamp,
+        claimed_at=old_timestamp,
+        blocked_at=old_timestamp,
+        blocked_reason="waiting on upstream dependency",
+        created_at=old_timestamp,
+        updated_at=old_timestamp,
+        published_at=old_timestamp,
+    )
+
+    response = await client.post(
+        f"/api/v1/ui/jobs/{job.id}/unblock",
+        json={"unblock_reason": ""},
+    )
+
+    assert response.status_code == 422
+
+    persisted_job = await db_session.get(HandoffJob, job.id)
+    assert persisted_job is not None
+    assert persisted_job.status == JobStatusEnum.BLOCKED
+    assert persisted_job.updated_at == old_timestamp
+
+    await _assert_no_events_for_job(db_session, job.id)
+
+
+async def test_ui_unblock_job_returns_422_when_unblock_reason_whitespace_only(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-unblock-whitespace-reason-role",
+        role_label="UI Unblock Whitespace Reason Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-unblock-whitespace-reason-source-agent",
+    )
+    assignee_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-unblock-whitespace-reason-assignee-agent",
+    )
+
+    old_timestamp = datetime(2026, 2, 15, 9, 0, tzinfo=timezone.utc)
+    job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.BLOCKED,
+        assignee_agent_id=assignee_agent.id,
+        started_at=old_timestamp,
+        claimed_at=old_timestamp,
+        blocked_at=old_timestamp,
+        blocked_reason="waiting on upstream dependency",
+        created_at=old_timestamp,
+        updated_at=old_timestamp,
+        published_at=old_timestamp,
+    )
+
+    response = await client.post(
+        f"/api/v1/ui/jobs/{job.id}/unblock",
+        json={"unblock_reason": "   "},
+    )
+
+    assert response.status_code == 422
+
+    persisted_job = await db_session.get(HandoffJob, job.id)
+    assert persisted_job is not None
+    assert persisted_job.status == JobStatusEnum.BLOCKED
+    assert persisted_job.updated_at == old_timestamp
+
+    await _assert_no_events_for_job(db_session, job.id)
+
+
 async def _assert_no_events_for_job(db_session: AsyncSession, job_id: int) -> None:
     event_rows = await db_session.execute(select(JobEvent).where(JobEvent.job_id == job_id).order_by(JobEvent.id.asc()))
     assert list(event_rows.scalars()) == []
