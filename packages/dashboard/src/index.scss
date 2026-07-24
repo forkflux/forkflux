@@ -1,0 +1,290 @@
+/**
+ * Global styles & brand color CSS variables.
+ *
+ * Color system sourced from `.roo/rules/brand-colors.md`.
+ * Dashboard theme: light SaaS surface (#F8FAFC), dark text (#0F172A),
+ * teal primary actions (#14D6B4), violet secondary accents (#7C3AED).
+ */
+
+:root {
+  /* Core surfaces */
+  --ff-color-bg: #0B1220;
+  --ff-color-bg-soft: #111827;
+  --ff-color-surface: #182235;
+  --ff-color-surface-muted: #233044;
+
+  /* Brand */
+  --ff-color-primary: #14D6B4;
+  --ff-color-primary-hover: #0FB99B;
+  --ff-color-primary-soft: #D9FFF7;
+
+  --ff-color-secondary: #7C3AED;
+  --ff-color-secondary-hover: #6D28D9;
+  --ff-color-secondary-soft: #EDE9FE;
+
+  /* Text */
+  --ff-color-text: #F8FAFC;
+  --ff-color-text-muted: #94A3B8;
+  --ff-color-text-dark: #0F172A;
+
+  /* Neutral */
+  --ff-color-border: #334155;
+  --ff-color-muted: #64748B;
+  --ff-color-light: #F8FAFC;
+  --ff-color-light-soft: #F1F5F9;
+
+  /* Semantic */
+  --ff-color-success: #22C55E;
+  --ff-color-warning: #F59E0B;
+  --ff-color-danger: #EF4444;
+  --ff-color-info: #38BDF8;
+
+  /* Gradients */
+  --ff-gradient-hero: linear-gradient(135deg, #0B1220 0%, #182235 45%, #123C4A 100%);
+  --ff-gradient-accent: linear-gradient(135deg, #14D6B4 0%, #7C3AED 100%);
+
+  /* Dashboard theme aliases (light SaaS) */
+  --ff-page-bg: var(--ff-color-light);
+  --ff-page-text: var(--ff-color-text-dark);
+  --ff-page-text-muted: var(--ff-color-muted);
+  --ff-page-border: #E2E8F0;
+  --ff-card-bg: #FFFFFF;
+  --ff-card-border: #E2E8F0;
+
+  /*
+   * On-tint text colors for badges and callouts.
+   * Readable text colors placed on top of the translucent semantic
+   * backgrounds (e.g. rgba(34,197,94,0.12)). Lighter counterparts are
+   * defined in the [data-theme="dark"] block below.
+   */
+  --ff-on-success: #15803d;
+  --ff-on-warning: #b45309;
+  --ff-on-danger: #991b1b;
+  --ff-on-info: #0369a1;
+  --ff-on-primary: #0f766e;
+  --ff-on-neutral: #475569;
+
+  /*
+   * Semantic background / border tokens.
+   *
+   * Translucent tints used by badges, callouts, highlights, and active
+   * states. Each has a `-bg` (fill) and `-border` companion so components
+   * can stay theme-agnostic. Dark-theme overrides below raise the alpha
+   * for legibility on dark surfaces.
+   */
+  --ff-success-bg: rgba(34, 197, 94, 0.12);
+  --ff-success-border: rgba(34, 197, 94, 0.3);
+
+  --ff-warning-bg: rgba(245, 158, 11, 0.12);
+  --ff-warning-border: rgba(245, 158, 11, 0.3);
+  /* Stronger fill for attention states (e.g. blocked-job count). */
+  --ff-warning-bg-strong: rgba(245, 158, 11, 0.18);
+
+  --ff-danger-bg: rgba(239, 68, 68, 0.08);
+  --ff-danger-border: rgba(239, 68, 68, 0.25);
+
+  --ff-info-bg: rgba(56, 189, 248, 0.12);
+  --ff-info-border: rgba(56, 189, 248, 0.3);
+
+  --ff-primary-bg: rgba(20, 214, 180, 0.1);
+  --ff-primary-border: rgba(20, 214, 180, 0.3);
+
+  --ff-secondary-bg: rgba(124, 58, 237, 0.1);
+  --ff-secondary-border: rgba(124, 58, 237, 0.3);
+
+  --ff-neutral-bg: rgba(100, 116, 139, 0.12);
+  --ff-neutral-border: rgba(100, 116, 139, 0.3);
+
+  /* Modal / drawer scrim. Darker in dark theme for focus. */
+  --ff-overlay: rgba(0, 0, 0, 0.4);
+
+  /* Typography */
+  --ff-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --ff-mono: ui-monospace, Consolas, monospace;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --ff-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --ff-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+  /* Radii */
+  --ff-radius-sm: 6px;
+  --ff-radius: 8px;
+  --ff-radius-lg: 12px;
+
+  font: 15px/1.5 var(--ff-sans);
+  color-scheme: light;
+  color: var(--ff-page-text);
+  background: var(--ff-page-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/**
+ * Dark theme overrides.
+ *
+ * Activated by setting `data-theme="dark"` on the <html> element
+ * (see the inline script in index.html and the useTheme hook).
+ * Only the dashboard alias variables are re-pointed to the dark
+ * palette already defined in :root above; brand colors stay the same.
+ */
+[data-theme='dark'] {
+  --ff-page-bg: var(--ff-color-bg);
+  --ff-page-text: var(--ff-color-text);
+  --ff-page-text-muted: var(--ff-color-text-muted);
+  --ff-page-border: var(--ff-color-border);
+  --ff-card-bg: var(--ff-color-surface);
+  --ff-card-border: var(--ff-color-border);
+  --ff-color-light-soft: var(--ff-color-surface-muted);
+
+  /*
+   * Brand soft tints adapt to dark surfaces.
+   * The light-theme solid pastels (#D9FFF7 / #EDE9FE) are too bright on
+   * navy; switch to translucent tints that read as subtle glows.
+   */
+  --ff-color-primary-soft: rgba(20, 214, 180, 0.14);
+  --ff-color-secondary-soft: rgba(124, 58, 237, 0.2);
+
+  /* Lighter on-tint text colors for legibility on dark surfaces. */
+  --ff-on-success: #4ade80;
+  --ff-on-warning: #fbbf24;
+  --ff-on-danger: #fca5a5;
+  --ff-on-info: #7dd3fc;
+  --ff-on-primary: #5eead4;
+  --ff-on-neutral: #cbd5e1;
+
+  /*
+   * Semantic background / border tokens for dark surfaces.
+   * Alpha is raised so tints remain visible against navy/surface colors.
+   */
+  --ff-success-bg: rgba(34, 197, 94, 0.16);
+  --ff-success-border: rgba(34, 197, 94, 0.35);
+
+  --ff-warning-bg: rgba(245, 158, 11, 0.16);
+  --ff-warning-border: rgba(245, 158, 11, 0.35);
+  --ff-warning-bg-strong: rgba(245, 158, 11, 0.24);
+
+  --ff-danger-bg: rgba(239, 68, 68, 0.14);
+  --ff-danger-border: rgba(239, 68, 68, 0.32);
+
+  --ff-info-bg: rgba(56, 189, 248, 0.16);
+  --ff-info-border: rgba(56, 189, 248, 0.35);
+
+  --ff-primary-bg: rgba(20, 214, 180, 0.14);
+  --ff-primary-border: rgba(20, 214, 180, 0.35);
+
+  --ff-secondary-bg: rgba(124, 58, 237, 0.18);
+  --ff-secondary-border: rgba(124, 58, 237, 0.4);
+
+  --ff-neutral-bg: rgba(148, 163, 184, 0.16);
+  --ff-neutral-border: rgba(148, 163, 184, 0.35);
+
+  /* Deeper scrim for focus on dark surfaces. */
+  --ff-overlay: rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+
+  /* Slightly stronger shadows for depth on dark surfaces. */
+  --ff-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ff-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --ff-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ff-page-bg);
+  color: var(--ff-page-text);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--ff-sans);
+  font-weight: 600;
+  color: var(--ff-page-text);
+  margin: 0;
+}
+
+h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.375rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.125rem; }
+h4 { font-size: 1rem; }
+
+p { margin: 0; }
+
+a {
+  color: var(--ff-color-primary-hover);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+code {
+  font-family: var(--ff-mono);
+  font-size: 0.875em;
+  padding: 2px 6px;
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-color-light-soft);
+  color: var(--ff-page-text);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/**
+ * Reusable CSS tooltip.
+ *
+ * Any element carrying a non-empty `data-tooltip` attribute will render
+ * the attribute value in a themed bubble above the element on hover/focus.
+ *
+ * Usage: <span data-tooltip="summary text">#42</span>
+ */
+[data-tooltip] {
+  position: relative;
+
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 180px;
+    max-width: 260px;
+    padding: 6px 10px;
+    border-radius: var(--ff-radius);
+    background: var(--ff-card-bg);
+    border: 1px solid var(--ff-page-border);
+    box-shadow: var(--ff-shadow);
+    color: var(--ff-page-text);
+    font-family: var(--ff-sans);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: normal;
+    text-align: left;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+  }
+}

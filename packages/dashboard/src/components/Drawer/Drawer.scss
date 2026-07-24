@@ -1,0 +1,88 @@
+.ff-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.ff-drawer__overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--ff-overlay);
+  backdrop-filter: blur(2px);
+  animation: ff-drawer-fade-in 0.15s ease;
+}
+
+.ff-drawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ff-page-bg);
+  box-shadow: var(--ff-shadow-lg);
+  outline: none;
+  animation: ff-drawer-slide-in 0.2s ease;
+}
+
+.ff-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ff-page-border);
+  flex-shrink: 0;
+}
+
+.ff-drawer__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ff-page-text);
+  margin: 0;
+}
+
+.ff-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--ff-radius-sm);
+  background: transparent;
+  color: var(--ff-page-text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--ff-color-light-soft);
+    color: var(--ff-page-text);
+  }
+}
+
+.ff-drawer__body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+@keyframes ff-drawer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ff-drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
