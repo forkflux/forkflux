@@ -10,6 +10,7 @@ import {
   getDistinctStatuses,
   getStatusCounts,
   getTimeline,
+  slugifyRoleKey,
   sortJobs,
   toStatusCounts,
 } from './jobs'
@@ -471,5 +472,47 @@ describe('getTimeline', () => {
     })
     const timeline = getTimeline(detail)
     expect(timeline).toHaveLength(9)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// slugifyRoleKey
+// ---------------------------------------------------------------------------
+
+describe('slugifyRoleKey', () => {
+  it('converts a simple label to a slug', () => {
+    expect(slugifyRoleKey('Frontend Engineer')).toBe('frontend_engineer')
+  })
+
+  it('lowercases uppercase letters', () => {
+    expect(slugifyRoleKey('DevOps')).toBe('devops')
+  })
+
+  it('replaces multiple spaces with a single underscore', () => {
+    expect(slugifyRoleKey('QA   Tester')).toBe('qa_tester')
+  })
+
+  it('strips special characters', () => {
+    expect(slugifyRoleKey('C++ Developer!')).toBe('c_developer')
+  })
+
+  it('trims leading and trailing underscores', () => {
+    expect(slugifyRoleKey('  Engineer  ')).toBe('engineer')
+  })
+
+  it('returns empty string for input with no valid characters', () => {
+    expect(slugifyRoleKey('!!!')).toBe('')
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(slugifyRoleKey('')).toBe('')
+  })
+
+  it('preserves already-slug input', () => {
+    expect(slugifyRoleKey('backend_engineer')).toBe('backend_engineer')
+  })
+
+  it('preserves numbers', () => {
+    expect(slugifyRoleKey('Tier 2 Support')).toBe('tier_2_support')
   })
 })

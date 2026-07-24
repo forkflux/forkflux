@@ -264,6 +264,57 @@ describe('apiDataSource', () => {
   })
 
   // -------------------------------------------------------------------------
+  // fetchRoles
+  // -------------------------------------------------------------------------
+
+  describe('fetchRoles', () => {
+    it('fetches /ui/agents/roles and returns the roles array', async () => {
+      const mockRoles = [
+        { id: 1, role_key: 'frontend', role_label: 'Frontend Engineer', created_at: '2026-07-16T10:00:00Z' },
+        { id: 2, role_key: 'backend', role_label: 'Backend Engineer', created_at: '2026-07-16T10:00:00Z' },
+      ]
+      fetchMock.mockResolvedValue(jsonResponse(mockRoles))
+
+      const result = await apiDataSource.fetchRoles()
+
+      const url = fetchMock.mock.calls[0][0] as string
+      expect(url).toBe(`${API_BASE}/ui/agents/roles`)
+      expect(result).toEqual(mockRoles)
+    })
+
+    it('handles empty roles list (HTTP 200 with [])', async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]))
+
+      const result = await apiDataSource.fetchRoles()
+
+      expect(result).toEqual([])
+    })
+
+    it('does not send an Authorization header', async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]))
+
+      await apiDataSource.fetchRoles()
+
+      const fetchOptions = fetchMock.mock.calls[0][1] as RequestInit | undefined
+      const headers = fetchOptions?.headers
+      if (headers) {
+        const headerObj = headers instanceof Headers
+          ? headers
+          : new Headers(headers as HeadersInit)
+        expect(headerObj.get('Authorization')).toBeNull()
+      }
+    })
+
+    it('throws on non-ok response', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({}, false))
+
+      await expect(apiDataSource.fetchRoles()).rejects.toThrow(
+        'Request failed: 500',
+      )
+    })
+  })
+
+  // -------------------------------------------------------------------------
   // unblockJob
   // -------------------------------------------------------------------------
 
@@ -356,5 +407,332 @@ describe('apiDataSource without VITE_API_BASE_URL', () => {
     // Restore for subsequent tests.
     vi.stubEnv('VITE_API_BASE_URL', API_BASE)
     vi.resetModules()
+  })
+})
+
+// -------------------------------------------------------------------------
+// createRole
+// -------------------------------------------------------------------------
+
+describe('createRole', () => {
+  beforeEach(() => {
+    fetchMock.mockReset()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sends POST to the correct endpoint with the right payload', async () => {
+    const mockRole = {
+      id: 10,
+      role_key: 'qa',
+      role_label: 'QA Tester',
+      created_at: '2026-07-24T10:00:00Z',
+    }
+    fetchMock.mockResolvedValue(jsonResponse(mockRole))
+
+    const result = await apiDataSource.createRole('qa', 'QA Tester')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(`${API_BASE}/ui/agents/roles`)
+    expect(options.method).toBe('POST')
+    expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(options.body as string)).toEqual({
+      role_key: 'qa',
+      role_label: 'QA Tester',
+    })
+    expect(result).toEqual(mockRole)
+  })
+
+  it('throws a conflict error on 422 with target_role.conflict code', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: () => Promise.resolve({
+        detail: [
+          {
+            loc: ['body', 'role_key'],
+            msg: 'Target role already exists.',
+            type: 'target_role.conflict',
+            input: 'frontend',
+            ctx: {},
+          },
+        ],
+      }),
+    } as Response)
+
+    await expect(
+      apiDataSource.createRole('frontend', 'Frontend Engineer'),
+    ).rejects.toThrow('A role with the key "frontend" already exists.')
+  })
+
+  it('throws the backend message on non-conflict 422 (validation error)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: () => Promise.resolve({
+        detail: [
+          {
+            loc: ['body', 'role_key'],
+            msg: 'String should have at most 255 characters',
+            type: 'string_too_long',
+            input: 'a'.repeat(300),
+            ctx: {},
+          },
+        ],
+      }),
+    } as Response)
+
+    await expect(
+      apiDataSource.createRole('short', 'QA Tester'),
+    ).rejects.toThrow('String should have at most 255 characters')
+  })
+
+  it('throws a fallback message on 422 with unparseable body', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: () => Promise.reject(new Error('not JSON')),
+    } as Response)
+
+    await expect(
+      apiDataSource.createRole('qa', 'QA Tester'),
+    ).rejects.toThrow('Invalid input. Please check your values.')
+  })
+
+  it('throws client-side error when role_key exceeds 255 chars', async () => {
+    const longKey = 'a'.repeat(256)
+
+    await expect(
+      apiDataSource.createRole(longKey, 'QA Tester'),
+    ).rejects.toThrow('Role key must be at most 255 characters.')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws client-side error when role_label exceeds 255 chars', async () => {
+    const longLabel = 'a'.repeat(256)
+
+    await expect(
+      apiDataSource.createRole('qa', longLabel),
+    ).rejects.toThrow('Role label must be at most 255 characters.')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws a generic error on other non-ok status', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.resolve({}),
+    } as Response)
+
+    await expect(
+      apiDataSource.createRole('qa', 'QA Tester'),
+    ).rejects.toThrow('Request failed: 500 Internal Server Error')
+  })
+
+  // -----------------------------------------------------------------------
+  // fetchAgents
+  // -----------------------------------------------------------------------
+
+  describe('fetchAgents', () => {
+    it('calls the correct URL', async () => {
+      const mockAgents = [
+        {
+          id: 1,
+          agent_label: 'frontend-bot',
+          tool_family: 'playwright',
+          created_at: '2026-07-16T10:00:00Z',
+          roles: [{ role_key: 'frontend', role_label: 'Frontend Engineer' }],
+        },
+      ]
+      fetchMock.mockResolvedValue(jsonResponse(mockAgents))
+
+      const result = await apiDataSource.fetchAgents()
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls[0][0]).toBe(`${API_BASE}/ui/agents`)
+      expect(result).toEqual(mockAgents)
+    })
+
+    it('returns an empty array when no agents exist', async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]))
+
+      const result = await apiDataSource.fetchAgents()
+
+      expect(result).toEqual([])
+    })
+
+    it('throws on non-ok response', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: () => Promise.resolve({}),
+      } as Response)
+
+      await expect(apiDataSource.fetchAgents()).rejects.toThrow(
+        'Request failed: 500 Internal Server Error',
+      )
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // createAgent
+  // -------------------------------------------------------------------------
+
+  describe('createAgent', () => {
+    beforeEach(() => {
+      fetchMock.mockReset()
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('sends POST to the correct endpoint with the right payload', async () => {
+      const mockResponse = {
+        agent_id: 10,
+        agent_label: 'my-bot',
+        tool_family: 'playwright',
+        target_role_ids: [1, 2],
+        api_token: 'ff_secret_token',
+      }
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 201,
+        statusText: 'Created',
+        json: () => Promise.resolve(mockResponse),
+      } as Response)
+
+      const result = await apiDataSource.createAgent('my-bot', 'playwright', [1, 2])
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(url).toBe(`${API_BASE}/ui/agents`)
+      expect(options.method).toBe('POST')
+      expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+      expect(JSON.parse(options.body as string)).toEqual({
+        agent_label: 'my-bot',
+        tool_family: 'playwright',
+        target_role_ids: [1, 2],
+      })
+      expect(result).toEqual(mockResponse)
+      expect(result.api_token).toBe('ff_secret_token')
+    })
+
+    it('sends null tool_family when not provided', async () => {
+      const mockResponse = {
+        agent_id: 11,
+        agent_label: 'my-bot',
+        tool_family: null,
+        target_role_ids: [1],
+        api_token: 'ff_token',
+      }
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 201,
+        statusText: 'Created',
+        json: () => Promise.resolve(mockResponse),
+      } as Response)
+
+      await apiDataSource.createAgent('my-bot', null, [1])
+
+      const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(JSON.parse(options.body as string).tool_family).toBeNull()
+    })
+
+    it('throws a role-not-found error on 422 with target_role.not_found code', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        json: () => Promise.resolve({
+          detail: [
+            {
+              loc: ['body', 'target_role_ids'],
+              msg: 'Target role not found.',
+              type: 'target_role.not_found',
+              input: [999],
+              ctx: {},
+            },
+          ],
+        }),
+      } as Response)
+
+      await expect(
+        apiDataSource.createAgent('my-bot', null, [999]),
+      ).rejects.toThrow('One or more selected roles no longer exist.')
+    })
+
+    it('throws the backend message on non-role-not-found 422 (validation error)', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        json: () => Promise.resolve({
+          detail: [
+            {
+              loc: ['body', 'target_role_ids'],
+              msg: 'List should have at least 1 item',
+              type: 'too_short',
+              input: [],
+              ctx: {},
+            },
+          ],
+        }),
+      } as Response)
+
+      await expect(
+        apiDataSource.createAgent('my-bot', null, [1]),
+      ).rejects.toThrow('List should have at least 1 item')
+    })
+
+    it('throws a fallback message on 422 with unparseable body', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        json: () => Promise.reject(new Error('not JSON')),
+      } as Response)
+
+      await expect(
+        apiDataSource.createAgent('my-bot', null, [1]),
+      ).rejects.toThrow('Invalid input. Please check your values.')
+    })
+
+    it('throws on non-ok non-422 response', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: () => Promise.resolve({}),
+      } as Response)
+
+      await expect(
+        apiDataSource.createAgent('my-bot', null, [1]),
+      ).rejects.toThrow('Request failed: 500 Internal Server Error')
+    })
+
+    it('validates agent_label length client-side', async () => {
+      await expect(
+        apiDataSource.createAgent('a'.repeat(256), null, [1]),
+      ).rejects.toThrow('Agent label must be at most 255 characters.')
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('validates tool_family length client-side', async () => {
+      await expect(
+        apiDataSource.createAgent('my-bot', 'a'.repeat(256), [1]),
+      ).rejects.toThrow('Tool family must be at most 255 characters.')
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
   })
 })

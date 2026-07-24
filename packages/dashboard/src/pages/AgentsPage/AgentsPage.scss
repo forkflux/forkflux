@@ -1,0 +1,363 @@
+.ff-agents {
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  &__count {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+  }
+
+  &--error {
+    color: var(--ff-color-danger);
+  }
+
+  &__empty {
+    color: var(--ff-page-text-muted);
+    font-size: 0.9375rem;
+  }
+
+  &__table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    background: var(--ff-card-bg);
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  &__th {
+    text-align: left;
+    padding: 10px 16px;
+    font-weight: 600;
+    color: var(--ff-page-text-muted);
+    border-bottom: 1px solid var(--ff-page-border);
+    white-space: nowrap;
+  }
+
+  &__row {
+    transition: background 0.1s;
+
+    &:hover {
+      background: var(--ff-color-light-soft);
+    }
+
+    &:not(:last-child) {
+      .ff-agents__td {
+        border-bottom: 1px solid var(--ff-page-border);
+      }
+    }
+  }
+
+  &__td {
+    padding: 10px 16px;
+    color: var(--ff-page-text);
+    vertical-align: middle;
+
+    &--mono {
+      font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+      font-size: 0.8125rem;
+    }
+
+    &--muted {
+      color: var(--ff-page-text-muted);
+      white-space: nowrap;
+    }
+  }
+
+  &__no-roles {
+    color: var(--ff-page-text-muted);
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  &__badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.6;
+    background: var(--ff-color-light-soft);
+    border: 1px solid var(--ff-page-border);
+    color: var(--ff-page-text);
+    white-space: nowrap;
+  }
+
+  &__add-btn {
+    margin-left: auto;
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+  }
+
+  // Create agent form (inside drawer)
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__form-desc {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ff-page-text-muted);
+  }
+
+  &__required {
+    color: var(--ff-color-danger);
+  }
+
+  &__input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    font-size: 0.875rem;
+    font-family: var(--ff-sans);
+    color: var(--ff-page-text);
+    background: var(--ff-card-bg);
+
+    &:focus {
+      outline: none;
+      border-color: var(--ff-color-primary);
+      box-shadow: 0 0 0 2px var(--ff-primary-border);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--ff-page-text-muted);
+    font-style: italic;
+  }
+
+  &__role-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    padding: 8px;
+    background: var(--ff-card-bg);
+  }
+
+  &__role-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--ff-radius);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ff-color-light-soft);
+    }
+  }
+
+  &__checkbox {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  &__role-label-text {
+    font-size: 0.875rem;
+    color: var(--ff-page-text);
+  }
+
+  &__role-key-text {
+    font-size: 0.75rem;
+    font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+    color: var(--ff-page-text-muted);
+    margin-left: auto;
+  }
+
+  &__form-error {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    background: var(--ff-danger-bg);
+    border: 1px solid var(--ff-danger-border);
+    color: var(--ff-on-danger);
+  }
+
+  &__form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__cancel-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--ff-page-text-muted);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__submit-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  // Token success view (inside drawer)
+  &__token-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__token-warning {
+    margin: 0;
+    padding: 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    background: var(--ff-warning-bg, var(--ff-danger-bg));
+    border: 1px solid var(--ff-warning-border, var(--ff-danger-border));
+    color: var(--ff-on-warning, var(--ff-on-danger));
+  }
+
+  &__token-box {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  &__token-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+    color: var(--ff-page-text);
+    background: var(--ff-card-bg);
+
+    &:focus {
+      outline: none;
+      border-color: var(--ff-color-primary);
+      box-shadow: 0 0 0 2px var(--ff-primary-border);
+    }
+  }
+
+  &__copy-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+  }
+
+  &__token-summary {
+    font-size: 0.875rem;
+    color: var(--ff-page-text);
+    line-height: 1.6;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__token-fallback {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    background: var(--ff-warning-bg, var(--ff-danger-bg));
+    border: 1px solid var(--ff-warning-border, var(--ff-danger-border));
+    color: var(--ff-on-warning, var(--ff-on-danger));
+  }
+
+  &__done-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+  }
+}

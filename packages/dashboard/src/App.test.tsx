@@ -10,6 +10,8 @@ const { mockService } = vi.hoisted(() => ({
     fetchListMeta: vi.fn().mockResolvedValue({ statuses: [], roles: [] }),
     fetchJobCounts: vi.fn().mockResolvedValue([{ status: 'all', count: 0 }]),
     fetchJobDetail: vi.fn().mockResolvedValue(null),
+    fetchRoles: vi.fn().mockResolvedValue([]),
+    fetchAgents: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -52,6 +54,26 @@ describe('App routing', () => {
     renderAt('/unknown-route')
     await waitFor(() => {
       expect(screen.getByText('404')).toBeInTheDocument()
+    })
+  })
+
+  it('renders RolesPage at "/roles"', async () => {
+    renderAt('/roles')
+    await waitFor(() => {
+      // Assert page-specific content, not the header "Roles" nav link
+      expect(
+        screen.getByText(/Loading roles|No roles have been created yet/),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('renders AgentsPage at "/agents"', async () => {
+    renderAt('/agents')
+    await waitFor(() => {
+      // Assert page-specific content, not the header "Agents" nav link
+      expect(
+        screen.getByText(/Loading agents|No agents have been registered yet/),
+      ).toBeInTheDocument()
     })
   })
 })

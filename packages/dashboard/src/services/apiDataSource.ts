@@ -11,6 +11,10 @@
 
 import { toStatusCounts } from '../lib/jobs/jobs.ts';
 import type {
+  Agent,
+  CreateAgentRequest,
+  CreateAgentResponse,
+  CreateRoleRequest,
   JobDetail,
   JobListMeta,
   JobListQuery,
@@ -69,6 +73,47 @@ function toOrderParam(sort: JobSortField, dir: SortDirection): string {
 }
 
 /**
+ * Fetch the roles list from the `GET /api/v1/ui/agents/roles` endpoint.
+ *
+ * Centralized so that `fetchListMeta` and `fetchRoles` share the same
+ * endpoint URL and response typing — avoiding drift between the two
+ * call sites.
+ */
+function fetchRolesFromApi(): Promise<Role[]> {
+  return fetchJson<Role[]>(`${getBaseUrl()}/ui/agents/roles`);
+}
+
+/**
+ * Shape of a single validation error item in a FastAPI 422 `detail` array.
+ *
+ * The backend's `BaseValidationError` handler returns
+ * `{ detail: [{ loc, msg, type, input, ctx }] }`. The `type` field
+ * distinguishes conflict errors (`"target_role.conflict"`) from standard
+ * Pydantic validation errors (e.g. `"string_too_long"`).
+ */
+interface ValidationErrorItem {
+  type: string;
+  msg: string;
+  loc: (string | number)[];
+}
+
+interface ValidationErrorResponse {
+  detail: ValidationErrorItem[];
+}
+
+/** Backend error code for a duplicate role-key conflict. */
+const ROLE_CONFLICT_CODE = 'target_role.conflict';
+
+/** Backend error code for a target-role-not-found on agent creation. */
+const ROLE_NOT_FOUND_CODE = 'target_role.not_found';
+
+/** Maximum length enforced by the backend `CreateRoleRequest` schema. */
+const ROLE_FIELD_MAX_LENGTH = 255;
+
+/** Maximum length enforced by the backend `CreateAgentRequest` schema. */
+const AGENT_FIELD_MAX_LENGTH = 255;
+
+/**
  * Build the query string for the jobs list endpoint from a `JobListQuery`.
  *
  * - `status` is omitted when `all` (no status filter).
@@ -115,9 +160,7 @@ export const apiDataSource: JobDataSource = {
    * `GET /ui/jobs/counts` endpoint), so `statuses` is left empty here.
    */
   async fetchListMeta(_query: JobListQuery): Promise<JobListMeta> {
-    const roles = await fetchJson<Role[]>(
-      `${getBaseUrl()}/ui/agents/roles`,
-    );
+    const roles = await fetchRolesFromApi();
     return { statuses: [], roles };
   },
 
@@ -180,5 +223,168 @@ export const apiDataSource: JobDataSource = {
     }
 
     return (await res.json()) as UnblockJobResponse;
+  },
+
+  /**
+   * Fetch all available target roles from the
+   * `GET /api/v1/ui/agents/roles` endpoint.
+   *
+   * This endpoint requires **no authentication** — no Authorization header is
+   * sent. The response is a JSON array of `{ id, role_key, role_label,
+   * created_at }` objects. An empty array (HTTP 200 with `[]`) is a valid
+   * response when no roles exist.
+   */
+  fetchRoles(): Promise<Role[]> {
+    return fetchRolesFromApi();
+  },
+
+  /**
+   * Fetch all registered agents from the
+   * `GET /api/v1/ui/agents` endpoint.
+   *
+   * This endpoint requires **no authentication** — no Authorization header is
+   * sent. The response is a JSON array of `{ id, agent_label, tool_family,
+   * created_at, roles }` objects where `roles` is a list of
+   * `{ role_key, role_label }`. An empty array (HTTP 200 with `[]`) is a
+   * valid response when no agents exist.
+   */
+  fetchAgents(): Promise<Agent[]> {
+    return fetchJson<Agent[]>(`${getBaseUrl()}/ui/agents`);
+  },
+
+  /**
+   * Create a new target role via `POST /api/v1/ui/agents/roles`.
+   *
+   * Sends `role_key` and `role_label` as JSON body. On success (201)
+   * returns the created `Role`.
+   *
+   * Error handling distinguishes two kinds of 422 responses:
+   * - **Conflict** (`detail[0].type === "target_role.conflict"`): a role
+   *   with the same `role_key` already exists — throws a user-friendly
+   *   "already exists" message.
+   * - **Validation** (any other 422, e.g. `"string_too_long"`): the input
+   *   failed Pydantic validation — throws the backend's error message.
+   *
+   * Client-side length validation (255 chars) is also performed before
+   * the request to give immediate feedback without a round-trip.
+   */
+  async createRole(roleKey: string, roleLabel: string): Promise<Role> {
+    // Client-side validation mirroring the backend's 255-char limit.
+    if (roleKey.length > ROLE_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role key must be at most ${ROLE_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+    if (roleLabel.length > ROLE_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role label must be at most ${ROLE_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+
+    const body: CreateRoleRequest = {
+      role_key: roleKey,
+      role_label: roleLabel,
+    };
+    const res = await postJson(
+      `${getBaseUrl()}/ui/agents/roles`,
+      body,
+    );
+
+    if (res.status === 422) {
+      let errorBody: ValidationErrorResponse | null = null;
+      try {
+        errorBody = (await res.json()) as ValidationErrorResponse;
+      } catch {
+        // Response body is not JSON — fall through to generic error.
+      }
+
+      const firstError = errorBody?.detail?.[0];
+      if (firstError?.type === ROLE_CONFLICT_CODE) {
+        throw new Error(
+          `A role with the key "${roleKey}" already exists.`,
+        );
+      }
+      // Non-conflict validation error — use the backend's message.
+      throw new Error(
+        firstError?.msg ?? 'Invalid input. Please check your values.',
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    return (await res.json()) as Role;
+  },
+
+  /**
+   * Create a new agent via `POST /api/v1/ui/agents`.
+   *
+   * Sends `agent_label`, `tool_family`, and `target_role_ids` as JSON body.
+   * On success (201) returns a `CreateAgentResponse` that includes the
+   * one-time `api_token`.
+   *
+   * Error handling distinguishes two kinds of 422 responses:
+   * - **Role not found** (`detail[0].type === "target_role.not_found"`): one
+   *   or more of the selected role IDs no longer exist — throws a
+   *   user-friendly message.
+   * - **Validation** (any other 422, e.g. `"string_too_long"`, `"too_short"`):
+   *   the input failed Pydantic validation — throws the backend's error
+   *   message.
+   *
+   * Client-side length validation (255 chars) is also performed before
+   * the request to give immediate feedback without a round-trip.
+   */
+  async createAgent(
+    agentLabel: string,
+    toolFamily: string | null,
+    targetRoleIds: number[],
+  ): Promise<CreateAgentResponse> {
+    // Client-side validation mirroring the backend's 255-char limit.
+    if (agentLabel.length > AGENT_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Agent label must be at most ${AGENT_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+    if (toolFamily !== null && toolFamily.length > AGENT_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Tool family must be at most ${AGENT_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+
+    const body: CreateAgentRequest = {
+      agent_label: agentLabel,
+      tool_family: toolFamily,
+      target_role_ids: targetRoleIds,
+    };
+    const res = await postJson(`${getBaseUrl()}/ui/agents`, body);
+
+    if (res.status === 422) {
+      let errorBody: ValidationErrorResponse | null = null;
+      try {
+        errorBody = (await res.json()) as ValidationErrorResponse;
+      } catch {
+        // Response body is not JSON — fall through to generic error.
+      }
+
+      const firstError = errorBody?.detail?.[0];
+      if (firstError?.type === ROLE_NOT_FOUND_CODE) {
+        throw new Error(
+          'One or more selected roles no longer exist. Please refresh and try again.',
+        );
+      }
+      // Non-role-not-found validation error — use the backend's message.
+      throw new Error(
+        firstError?.msg ?? 'Invalid input. Please check your values.',
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    return (await res.json()) as CreateAgentResponse;
   },
 };

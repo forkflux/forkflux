@@ -15,6 +15,8 @@ import { MemoryRouter, Route, Routes, type MemoryRouterProps } from 'react-route
 import { vi } from 'vitest'
 import type { JobDataSource } from '../services/types.ts'
 import type {
+  Agent,
+  CreateAgentResponse,
   Job,
   JobDetail,
   JobListMeta,
@@ -119,6 +121,38 @@ export function createMockRole(overrides: Partial<Role> = {}): Role {
 }
 
 /**
+ * Build an `Agent` fixture. All fields have sensible defaults; pass an
+ * overrides object to customize only the fields relevant to the test.
+ */
+export function createMockAgent(overrides: Partial<Agent> = {}): Agent {
+  return {
+    id: 1,
+    agent_label: 'frontend-bot',
+    tool_family: 'playwright',
+    created_at: '2026-07-16T10:00:00Z',
+    roles: [{ role_key: 'frontend', role_label: 'Frontend Engineer' }],
+    ...overrides,
+  }
+}
+
+/**
+ * Build a `CreateAgentResponse` fixture. All fields have sensible defaults;
+ * pass an overrides object to customize only the fields relevant to the test.
+ */
+export function createMockCreateAgentResponse(
+  overrides: Partial<CreateAgentResponse> = {},
+): CreateAgentResponse {
+  return {
+    agent_id: 1,
+    agent_label: 'frontend-bot',
+    tool_family: 'playwright',
+    target_role_ids: [1],
+    api_token: 'ff_mock_abc123token',
+    ...overrides,
+  }
+}
+
+/**
  * Build a `JobDetail` fixture. Extends `Job` with context, constraints,
  * artifacts, and lifecycle timestamps.
  */
@@ -206,6 +240,10 @@ export function createMockJobService(
     fetchListMeta: vi.fn().mockResolvedValue(DEFAULT_META),
     fetchJobCounts: vi.fn().mockResolvedValue(DEFAULT_COUNTS),
     fetchJobDetail: vi.fn().mockResolvedValue(null),
+    fetchRoles: vi.fn().mockResolvedValue([]),
+    fetchAgents: vi.fn().mockResolvedValue([]),
+    createRole: vi.fn().mockResolvedValue(createMockRole()),
+    createAgent: vi.fn().mockResolvedValue(createMockCreateAgentResponse()),
     unblockJob: vi.fn().mockResolvedValue(DEFAULT_UNBLOCK_RESPONSE),
     ...overrides,
   }

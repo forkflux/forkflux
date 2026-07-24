@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout/Layout'
 import { JobListPage } from './pages/JobListPage/JobListPage'
 import { JobDetailPage } from './pages/JobDetailPage/JobDetailPage'
+import { RolesPage } from './pages/RolesPage/RolesPage'
+import { AgentsPage } from './pages/AgentsPage/AgentsPage'
 import { NotFoundPage } from './pages/NotFoundPage/NotFoundPage'
 
 function App() {
@@ -12,6 +14,8 @@ function App() {
           <Route index element={<Navigate to="/jobs" replace />} />
           <Route path="/jobs" element={<JobListPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/roles" element={<RolesPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

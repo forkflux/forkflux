@@ -19,6 +19,20 @@ describe('Header', () => {
     expect(screen.getByText('Jobs')).toBeInTheDocument()
   })
 
+  it('renders a Roles nav link', () => {
+    renderWithRouter(<Header />)
+    const link = screen.getByText('Roles')
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/roles')
+  })
+
+  it('renders an Agents nav link', () => {
+    renderWithRouter(<Header />)
+    const link = screen.getByText('Agents')
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/agents')
+  })
+
   it('renders the theme toggle button', () => {
     renderWithRouter(<Header />)
     expect(screen.getByRole('button', { name: /theme/i })).toBeInTheDocument()

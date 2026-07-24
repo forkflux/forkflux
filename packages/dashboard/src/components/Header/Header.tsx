@@ -25,6 +25,24 @@ export function Header() {
             Jobs
           </NavLink>
 
+          <NavLink
+            to="/roles"
+            className={({ isActive }) =>
+              `ff-header__nav-link${isActive ? ' ff-header__nav-link--active' : ''}`
+            }
+          >
+            Roles
+          </NavLink>
+
+          <NavLink
+            to="/agents"
+            className={({ isActive }) =>
+              `ff-header__nav-link${isActive ? ' ff-header__nav-link--active' : ''}`
+            }
+          >
+            Agents
+          </NavLink>
+
           <ThemeToggle />
         </nav>
       </div>
