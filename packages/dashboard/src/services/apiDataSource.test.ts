@@ -262,6 +262,77 @@ describe('apiDataSource', () => {
       )
     })
   })
+
+  // -------------------------------------------------------------------------
+  // unblockJob
+  // -------------------------------------------------------------------------
+
+  describe('unblockJob', () => {
+    it('calls POST /ui/jobs/:id/unblock with correct URL, method, and body', async () => {
+      const mockResponse = {
+        job_id: 42,
+        previous_status: 'blocked',
+        new_status: 'unblocked',
+        unblock_reason: 'Dependency resolved',
+      }
+      fetchMock.mockResolvedValue(jsonResponse(mockResponse))
+
+      await apiDataSource.unblockJob(42, 'Dependency resolved')
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(url).toBe(`${API_BASE}/ui/jobs/42/unblock`)
+      expect(options.method).toBe('POST')
+      expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+      expect(JSON.parse(options.body as string)).toEqual({
+        unblock_reason: 'Dependency resolved',
+      })
+    })
+
+    it('parses and returns the UnblockJobResponse on success', async () => {
+      const mockResponse = {
+        job_id: 10,
+        previous_status: 'blocked',
+        new_status: 'unblocked',
+        unblock_reason: 'Ops resolved the blocker',
+      }
+      fetchMock.mockResolvedValue(jsonResponse(mockResponse))
+
+      const result = await apiDataSource.unblockJob(10, 'Ops resolved the blocker')
+
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('throws "Job not found" on 404', async () => {
+      fetchMock.mockResolvedValue(notFoundResponse())
+
+      await expect(apiDataSource.unblockJob(999, 'Some reason')).rejects.toThrow(
+        'Job not found',
+      )
+    })
+
+    it('throws "cannot be unblocked" on 422', async () => {
+      const unprocessableResponse = {
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Content',
+        json: () => Promise.resolve({}),
+      } as Response
+      fetchMock.mockResolvedValue(unprocessableResponse)
+
+      await expect(apiDataSource.unblockJob(1, 'Some reason')).rejects.toThrow(
+        'cannot be unblocked',
+      )
+    })
+
+    it('throws generic error on other non-ok status', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({}, false))
+
+      await expect(apiDataSource.unblockJob(1, 'Some reason')).rejects.toThrow(
+        'Request failed: 500',
+      )
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------

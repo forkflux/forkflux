@@ -23,6 +23,12 @@ export function JobDetailPage() {
   const [contextOpen, setContextOpen] = useState(false)
   const [openArtifacts, setOpenArtifacts] = useState<Set<number>>(new Set())
 
+  // Unblock form state
+  const [unblockOpen, setUnblockOpen] = useState(false)
+  const [unblockReason, setUnblockReason] = useState('')
+  const [unblockSubmitting, setUnblockSubmitting] = useState(false)
+  const [unblockError, setUnblockError] = useState<string | null>(null)
+
   const toggleArtifact = (index: number) => {
     setOpenArtifacts((prev) => {
       const next = new Set(prev)
@@ -39,6 +45,7 @@ export function JobDetailPage() {
     if (!id) return
     const numId = Number(id)
     if (Number.isNaN(numId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- early-exit error state for invalid ID
       setError('Invalid job ID')
       setLoading(false)
       return
@@ -63,6 +70,52 @@ export function JobDetailPage() {
       cancelled = true
     }
   }, [id])
+
+  /**
+   * Submit the unblock form. Validates that the reason is non-empty before
+   * calling the API. On success, refreshes the job detail and closes the
+   * drawer. On error, displays a user-friendly message.
+   */
+  async function handleUnblockSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!detail) return
+
+    const trimmed = unblockReason.trim()
+    if (!trimmed) {
+      setUnblockError('Please provide an unblock reason.')
+      return
+    }
+
+    setUnblockSubmitting(true)
+    setUnblockError(null)
+
+    try {
+      await jobService.unblockJob(detail.id, trimmed)
+
+      // Refresh the job detail to reflect the new status and fields.
+      const refreshed = await jobService.fetchJobDetail(detail.id)
+      if (refreshed) setDetail(refreshed)
+
+      // Reset form state and close the drawer.
+      setUnblockOpen(false)
+      setUnblockReason('')
+    } catch (err) {
+      setUnblockError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to unblock job. Please try again.',
+      )
+    } finally {
+      setUnblockSubmitting(false)
+    }
+  }
+
+  /** Open the unblock drawer and reset form state. */
+  function openUnblockForm() {
+    setUnblockReason('')
+    setUnblockError(null)
+    setUnblockOpen(true)
+  }
 
   if (loading) {
     return <div className="ff-detail">Loading job…</div>
@@ -103,6 +156,15 @@ export function JobDetailPage() {
         <div className="ff-detail__header-right">
           <StatusBadge status={detail.status} />
           <span className="ff-detail__priority">Priority {detail.priority}</span>
+          {detail.status === 'blocked' && (
+            <button
+              type="button"
+              className="ff-detail__unblock-btn"
+              onClick={openUnblockForm}
+            >
+              Unblock
+            </button>
+          )}
         </div>
       </div>
 
@@ -168,7 +230,7 @@ export function JobDetailPage() {
         </div>
       </div>
 
-      {/* Failure / blocked reason callouts */}
+      {/* Failure / blocked / unblocked reason callouts */}
       {detail.failure_reason && (
         <div className="ff-detail__callout ff-detail__callout--danger">
           <strong>Failure Reason:</strong> {detail.failure_reason}
@@ -177,6 +239,16 @@ export function JobDetailPage() {
       {detail.blocked_reason && (
         <div className="ff-detail__callout ff-detail__callout--warning">
           <strong>Blocked Reason:</strong> {detail.blocked_reason}
+        </div>
+      )}
+      {detail.status === 'unblocked' && detail.unblock_reason && (
+        <div className="ff-detail__callout ff-detail__callout--info">
+          <strong>Unblock Reason:</strong> {detail.unblock_reason}
+          {detail.unblocked_at && (
+            <span className="ff-detail__callout-meta">
+              {' '}(unblocked {formatDate(detail.unblocked_at)})
+            </span>
+          )}
         </div>
       )}
 
@@ -252,6 +324,54 @@ export function JobDetailPage() {
         width="75%"
       >
         <JsonGrid data={detail.context_payload} />
+      </Drawer>
+
+      {/* Unblock form drawer */}
+      <Drawer
+        open={unblockOpen}
+        onClose={() => setUnblockOpen(false)}
+        title="Unblock Job"
+        width="500px"
+      >
+        <form className="ff-detail__unblock-form" onSubmit={handleUnblockSubmit}>
+          <p className="ff-detail__unblock-desc">
+            Provide a reason for unblocking this job. The job will transition
+            from <strong>Blocked</strong> to <strong>Unblocked</strong>.
+          </p>
+          <label className="ff-detail__unblock-label" htmlFor="unblock-reason">
+            Unblock Reason <span className="ff-detail__required">*</span>
+          </label>
+          <textarea
+            id="unblock-reason"
+            className="ff-detail__unblock-textarea"
+            value={unblockReason}
+            onChange={(e) => setUnblockReason(e.target.value)}
+            placeholder="e.g. Dependency resolved, environment is now available…"
+            rows={4}
+            disabled={unblockSubmitting}
+            autoFocus
+          />
+          {unblockError && (
+            <p className="ff-detail__unblock-error">{unblockError}</p>
+          )}
+          <div className="ff-detail__unblock-actions">
+            <button
+              type="button"
+              className="ff-detail__unblock-cancel"
+              onClick={() => setUnblockOpen(false)}
+              disabled={unblockSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ff-detail__unblock-submit"
+              disabled={unblockSubmitting}
+            >
+              {unblockSubmitting ? 'Unblocking…' : 'Confirm Unblock'}
+            </button>
+          </div>
+        </form>
       </Drawer>
     </div>
   )

@@ -22,6 +22,7 @@ import type {
   JobListResponse,
   Role,
   StatusCount,
+  UnblockJobResponse,
 } from '../types/job.ts'
 
 // ---------------------------------------------------------------------------
@@ -129,12 +130,14 @@ export function createMockJobDetail(overrides: Partial<JobDetail> = {}): JobDeta
     artifacts: [],
     failure_reason: null,
     blocked_reason: null,
+    unblock_reason: null,
     published_at: '2026-01-01T00:01:00Z',
     claimed_at: null,
     started_at: null,
     completed_at: null,
     failed_at: null,
     blocked_at: null,
+    unblocked_at: null,
     cancelled_at: null,
     expires_at: null,
     updated_at: '2026-01-01T00:02:00Z',
@@ -174,10 +177,22 @@ const DEFAULT_COUNTS: StatusCount[] = [
   { status: 'claimed', count: 0 },
   { status: 'in_progress', count: 0 },
   { status: 'blocked', count: 0 },
+  { status: 'unblocked', count: 0 },
   { status: 'completed', count: 0 },
   { status: 'failed', count: 0 },
   { status: 'cancelled', count: 0 },
 ]
+
+/**
+ * Create a fully-mocked `JobDataSource`. Each method is a `vi.fn()` with a
+ * default resolved value; tests can override individual methods as needed.
+ */
+const DEFAULT_UNBLOCK_RESPONSE: UnblockJobResponse = {
+  job_id: 1,
+  previous_status: 'blocked',
+  new_status: 'unblocked',
+  unblock_reason: 'mock unblock reason',
+}
 
 /**
  * Create a fully-mocked `JobDataSource`. Each method is a `vi.fn()` with a
@@ -191,8 +206,9 @@ export function createMockJobService(
     fetchListMeta: vi.fn().mockResolvedValue(DEFAULT_META),
     fetchJobCounts: vi.fn().mockResolvedValue(DEFAULT_COUNTS),
     fetchJobDetail: vi.fn().mockResolvedValue(null),
+    unblockJob: vi.fn().mockResolvedValue(DEFAULT_UNBLOCK_RESPONSE),
     ...overrides,
   }
 }
 
-export { DEFAULT_QUERY, DEFAULT_LIST_RESPONSE, DEFAULT_META, DEFAULT_COUNTS }
+export { DEFAULT_QUERY, DEFAULT_LIST_RESPONSE, DEFAULT_META, DEFAULT_COUNTS, DEFAULT_UNBLOCK_RESPONSE }

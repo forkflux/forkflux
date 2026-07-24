@@ -271,4 +271,145 @@
     font-size: 0.8125rem;
     color: var(--ff-page-text-muted);
   }
+
+  // Unblock button (header, visible only on blocked jobs)
+  &__unblock-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+  }
+
+  // Info callout (used for unblock reason)
+  &__callout--info {
+    background: var(--ff-info-bg);
+    border: 1px solid var(--ff-info-border);
+    color: var(--ff-on-info);
+  }
+
+  &__callout-meta {
+    font-size: 0.8125rem;
+    opacity: 0.85;
+  }
+
+  // Unblock form (inside drawer)
+  &__unblock-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__unblock-desc {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__unblock-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ff-page-text-muted);
+  }
+
+  &__required {
+    color: var(--ff-color-danger);
+  }
+
+  &__unblock-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    font-size: 0.875rem;
+    font-family: var(--ff-sans);
+    color: var(--ff-page-text);
+    background: var(--ff-card-bg);
+    resize: vertical;
+    min-height: 80px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--ff-color-primary);
+      box-shadow: 0 0 0 2px var(--ff-primary-border);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__unblock-error {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    background: var(--ff-danger-bg);
+    border: 1px solid var(--ff-danger-border);
+    color: var(--ff-on-danger);
+  }
+
+  &__unblock-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__unblock-cancel {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--ff-page-text-muted);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__unblock-submit {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }

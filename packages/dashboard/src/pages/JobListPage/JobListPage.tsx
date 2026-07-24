@@ -36,6 +36,7 @@ export function JobListPage() {
   // (back/forward navigation, clearing filters). This is an intentional
   // external-state → React-state synchronization.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing external URL state to local input
     setSearchInput(query.search)
   }, [query.search])
 
@@ -68,6 +69,7 @@ export function JobListPage() {
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag before async fetch
     setLoading(true)
     Promise.all([
       jobService.fetchJobs(query),

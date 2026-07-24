@@ -7,6 +7,7 @@ const STATUS_VARIANT: Record<JobStatus, string> = {
   in_progress: 'ff-badge--primary',
   completed: 'ff-badge--success',
   blocked: 'ff-badge--warning',
+  unblocked: 'ff-badge--info',
   failed: 'ff-badge--danger',
   cancelled: 'ff-badge--neutral',
 }
@@ -17,6 +18,7 @@ const STATUS_LABEL: Record<JobStatus, string> = {
   in_progress: 'In Progress',
   completed: 'Completed',
   blocked: 'Blocked',
+  unblocked: 'Unblocked',
   failed: 'Failed',
   cancelled: 'Cancelled',
 }

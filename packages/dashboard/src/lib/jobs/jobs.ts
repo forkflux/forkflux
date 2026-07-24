@@ -63,6 +63,7 @@ export const JOB_STATUS_ORDER: readonly JobStatus[] = [
   'claimed',
   'in_progress',
   'blocked',
+  'unblocked',
   'completed',
   'failed',
   'cancelled',
@@ -147,7 +148,7 @@ export function sortJobs(
   direction: SortDirection,
 ): Job[] {
   return [...jobs].sort((a, b) => {
-    let cmp = 0;
+    let cmp: number;
 
     if (field === 'id' || field === 'priority') {
       cmp = a[field] - b[field];
@@ -233,6 +234,7 @@ export function getTimeline(detail: JobDetail): TimelineEvent[] {
     { label: 'Completed', timestamp: detail.completed_at },
     { label: 'Failed', timestamp: detail.failed_at },
     { label: 'Blocked', timestamp: detail.blocked_at },
+    { label: 'Unblocked', timestamp: detail.unblocked_at },
     { label: 'Cancelled', timestamp: detail.cancelled_at },
     { label: 'Expires', timestamp: detail.expires_at },
   ];

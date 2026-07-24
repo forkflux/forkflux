@@ -13,6 +13,7 @@ export type JobStatus =
   | 'in_progress'
   | 'completed'
   | 'blocked'
+  | 'unblocked'
   | 'failed'
   | 'cancelled';
 
@@ -67,12 +68,14 @@ export interface JobDetail extends Job {
   artifacts: JobArtifact[];
   failure_reason: string | null;
   blocked_reason: string | null;
+  unblock_reason: string | null;
   published_at: string | null;
   claimed_at: string | null;
   started_at: string | null;
   completed_at: string | null;
   failed_at: string | null;
   blocked_at: string | null;
+  unblocked_at: string | null;
   cancelled_at: string | null;
   expires_at: string | null;
   updated_at: string;
@@ -165,5 +168,28 @@ export interface Role {
   role_key: string;
   role_label: string;
   created_at: string;
+}
+
+/**
+ * Request body for the `POST /api/v1/ui/jobs/{job_id}/unblock` endpoint.
+ *
+ * `unblock_reason` is a required, non-blank string explaining why the job
+ * was unblocked. The backend strips and validates it server-side.
+ */
+export interface UnblockJobRequest {
+  unblock_reason: string;
+}
+
+/**
+ * Response body for the `POST /api/v1/ui/jobs/{job_id}/unblock` endpoint.
+ *
+ * Returned on a successful unblock (HTTP 200). `previous_status` is always
+ * `'blocked'`; `new_status` is always `'unblocked'`.
+ */
+export interface UnblockJobResponse {
+  job_id: number;
+  previous_status: JobStatus;
+  new_status: JobStatus;
+  unblock_reason: string;
 }
 

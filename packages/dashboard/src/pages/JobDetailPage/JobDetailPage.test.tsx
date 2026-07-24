@@ -11,6 +11,7 @@ const { mockService } = vi.hoisted(() => ({
     fetchListMeta: vi.fn(),
     fetchJobCounts: vi.fn(),
     fetchJobDetail: vi.fn(),
+    unblockJob: vi.fn(),
   },
 }))
 
@@ -19,6 +20,7 @@ vi.mock('../../services/jobService', () => ({
 }))
 
 const fetchJobDetailMock = vi.mocked(mockService.fetchJobDetail)
+const unblockJobMock = vi.mocked(mockService.unblockJob)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,6 +46,7 @@ function renderDetailPage(initialEntry: string) {
 describe('JobDetailPage', () => {
   beforeEach(() => {
     fetchJobDetailMock.mockReset()
+    unblockJobMock.mockReset()
   })
 
   afterEach(() => {
@@ -355,6 +358,249 @@ describe('JobDetailPage', () => {
         expect(screen.getByText('Timeline')).toBeInTheDocument()
       })
       expect(screen.queryByText('Parent Job')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('unblock button', () => {
+    it('renders Unblock button when job status is blocked', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'blocked',
+        blocked_reason: 'Waiting on dependency',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+    })
+
+    it('does not render Unblock button when job status is not blocked', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'in_progress',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+      await waitFor(() => {
+        expect(screen.getByText('Priority 20')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Unblock')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('unblock form', () => {
+    it('opens the unblock drawer when Unblock button is clicked', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'blocked',
+        blocked_reason: 'Waiting on dependency',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock Job')).toBeInTheDocument()
+      })
+    })
+
+    it('shows validation error when submitting with empty reason', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'blocked',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock Job')).toBeInTheDocument()
+      })
+
+      // Submit without entering a reason
+      fireEvent.click(screen.getByText('Confirm Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Please provide an unblock reason.')).toBeInTheDocument()
+      })
+      expect(unblockJobMock).not.toHaveBeenCalled()
+    })
+
+    it('calls unblockJob with correct args and refreshes detail on success', async () => {
+      const blockedDetail = createMockJobDetail({
+        id: 5,
+        status: 'blocked',
+        blocked_reason: 'Waiting on dependency',
+      })
+      const unblockedDetail = createMockJobDetail({
+        id: 5,
+        status: 'unblocked',
+        unblock_reason: 'Dependency resolved',
+        unblocked_at: '2026-07-24T10:00:00Z',
+      })
+
+      // First call returns blocked, second call (after unblock) returns unblocked
+      fetchJobDetailMock
+        .mockResolvedValueOnce(blockedDetail)
+        .mockResolvedValueOnce(unblockedDetail)
+
+      unblockJobMock.mockResolvedValue({
+        job_id: 5,
+        previous_status: 'blocked',
+        new_status: 'unblocked',
+        unblock_reason: 'Dependency resolved',
+      })
+
+      renderDetailPage('/jobs/5')
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/Dependency resolved/)).toBeInTheDocument()
+      })
+
+      const textarea = screen.getByPlaceholderText(/Dependency resolved/)
+      fireEvent.change(textarea, { target: { value: 'Dependency resolved' } })
+
+      fireEvent.click(screen.getByText('Confirm Unblock'))
+
+      await waitFor(() => {
+        expect(unblockJobMock).toHaveBeenCalledWith(5, 'Dependency resolved')
+      })
+
+      // Detail should be refreshed — unblocked status badge should appear
+      await waitFor(() => {
+        expect(screen.getAllByText('Unblocked').length).toBeGreaterThan(0)
+      })
+    })
+
+    it('shows error message when unblockJob returns 422 (not blocked)', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'blocked',
+      })
+      setDetailResponse(detail)
+
+      unblockJobMock.mockRejectedValue(
+        new Error('This job cannot be unblocked from its current status.'),
+      )
+
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/Dependency resolved/)).toBeInTheDocument()
+      })
+
+      const textarea = screen.getByPlaceholderText(/Dependency resolved/)
+      fireEvent.change(textarea, { target: { value: 'Some reason' } })
+
+      fireEvent.click(screen.getByText('Confirm Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByText(/cannot be unblocked/)).toBeInTheDocument()
+      })
+    })
+
+    it('shows error message when unblockJob returns 404 (not found)', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'blocked',
+      })
+      setDetailResponse(detail)
+
+      unblockJobMock.mockRejectedValue(new Error('Job not found'))
+
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Unblock')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/Dependency resolved/)).toBeInTheDocument()
+      })
+
+      const textarea = screen.getByPlaceholderText(/Dependency resolved/)
+      fireEvent.change(textarea, { target: { value: 'Some reason' } })
+
+      fireEvent.click(screen.getByText('Confirm Unblock'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Job not found')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('unblocked status display', () => {
+    it('renders unblock reason callout when status is unblocked', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'unblocked',
+        unblock_reason: 'Dependency was resolved by ops team',
+        unblocked_at: '2026-07-24T10:00:00Z',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getByText(/Dependency was resolved by ops team/)).toBeInTheDocument()
+      })
+    })
+
+    it('renders Unblocked status badge', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'unblocked',
+        unblock_reason: 'Resolved',
+        unblocked_at: '2026-07-24T10:00:00Z',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Unblocked').length).toBeGreaterThan(0)
+      })
+    })
+
+    it('renders Unblocked in the timeline when unblocked_at is set', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        status: 'unblocked',
+        unblock_reason: 'Resolved',
+        unblocked_at: '2026-07-24T10:00:00Z',
+        blocked_at: '2026-07-23T10:00:00Z',
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        // Timeline label "Unblocked" should appear
+        const allUnblocked = screen.getAllByText('Unblocked')
+        expect(allUnblocked.length).toBeGreaterThanOrEqual(1)
+      })
     })
   })
 })
