@@ -117,15 +117,6 @@ export function toStatusCounts(counts: Record<string, number>): StatusCount[] {
   return result;
 }
 
-/**
- * Derive the distinct set of target role labels present in the data, sorted
- * alphabetically for deterministic filter ordering.
- */
-export function getDistinctRoles(jobs: Job[]): string[] {
-  const grouped = Object.groupBy(jobs, (j) => j.target_role_label);
-  return Object.keys(grouped).sort();
-}
-
 // ---------------------------------------------------------------------------
 // Filtering & sorting
 // ---------------------------------------------------------------------------

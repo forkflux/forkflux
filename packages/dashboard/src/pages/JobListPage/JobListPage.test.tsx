@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { JobListPage } from './JobListPage'
-import { renderWithRouter, createMockJob } from '../../test/utils'
-import type { JobListResponse, JobListMeta, StatusCount } from '../../types/job'
+import { renderWithRouter, createMockJob, createMockRole } from '../../test/utils'
+import type { JobListResponse, JobListMeta, Role, StatusCount } from '../../types/job'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs. We can't reference imported functions inside vi.hoisted, so
@@ -41,7 +41,7 @@ function setJobsResponse(jobs: ReturnType<typeof createMockJob>[], total?: numbe
   fetchJobsMock.mockResolvedValue(response)
 }
 
-function setMetaResponse(roles: string[]) {
+function setMetaResponse(roles: Role[]) {
   const meta: JobListMeta = { statuses: [], roles }
   fetchListMetaMock.mockResolvedValue(meta)
 }
@@ -100,7 +100,10 @@ describe('JobListPage', () => {
         createMockJob({ id: 1, summary: 'Fix login bug', status: 'published', priority: 20, target_role_label: 'Frontend Engineer' }),
         createMockJob({ id: 2, summary: 'Add API endpoint', status: 'completed', priority: 30, target_role_label: 'Backend Engineer' }),
       ])
-      setMetaResponse(['Frontend Engineer', 'Backend Engineer'])
+      setMetaResponse([
+        createMockRole(),
+        createMockRole({ id: 2, role_key: 'backend', role_label: 'Backend Engineer' }),
+      ])
       setCountsResponse([
         { status: 'all', count: 2 },
         { status: 'published', count: 1 },
@@ -146,7 +149,10 @@ describe('JobListPage', () => {
     })
 
     it('renders role options in the select dropdown', async () => {
-      setMetaResponse(['Frontend Engineer', 'Backend Engineer'])
+      setMetaResponse([
+        createMockRole(),
+        createMockRole({ id: 2, role_key: 'backend', role_label: 'Backend Engineer' }),
+      ])
       renderWithRouter(<JobListPage />)
       await waitFor(() => {
         expect(screen.getByText('All Roles')).toBeInTheDocument()

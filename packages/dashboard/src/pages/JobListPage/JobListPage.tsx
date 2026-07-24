@@ -155,8 +155,8 @@ export function JobListPage() {
         >
           <option value="all">All Roles</option>
           {distinctRoles.map((role) => (
-            <option key={role} value={role}>
-              {role}
+            <option key={role.role_key} value={role.role_key}>
+              {role.role_label}
             </option>
           ))}
         </select>

@@ -20,6 +20,7 @@ import type {
   JobListMeta,
   JobListQuery,
   JobListResponse,
+  Role,
   StatusCount,
 } from '../types/job.ts'
 
@@ -98,6 +99,20 @@ export function createMockJob(overrides: Partial<Job> = {}): Job {
     assignee_agent_label: null,
     target_role_label: 'Frontend Engineer',
     created_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+/**
+ * Build a `Role` fixture. All fields have sensible defaults; pass an overrides
+ * object to customize only the fields relevant to the test.
+ */
+export function createMockRole(overrides: Partial<Role> = {}): Role {
+  return {
+    id: 1,
+    role_key: 'frontend',
+    role_label: 'Frontend Engineer',
+    created_at: '2026-07-16T10:00:00Z',
     ...overrides,
   }
 }

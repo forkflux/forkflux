@@ -148,6 +148,22 @@ export interface JobListResponse {
  */
 export interface JobListMeta {
   statuses: StatusCount[];
-  roles: string[];
+  roles: Role[];
+}
+
+/**
+ * A target role — the structured shape returned by the
+ * `GET /api/v1/ui/agents/roles` endpoint.
+ *
+ * The endpoint requires no authentication and returns a JSON array of
+ * these objects. The `role_key` is the stable identifier used as the
+ * filter value (sent as `target_role_key` to the jobs list endpoint);
+ * `role_label` is the human-readable display text.
+ */
+export interface Role {
+  id: number;
+  role_key: string;
+  role_label: string;
+  created_at: string;
 }
 
