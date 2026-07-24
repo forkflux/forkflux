@@ -17,6 +17,7 @@ import type {
   JobListResponse,
   JobSortField,
   JobStatusCountsResponse,
+  Role,
   SortDirection,
   StatusCount,
 } from '../types/job.ts';
@@ -85,14 +86,22 @@ export const apiDataSource: JobDataSource = {
   },
 
   /**
-   * The backend does not yet expose a dedicated roles metadata endpoint.
-   * Return an empty `JobListMeta` so the role dropdown falls back to "All
-   * Roles" until the endpoint exists. Status counts are now sourced from
-   * `fetchJobCounts()` (the dedicated `GET /ui/jobs/counts` endpoint).
-   * The mock provides full role metadata for dev mode.
+   * Fetch the list of target roles from the
+   * `GET /api/v1/ui/agents/roles` endpoint.
+   *
+   * This endpoint requires **no authentication** — no Authorization header is
+   * sent. The response is a JSON array of `{ id, role_key, role_label,
+   * created_at }` objects. An empty array (HTTP 200 with `[]`) is a valid
+   * response when no roles exist.
+   *
+   * Status counts are now sourced from `fetchJobCounts()` (the dedicated
+   * `GET /ui/jobs/counts` endpoint), so `statuses` is left empty here.
    */
-  fetchListMeta(_query: JobListQuery): Promise<JobListMeta> {
-    return Promise.resolve({ statuses: [], roles: [] });
+  async fetchListMeta(_query: JobListQuery): Promise<JobListMeta> {
+    const roles = await fetchJson<Role[]>(
+      `${getBaseUrl()}/ui/agents/roles`,
+    );
+    return { statuses: [], roles };
   },
 
   /**

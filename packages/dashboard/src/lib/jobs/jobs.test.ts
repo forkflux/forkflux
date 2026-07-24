@@ -7,7 +7,6 @@ import {
   formatAssignee,
   formatBytes,
   formatDate,
-  getDistinctRoles,
   getDistinctStatuses,
   getStatusCounts,
   getTimeline,
@@ -210,36 +209,6 @@ describe('toStatusCounts', () => {
     })
     expect(counts[0]).toEqual({ status: 'all', count: 7 })
     expect(counts).toHaveLength(8)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// getDistinctRoles
-// ---------------------------------------------------------------------------
-
-describe('getDistinctRoles', () => {
-  it('returns sorted distinct roles', () => {
-    const jobs = [
-      makeJob({ target_role_label: 'Backend Engineer' }),
-      makeJob({ target_role_label: 'Frontend Engineer' }),
-      makeJob({ target_role_label: 'Backend Engineer' }),
-    ]
-    expect(getDistinctRoles(jobs)).toEqual([
-      'Backend Engineer',
-      'Frontend Engineer',
-    ])
-  })
-
-  it('returns empty array for empty input', () => {
-    expect(getDistinctRoles([])).toEqual([])
-  })
-
-  it('returns single-element array for one role', () => {
-    const jobs = [
-      makeJob({ target_role_label: 'QA Engineer' }),
-      makeJob({ target_role_label: 'QA Engineer' }),
-    ]
-    expect(getDistinctRoles(jobs)).toEqual(['QA Engineer'])
   })
 })
 

@@ -144,14 +144,50 @@ describe('apiDataSource', () => {
   // -------------------------------------------------------------------------
 
   describe('fetchListMeta', () => {
-    it('returns empty meta (no backend endpoint yet)', async () => {
+    it('fetches /ui/agents/roles and returns structured roles', async () => {
+      const mockRoles = [
+        { id: 1, role_key: 'frontend', role_label: 'Frontend Engineer', created_at: '2026-07-16T10:00:00Z' },
+        { id: 2, role_key: 'backend', role_label: 'Backend Engineer', created_at: '2026-07-16T10:00:00Z' },
+      ]
+      fetchMock.mockResolvedValue(jsonResponse(mockRoles))
+
       const result = await apiDataSource.fetchListMeta(defaultQuery())
+
+      const url = fetchMock.mock.calls[0][0] as string
+      expect(url).toBe(`${API_BASE}/ui/agents/roles`)
+      expect(result).toEqual({ statuses: [], roles: mockRoles })
+    })
+
+    it('handles empty roles list (HTTP 200 with [])', async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]))
+
+      const result = await apiDataSource.fetchListMeta(defaultQuery())
+
       expect(result).toEqual({ statuses: [], roles: [] })
     })
 
-    it('does not call fetch', async () => {
+    it('does not send an Authorization header', async () => {
+      fetchMock.mockResolvedValue(jsonResponse([]))
+
       await apiDataSource.fetchListMeta(defaultQuery())
-      expect(fetchMock).not.toHaveBeenCalled()
+
+      const fetchOptions = fetchMock.mock.calls[0][1] as RequestInit | undefined
+      const headers = fetchOptions?.headers
+      // No headers object at all, or no Authorization header within it
+      if (headers) {
+        const headerObj = headers instanceof Headers
+          ? headers
+          : new Headers(headers as HeadersInit)
+        expect(headerObj.get('Authorization')).toBeNull()
+      }
+    })
+
+    it('throws on non-ok response', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({}, false))
+
+      await expect(apiDataSource.fetchListMeta(defaultQuery())).rejects.toThrow(
+        'Request failed: 500',
+      )
     })
   })
 

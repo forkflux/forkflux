@@ -13,7 +13,6 @@
 import {
   countJobsByStatus,
   filterJobs,
-  getDistinctRoles,
   sortJobs,
   toStatusCounts,
 } from '../lib/jobs/jobs.ts';
@@ -23,21 +22,33 @@ import type {
   JobListMeta,
   JobListQuery,
   JobListResponse,
+  Role,
   StatusCount,
 } from '../types/job.ts';
 import type { JobDataSource } from './types.ts';
 
 import jobsData from '../../mocks/jobs.json' with { type: 'json' };
+import rolesData from '../../mocks/roles.json' with { type: 'json' };
 
 // The mock JSON is the full dataset; cast once at module load.
 const ALL_JOBS = jobsData as Job[];
+const ALL_ROLES = rolesData as Role[];
 
 export const mockDataSource: JobDataSource = {
   fetchJobs(query: JobListQuery): Promise<JobListResponse> {
+    // The role filter value is a `role_key` (e.g. "frontend"), but mock jobs
+    // only carry `target_role_label`. Resolve the key to its label so the
+    // existing `filterJobs` (which compares labels) works correctly.
+    let roleLabel = query.role;
+    if (query.role !== 'all') {
+      const match = ALL_ROLES.find((r) => r.role_key === query.role);
+      roleLabel = match ? match.role_label : query.role;
+    }
+
     // 1. Filter by status, role, and search (server-side semantics).
     const filtered = filterJobs(ALL_JOBS, {
       status: query.status,
-      role: query.role,
+      role: roleLabel,
       search: query.search,
     });
 
@@ -60,12 +71,11 @@ export const mockDataSource: JobDataSource = {
   },
 
   fetchListMeta(_query: JobListQuery): Promise<JobListMeta> {
-    // Roles are independent of the active filters and derived from the full
-    // dataset. Status counts are now sourced from `fetchJobCounts()` (the
-    // dedicated counts endpoint), so `statuses` is left empty here.
-    const roles = getDistinctRoles(ALL_JOBS);
-
-    return Promise.resolve({ statuses: [], roles });
+    // Roles are sourced from the mock roles JSON (mirrors the
+    // `GET /api/v1/ui/agents/roles` endpoint). Status counts are now sourced
+    // from `fetchJobCounts()` (the dedicated counts endpoint), so `statuses`
+    // is left empty here.
+    return Promise.resolve({ statuses: [], roles: ALL_ROLES });
   },
 
   /**
