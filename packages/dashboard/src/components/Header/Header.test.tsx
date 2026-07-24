@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { screen } from '@testing-library/react'
 import { Header } from './Header'
 import { renderWithRouter } from '../../test/utils'

@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { MemoryRouter, useSearchParams } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useJobListParams } from './useJobListParams'
@@ -135,7 +135,7 @@ describe('useJobListParams', () => {
     })
 
     it('resets offset to 0', () => {
-      const { result } = renderHook(
+      renderHook(
         () => {
           useJobListParams()
           return useSearchParamsValue()

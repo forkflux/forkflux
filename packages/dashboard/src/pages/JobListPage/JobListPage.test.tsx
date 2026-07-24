@@ -25,8 +25,6 @@ vi.mock('../../services/jobService', () => ({
 const fetchJobsMock = vi.mocked(mockService.fetchJobs)
 const fetchListMetaMock = vi.mocked(mockService.fetchListMeta)
 const fetchJobCountsMock = vi.mocked(mockService.fetchJobCounts)
-const fetchJobDetailMock = vi.mocked(mockService.fetchJobDetail)
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

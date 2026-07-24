@@ -39,6 +39,7 @@ export function JobDetailPage() {
     if (!id) return
     const numId = Number(id)
     if (Number.isNaN(numId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- early-exit error state for invalid ID
       setError('Invalid job ID')
       setLoading(false)
       return

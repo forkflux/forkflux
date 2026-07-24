@@ -40,7 +40,7 @@ export function useTheme() {
   const persist = useCallback((next: Theme) => {
     try {
       localStorage.setItem(STORAGE_KEY, next)
-    } catch (_) {
+    } catch {
       /* storage may be unavailable; DOM update still applies */
     }
   }, [])
@@ -56,10 +56,10 @@ export function useTheme() {
 
   // Follow system preference when the user hasn't set a manual override.
   useEffect(() => {
-    let stored: string | null = null
+    let stored: string | null
     try {
       stored = localStorage.getItem(STORAGE_KEY)
-    } catch (_) {
+    } catch {
       stored = null
     }
     if (stored === 'light' || stored === 'dark') {

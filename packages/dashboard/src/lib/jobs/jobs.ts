@@ -147,7 +147,7 @@ export function sortJobs(
   direction: SortDirection,
 ): Job[] {
   return [...jobs].sort((a, b) => {
-    let cmp = 0;
+    let cmp: number;
 
     if (field === 'id' || field === 'priority') {
       cmp = a[field] - b[field];
