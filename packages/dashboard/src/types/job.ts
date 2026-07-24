@@ -193,3 +193,74 @@ export interface UnblockJobResponse {
   unblock_reason: string;
 }
 
+/**
+ * Request body for the `POST /api/v1/ui/agents/roles` endpoint.
+ *
+ * Both fields are required, non-blank strings (max 255 chars). The
+ * `role_key` is the stable identifier; `role_label` is the human-readable
+ * display text. Mirrors the backend `CreateRoleRequest` Pydantic schema.
+ */
+export interface CreateRoleRequest {
+  role_key: string;
+  role_label: string;
+}
+
+/**
+ * A role summary attached to an agent — the structured shape nested inside
+ * `ListAgentsResponse`. Mirrors the backend `AgentRoleSummary` Pydantic schema.
+ */
+export interface AgentRoleSummary {
+  role_key: string;
+  role_label: string;
+}
+
+/**
+ * An agent — the structured shape returned by the
+ * `GET /api/v1/ui/agents` endpoint.
+ *
+ * The endpoint requires no authentication and returns a JSON array of
+ * these objects. `roles` is a list of `AgentRoleSummary` entries describing
+ * the target roles this agent can claim jobs for. Mirrors the backend
+ * `ListAgentsResponse` Pydantic schema.
+ */
+export interface Agent {
+  id: number;
+  agent_label: string;
+  tool_family: string | null;
+  created_at: string;
+  roles: AgentRoleSummary[];
+}
+
+/**
+ * Request body for the `POST /api/v1/ui/agents` endpoint.
+ *
+ * `agent_label` is a required, non-blank string (max 255 chars).
+ * `tool_family` is an optional string (max 255 chars) identifying the
+ * agent's tooling family (e.g. "playwright", "codex").
+ * `target_role_ids` is a required list of at least one role ID — the
+ * roles this agent is authorized to claim jobs for. Mirrors the backend
+ * `CreateAgentRequest` Pydantic schema.
+ */
+export interface CreateAgentRequest {
+  agent_label: string;
+  tool_family: string | null;
+  target_role_ids: number[];
+}
+
+/**
+ * Response body for the `POST /api/v1/ui/agents` endpoint.
+ *
+ * Returned on a successful create (HTTP 201). The `api_token` is a
+ * one-time secret — it is returned only in this response and cannot
+ * be retrieved again. The UI must surface it to the user immediately
+ * with a copy mechanism and a clear warning. Mirrors the backend
+ * `CreateAgentResponse` Pydantic schema.
+ */
+export interface CreateAgentResponse {
+  agent_id: number;
+  agent_label: string;
+  tool_family: string | null;
+  target_role_ids: number[];
+  api_token: string;
+}
+

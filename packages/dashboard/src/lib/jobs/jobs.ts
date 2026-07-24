@@ -243,3 +243,27 @@ export function getTimeline(detail: JobDetail): TimelineEvent[] {
     .filter((e) => e.timestamp)
     .sort((a, b) => (a.timestamp ?? '').localeCompare(b.timestamp ?? ''));
 }
+
+// ---------------------------------------------------------------------------
+// Role key slugify
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a human-readable role label into a slug-safe `role_key`.
+ *
+ * Lowercases the input, replaces spaces with underscores, and strips any
+ * character that is not alphanumeric or an underscore. Leading/trailing
+ * underscores are trimmed. Returns an empty string when the input produces
+ * no valid characters.
+ *
+ * Used by the "New Role" form to auto-suggest a `role_key` as the user
+ * types a `role_label` — until they manually edit the key field.
+ */
+export function slugifyRoleKey(label: string): string {
+  return label
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/^_+|_+$/g, '');
+}

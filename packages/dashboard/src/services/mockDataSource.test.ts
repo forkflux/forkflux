@@ -77,6 +77,28 @@ vi.mock('../../mocks/roles.json', () => ({
   ],
 }))
 
+vi.mock('../../mocks/agents.json', () => ({
+  default: [
+    {
+      id: 1,
+      agent_label: 'frontend-bot',
+      tool_family: 'playwright',
+      created_at: '2026-07-16T10:00:00Z',
+      roles: [{ role_key: 'frontend', role_label: 'Frontend Engineer' }],
+    },
+    {
+      id: 2,
+      agent_label: 'fullstack-agent',
+      tool_family: null,
+      created_at: '2026-07-18T09:15:00Z',
+      roles: [
+        { role_key: 'frontend', role_label: 'Frontend Engineer' },
+        { role_key: 'backend', role_label: 'Backend Engineer' },
+      ],
+    },
+  ],
+}))
+
 // Mock the dynamic import for detail files
 vi.mock('../../mocks/details/7.json', () => ({
   default: mockDetail,
@@ -198,6 +220,208 @@ describe('mockDataSource', () => {
       await expect(mockDataSource.unblockJob(7, 'Second unblock')).rejects.toThrow(
         'cannot be unblocked',
       )
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // fetchRoles
+  // -------------------------------------------------------------------------
+
+  describe('fetchRoles', () => {
+    it('returns all roles from the mock roles JSON', async () => {
+      const result = await mockDataSource.fetchRoles()
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual({
+        id: 1,
+        role_key: 'frontend',
+        role_label: 'Frontend Engineer',
+        created_at: '2026-07-16T10:00:00Z',
+      })
+    })
+
+    it('returns consistent data across multiple calls', async () => {
+      const first = await mockDataSource.fetchRoles()
+      const second = await mockDataSource.fetchRoles()
+
+      expect(first).toEqual(second)
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // createRole
+  // -----------------------------------------------------------------------
+
+  describe('createRole', () => {
+    beforeEach(() => {
+      __resetMockState()
+    })
+
+    afterEach(() => {
+      __resetMockState()
+    })
+
+    it('creates a role and returns it', async () => {
+      const role = await mockDataSource.createRole('qa', 'QA Tester')
+
+      expect(role.role_key).toBe('qa')
+      expect(role.role_label).toBe('QA Tester')
+      expect(role.id).toBeGreaterThan(0)
+      expect(role.created_at).toBeTruthy()
+    })
+
+    it('throws a conflict error for a duplicate key in static data', async () => {
+      await expect(
+        mockDataSource.createRole('frontend', 'Frontend Engineer'),
+      ).rejects.toThrow('A role with the key "frontend" already exists.')
+    })
+
+    it('throws a conflict error for a duplicate key in the overlay', async () => {
+      await mockDataSource.createRole('qa', 'QA Tester')
+
+      await expect(
+        mockDataSource.createRole('qa', 'Another QA'),
+      ).rejects.toThrow('A role with the key "qa" already exists.')
+    })
+
+    it('makes the new role appear in fetchRoles', async () => {
+      const before = await mockDataSource.fetchRoles()
+      expect(before).toHaveLength(1)
+
+      await mockDataSource.createRole('qa', 'QA Tester')
+
+      const after = await mockDataSource.fetchRoles()
+      expect(after).toHaveLength(2)
+      expect(after[1]!.role_key).toBe('qa')
+      expect(after[1]!.role_label).toBe('QA Tester')
+    })
+
+    it('trims whitespace from key and label', async () => {
+      const role = await mockDataSource.createRole('  qa  ', '  QA Tester  ')
+
+      expect(role.role_key).toBe('qa')
+      expect(role.role_label).toBe('QA Tester')
+    })
+
+    it('makes the new role appear in fetchListMeta roles', async () => {
+      const before = await mockDataSource.fetchListMeta(defaultQuery())
+      expect(before.roles).toHaveLength(1)
+
+      await mockDataSource.createRole('qa', 'QA Tester')
+
+      const after = await mockDataSource.fetchListMeta(defaultQuery())
+      expect(after.roles).toHaveLength(2)
+      expect(after.roles[1]!.role_key).toBe('qa')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // fetchAgents
+  // -----------------------------------------------------------------------
+
+  describe('fetchAgents', () => {
+    it('returns agents from the mock agents JSON', async () => {
+      const agents = await mockDataSource.fetchAgents()
+
+      expect(agents).toHaveLength(2)
+      expect(agents[0]!.id).toBe(1)
+      expect(agents[0]!.agent_label).toBe('frontend-bot')
+      expect(agents[0]!.tool_family).toBe('playwright')
+      expect(agents[0]!.roles).toEqual([
+        { role_key: 'frontend', role_label: 'Frontend Engineer' },
+      ])
+    })
+
+    it('returns agents with multiple roles', async () => {
+      const agents = await mockDataSource.fetchAgents()
+
+      const fullstack = agents.find((a) => a.agent_label === 'fullstack-agent')
+      expect(fullstack).toBeDefined()
+      expect(fullstack!.roles).toHaveLength(2)
+      expect(fullstack!.roles[0]!.role_key).toBe('frontend')
+      expect(fullstack!.roles[1]!.role_key).toBe('backend')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // createAgent
+  // -----------------------------------------------------------------------
+
+  describe('createAgent', () => {
+    beforeEach(() => {
+      __resetMockState()
+    })
+
+    it('creates an agent and returns a response with an api_token', async () => {
+      const result = await mockDataSource.createAgent('new-bot', 'codex', [1])
+
+      expect(result.agent_label).toBe('new-bot')
+      expect(result.tool_family).toBe('codex')
+      expect(result.target_role_ids).toEqual([1])
+      expect(result.api_token).toMatch(/^ff_mock_/)
+      expect(result.agent_id).toBeGreaterThan(0)
+    })
+
+    it('trims whitespace from agent_label', async () => {
+      const result = await mockDataSource.createAgent('  new-bot  ', null, [1])
+
+      expect(result.agent_label).toBe('new-bot')
+    })
+
+    it('makes the new agent appear in fetchAgents', async () => {
+      const before = await mockDataSource.fetchAgents()
+      expect(before).toHaveLength(2)
+
+      await mockDataSource.createAgent('new-bot', 'playwright', [1])
+
+      const after = await mockDataSource.fetchAgents()
+      expect(after).toHaveLength(3)
+      const created = after.find((a) => a.agent_label === 'new-bot')
+      expect(created).toBeDefined()
+      expect(created!.tool_family).toBe('playwright')
+      expect(created!.roles).toEqual([
+        { role_key: 'frontend', role_label: 'Frontend Engineer' },
+      ])
+    })
+
+    it('throws when a target role ID does not exist', async () => {
+      await expect(
+        mockDataSource.createAgent('new-bot', null, [999]),
+      ).rejects.toThrow('One or more selected roles no longer exist.')
+    })
+
+    it('resolves multiple role IDs to role summaries', async () => {
+      // Create a second role first so we can select both.
+      await mockDataSource.createRole('backend', 'Backend Engineer')
+
+      const result = await mockDataSource.createAgent('multi-bot', null, [1])
+
+      // The created agent should have the frontend role resolved.
+      expect(result.target_role_ids).toEqual([1])
+
+      const agents = await mockDataSource.fetchAgents()
+      const created = agents.find((a) => a.agent_label === 'multi-bot')
+      expect(created!.roles).toEqual([
+        { role_key: 'frontend', role_label: 'Frontend Engineer' },
+      ])
+    })
+
+    it('throws when agent_label exceeds 255 characters', async () => {
+      await expect(
+        mockDataSource.createAgent('a'.repeat(256), null, [1]),
+      ).rejects.toThrow('Agent label must be at most 255 characters.')
+    })
+
+    it('throws when tool_family exceeds 255 characters', async () => {
+      await expect(
+        mockDataSource.createAgent('new-bot', 'a'.repeat(256), [1]),
+      ).rejects.toThrow('Tool family must be at most 255 characters.')
+    })
+
+    it('throws when target_role_ids is empty', async () => {
+      await expect(
+        mockDataSource.createAgent('new-bot', null, []),
+      ).rejects.toThrow('At least one target role is required.')
     })
   })
 })

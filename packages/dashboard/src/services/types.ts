@@ -7,10 +7,13 @@
  */
 
 import type {
+  Agent,
+  CreateAgentResponse,
   JobDetail,
   JobListMeta,
   JobListQuery,
   JobListResponse,
+  Role,
   StatusCount,
   UnblockJobResponse,
 } from '../types/job.ts';
@@ -41,6 +44,50 @@ export interface JobDataSource {
 
   /** Fetch a single job detail by id. Returns null when not found. */
   fetchJobDetail(id: number): Promise<JobDetail | null>;
+
+  /**
+   * Fetch all available target roles from the
+   * `GET /api/v1/ui/agents/roles` endpoint.
+   *
+   * Returns a `Role[]` with `role_key` and `role_label` for each role.
+   * An empty array is a valid response when no roles exist.
+   */
+  fetchRoles(): Promise<Role[]>;
+
+  /**
+   * Fetch all registered agents from the
+   * `GET /api/v1/ui/agents` endpoint.
+   *
+   * Returns an `Agent[]` with `id`, `agent_label`, `tool_family`,
+   * `created_at`, and `roles` (a list of `AgentRoleSummary` with `role_key`
+   * and `role_label`). An empty array is a valid response when no agents
+   * exist.
+   */
+  fetchAgents(): Promise<Agent[]>;
+
+  /**
+   * Create a new target role via `POST /api/v1/ui/agents/roles`.
+   *
+   * Sends `role_key` and `role_label` as JSON body. On success (201)
+   * returns the created `Role`. Throws a typed error on 409/422 (duplicate
+   * `role_key`) so the UI can display a user-friendly message.
+   */
+  createRole(roleKey: string, roleLabel: string): Promise<Role>;
+
+  /**
+   * Create a new agent via `POST /api/v1/ui/agents`.
+   *
+   * Sends `agent_label`, `tool_family`, and `target_role_ids` as JSON body.
+   * On success (201) returns a `CreateAgentResponse` that includes the
+   * one-time `api_token` — this token is only available in this response
+   * and cannot be retrieved again. Throws a typed error on 422 (role not
+   * found or validation) so the UI can display a user-friendly message.
+   */
+  createAgent(
+    agentLabel: string,
+    toolFamily: string | null,
+    targetRoleIds: number[],
+  ): Promise<CreateAgentResponse>;
 
   /**
    * Unblock a blocked job by providing an unblock reason.

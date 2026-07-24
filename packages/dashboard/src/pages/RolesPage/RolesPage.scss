@@ -1,0 +1,208 @@
+.ff-roles {
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  &__count {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+  }
+
+  &__add-btn {
+    margin-left: auto;
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+  }
+
+  &--error {
+    color: var(--ff-color-danger);
+  }
+
+  &__empty {
+    color: var(--ff-page-text-muted);
+    font-size: 0.9375rem;
+  }
+
+  &__table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    background: var(--ff-card-bg);
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  &__th {
+    text-align: left;
+    padding: 10px 16px;
+    font-weight: 600;
+    color: var(--ff-page-text-muted);
+    border-bottom: 1px solid var(--ff-page-border);
+    white-space: nowrap;
+  }
+
+  &__row {
+    transition: background 0.1s;
+
+    &:hover {
+      background: var(--ff-color-light-soft);
+    }
+
+    &:not(:last-child) {
+      .ff-roles__td {
+        border-bottom: 1px solid var(--ff-page-border);
+      }
+    }
+  }
+
+  &__td {
+    padding: 10px 16px;
+    color: var(--ff-page-text);
+
+    &--mono {
+      font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+      font-size: 0.8125rem;
+    }
+
+    &--muted {
+      color: var(--ff-page-text-muted);
+      white-space: nowrap;
+    }
+  }
+
+  // Create role form (inside drawer)
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__form-desc {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ff-page-text-muted);
+  }
+
+  &__required {
+    color: var(--ff-color-danger);
+  }
+
+  &__input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+    font-size: 0.875rem;
+    font-family: var(--ff-sans);
+    color: var(--ff-page-text);
+    background: var(--ff-card-bg);
+
+    &:focus {
+      outline: none;
+      border-color: var(--ff-color-primary);
+      box-shadow: 0 0 0 2px var(--ff-primary-border);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &--mono {
+      font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+      font-size: 0.8125rem;
+    }
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--ff-page-text-muted);
+    font-style: italic;
+  }
+
+  &__form-error {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    background: var(--ff-danger-bg);
+    border: 1px solid var(--ff-danger-border);
+    color: var(--ff-on-danger);
+  }
+
+  &__form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &__cancel-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--ff-page-text-muted);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__submit-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-primary);
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--ff-color-primary-hover);
+      border-color: var(--ff-color-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
