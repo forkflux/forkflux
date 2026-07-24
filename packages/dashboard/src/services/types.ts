@@ -12,6 +12,7 @@ import type {
   JobListQuery,
   JobListResponse,
   StatusCount,
+  UnblockJobResponse,
 } from '../types/job.ts';
 
 export interface JobDataSource {
@@ -40,4 +41,13 @@ export interface JobDataSource {
 
   /** Fetch a single job detail by id. Returns null when not found. */
   fetchJobDetail(id: number): Promise<JobDetail | null>;
+
+  /**
+   * Unblock a blocked job by providing an unblock reason.
+   *
+   * Calls `POST /api/v1/ui/jobs/{id}/unblock`. Throws a typed error on
+   * 404 (job not found) or 422 (job is not in BLOCKED status) so the UI
+   * can display a user-friendly message.
+   */
+  unblockJob(id: number, unblockReason: string): Promise<UnblockJobResponse>;
 }

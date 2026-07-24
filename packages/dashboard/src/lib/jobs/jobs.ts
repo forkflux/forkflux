@@ -63,6 +63,7 @@ export const JOB_STATUS_ORDER: readonly JobStatus[] = [
   'claimed',
   'in_progress',
   'blocked',
+  'unblocked',
   'completed',
   'failed',
   'cancelled',
@@ -233,6 +234,7 @@ export function getTimeline(detail: JobDetail): TimelineEvent[] {
     { label: 'Completed', timestamp: detail.completed_at },
     { label: 'Failed', timestamp: detail.failed_at },
     { label: 'Blocked', timestamp: detail.blocked_at },
+    { label: 'Unblocked', timestamp: detail.unblocked_at },
     { label: 'Cancelled', timestamp: detail.cancelled_at },
     { label: 'Expires', timestamp: detail.expires_at },
   ];

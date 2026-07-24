@@ -20,6 +20,8 @@ import type {
   Role,
   SortDirection,
   StatusCount,
+  UnblockJobRequest,
+  UnblockJobResponse,
 } from '../types/job.ts';
 import type { JobDataSource } from './types.ts';
 
@@ -40,6 +42,21 @@ async function fetchJson<T>(url: string): Promise<T> {
     throw new Error(`Request failed: ${res.status} ${res.statusText} (${url})`);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * Send a JSON POST request and return the parsed response.
+ *
+ * Unlike `fetchJson`, this returns the raw `Response` so callers can inspect
+ * the status code before deciding how to handle errors (e.g. distinguishing
+ * 404 from 422 for the unblock endpoint).
+ */
+async function postJson(url: string, body: unknown): Promise<Response> {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 /**
@@ -127,5 +144,41 @@ export const apiDataSource: JobDataSource = {
       if (err instanceof Error && err.message.includes('404')) return null;
       throw err;
     }
+  },
+
+  /**
+   * Unblock a blocked job via `POST /api/v1/ui/jobs/{id}/unblock`.
+   *
+   * Sends the `unblock_reason` as JSON body. On success (200) returns the
+   * parsed `UnblockJobResponse`. Throws typed errors for 404 and 422 so the
+   * UI can display user-friendly messages:
+   * - 404 → "Job not found"
+   * - 422 → "This job cannot be unblocked from its current status"
+   */
+  async unblockJob(
+    id: number,
+    unblockReason: string,
+  ): Promise<UnblockJobResponse> {
+    const body: UnblockJobRequest = { unblock_reason: unblockReason };
+    const res = await postJson(
+      `${getBaseUrl()}/ui/jobs/${id}/unblock`,
+      body,
+    );
+
+    if (res.status === 404) {
+      throw new Error('Job not found');
+    }
+    if (res.status === 422) {
+      throw new Error(
+        'This job cannot be unblocked from its current status.',
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    return (await res.json()) as UnblockJobResponse;
   },
 };
