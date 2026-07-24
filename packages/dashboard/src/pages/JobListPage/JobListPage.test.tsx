@@ -232,6 +232,38 @@ describe('JobListPage', () => {
       })
     })
 
+    it('applies both sort field and dir atomically when switching columns (regression for stale-closure overwrite)', async () => {
+      // Regression: setSort(field) + setDir('asc') called synchronously used
+      // to cause the second setSearchParams to overwrite the first because
+      // React Router's functional updater reads from a stale closure. The
+      // sort field was silently discarded. This test verifies both params
+      // arrive together in the fetch query.
+      setJobsResponse([createMockJob({ id: 1 })])
+      renderWithRouter(<JobListPage />, {
+        routerProps: { initialEntries: ['/jobs?sort=id&dir=desc'] },
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('ID ▼')).toBeInTheDocument()
+      })
+
+      // Click the Summary header — should switch to sort=summary, dir=asc
+      const summaryHeader = screen.getByRole('columnheader', { name: /Summary/i })
+      fireEvent.click(summaryHeader)
+
+      // The fetch must carry BOTH the new sort field and the asc direction.
+      // Before the fix, only dir=asc survived (sort=id was retained).
+      await waitFor(() => {
+        expect(mockService.fetchJobs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'summary', dir: 'asc' }),
+        )
+      })
+
+      // The header should now show the Summary sort arrow in ascending order
+      expect(screen.getByText(/Summary/)).toBeInTheDocument()
+      expect(screen.queryByText('ID ▼')).not.toBeInTheDocument()
+    })
+
     it('navigates to job detail when a row is clicked', async () => {
       setJobsResponse([createMockJob({ id: 42, summary: 'Click me' })])
       renderWithRouter(<JobListPage />, {

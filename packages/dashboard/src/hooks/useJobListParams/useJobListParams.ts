@@ -80,6 +80,18 @@ export interface UseJobListParams {
   setSearch: (search: string) => void;
   setSort: (field: JobSortField) => void;
   setDir: (dir: SortDirection) => void;
+  /**
+   * Atomically update both the sort field and direction in a single
+   * `setSearchParams` call.
+   *
+   * React Router's `setSearchParams` functional updater does NOT queue
+   * multiple synchronous calls — each call reads from the stale closure
+   * value of `searchParams`, so calling `setSort` then `setDir` back-to-back
+   * causes the second navigate to overwrite the first, silently discarding
+   * the field change. This combined setter avoids that by patching both
+   * fields in one URL update.
+   */
+  setSortAndDir: (field: JobSortField, dir: SortDirection) => void;
   setOffset: (offset: number) => void;
   setLimit: (limit: number) => void;
 }
@@ -204,6 +216,11 @@ export function useJobListParams(): UseJobListParams {
     [update],
   );
 
+  const setSortAndDir = useCallback(
+    (field: JobSortField, dir: SortDirection) => update({ sort: field, dir }, true),
+    [update],
+  );
+
   const setOffset = useCallback(
     (offset: number) => update({ offset }, false),
     [update],
@@ -221,6 +238,7 @@ export function useJobListParams(): UseJobListParams {
     setSearch,
     setSort,
     setDir,
+    setSortAndDir,
     setOffset,
     setLimit,
   };

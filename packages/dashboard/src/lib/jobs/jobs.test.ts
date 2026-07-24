@@ -140,6 +140,22 @@ describe('countJobsByStatus', () => {
     expect(counts.failed).toBe(0)
     expect(counts.cancelled).toBe(0)
   })
+
+  it('handles unknown statuses without producing NaN', () => {
+    const jobs = [
+      makeJob({ status: 'published' }),
+      makeJob({ status: 'archived' as Job['status'] }),
+      makeJob({ status: 'archived' as Job['status'] }),
+    ]
+    const counts = countJobsByStatus(jobs)
+    expect(counts.published).toBe(1)
+    // Unknown status is counted via graceful degradation (never NaN)
+    expect(Number.isFinite((counts as Record<string, number>).archived)).toBe(true)
+    // Every known status remains a finite number
+    for (const status of JOB_STATUS_ORDER) {
+      expect(Number.isFinite(counts[status])).toBe(true)
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

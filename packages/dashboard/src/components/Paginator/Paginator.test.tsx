@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { Paginator } from './Paginator'
 import { renderWithRouter } from '../../test/utils'
 
@@ -124,6 +124,96 @@ describe('Paginator', () => {
       )
       fireEvent.click(screen.getByText('3'))
       expect(onOffsetChange).toHaveBeenCalledWith(20)
+    })
+  })
+
+  describe('offset clamping sync', () => {
+    it('calls onOffsetChange with the clamped offset when offset is out of range', () => {
+      const onOffsetChange = vi.fn()
+      renderWithRouter(
+        <Paginator
+          total={25}
+          limit={10}
+          offset={40}
+          onOffsetChange={onOffsetChange}
+          onLimitChange={vi.fn()}
+        />,
+      )
+      // total=25, limit=10 → 3 pages; offset=40 → page 5, clamped to page 3 (offset 20)
+      expect(onOffsetChange).toHaveBeenCalledWith(20)
+    })
+
+    it('clamps to 0 when total is 0 and offset is non-zero', () => {
+      const onOffsetChange = vi.fn()
+      renderWithRouter(
+        <Paginator
+          total={0}
+          limit={10}
+          offset={40}
+          onOffsetChange={onOffsetChange}
+          onLimitChange={vi.fn()}
+        />,
+      )
+      expect(onOffsetChange).toHaveBeenCalledWith(0)
+    })
+
+    it('does not call onOffsetChange on mount when the offset is already valid', () => {
+      const onOffsetChange = vi.fn()
+      renderWithRouter(
+        <Paginator
+          total={25}
+          limit={10}
+          offset={0}
+          onOffsetChange={onOffsetChange}
+          onLimitChange={vi.fn()}
+        />,
+      )
+      expect(onOffsetChange).not.toHaveBeenCalled()
+    })
+
+    it('does not call onOffsetChange when offset is the last valid page', () => {
+      const onOffsetChange = vi.fn()
+      renderWithRouter(
+        <Paginator
+          total={25}
+          limit={10}
+          offset={20}
+          onOffsetChange={onOffsetChange}
+          onLimitChange={vi.fn()}
+        />,
+      )
+      expect(onOffsetChange).not.toHaveBeenCalled()
+    })
+
+    it('does not loop: after clamping, a re-render with the clamped offset fires no further call', () => {
+      const onOffsetChange = vi.fn()
+      const { rerender } = renderWithRouter(
+        <Paginator
+          total={25}
+          limit={10}
+          offset={40}
+          onOffsetChange={onOffsetChange}
+          onLimitChange={vi.fn()}
+        />,
+      )
+      // Initial mount clamps 40 → 20 (one call).
+      expect(onOffsetChange).toHaveBeenCalledTimes(1)
+      expect(onOffsetChange).toHaveBeenCalledWith(20)
+
+      // Simulate the parent applying the clamped offset back.
+      act(() => {
+        rerender(
+          <Paginator
+            total={25}
+            limit={10}
+            offset={20}
+            onOffsetChange={onOffsetChange}
+            onLimitChange={vi.fn()}
+          />,
+        )
+      })
+      // No additional call once the offset is valid.
+      expect(onOffsetChange).toHaveBeenCalledTimes(1)
     })
   })
 

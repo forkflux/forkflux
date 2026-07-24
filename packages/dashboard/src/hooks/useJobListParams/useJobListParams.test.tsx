@@ -244,6 +244,40 @@ describe('useJobListParams', () => {
     })
   })
 
+  describe('setSortAndDir', () => {
+    it('writes both sort and dir to URL atomically and resets offset', () => {
+      const { result } = renderHook(() => useJobListParams(), {
+        wrapper: createWrapper('/jobs?sort=id&dir=desc&offset=30'),
+      })
+
+      act(() => result.current.setSortAndDir('summary', 'asc'))
+
+      expect(result.current.query.sort).toBe('summary')
+      expect(result.current.query.dir).toBe('asc')
+      expect(result.current.query.offset).toBe(0)
+    })
+
+    it('removes sort param when set to default (created_at)', () => {
+      const { result } = renderHook(() => useJobListParams(), {
+        wrapper: createWrapper('/jobs?sort=id'),
+      })
+
+      act(() => result.current.setSortAndDir('created_at', 'asc'))
+
+      expect(result.current.query.sort).toBe('created_at')
+    })
+
+    it('removes dir param when set to default (desc)', () => {
+      const { result } = renderHook(() => useJobListParams(), {
+        wrapper: createWrapper('/jobs?dir=asc'),
+      })
+
+      act(() => result.current.setSortAndDir('id', 'desc'))
+
+      expect(result.current.query.dir).toBe('desc')
+    })
+  })
+
   describe('setLimit', () => {
     it('writes limit to URL and resets offset', () => {
       const { result } = renderHook(() => useJobListParams(), {

@@ -79,7 +79,7 @@ export function countJobsByStatus(jobs: Job[]): Record<JobStatus, number> {
     counts[status] = 0;
   }
   for (const job of jobs) {
-    counts[job.status] += 1;
+    counts[job.status] = (counts[job.status] ?? 0) + 1;
   }
   return counts;
 }

@@ -17,8 +17,8 @@ export function JobListPage() {
     setStatus,
     setRole,
     setSearch,
-    setSort,
     setDir,
+    setSortAndDir,
     setOffset,
     setLimit,
   } = useJobListParams()
@@ -99,8 +99,7 @@ export function JobListPage() {
     if (query.sort === field) {
       setDir(query.dir === 'asc' ? 'desc' : 'asc')
     } else {
-      setSort(field)
-      setDir('asc')
+      setSortAndDir(field, 'asc')
     }
   }
 

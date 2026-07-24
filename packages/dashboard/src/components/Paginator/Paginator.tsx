@@ -13,6 +13,7 @@
  * - Page-size `<select>` (10 / 20 / 50 / 100).
  */
 
+import { useEffect } from 'react';
 import './Paginator.scss';
 
 export interface PaginatorProps {
@@ -81,6 +82,16 @@ export function Paginator({
   // Clamp current page into range (e.g. after a filter narrows results).
   const clampedPage = Math.min(Math.max(currentPage, 1), totalPages);
   const clampedOffset = (clampedPage - 1) * limit;
+
+  // Sync the clamped offset back to the parent whenever the incoming offset is
+  // out of range, so the parent's query and subsequent data fetch use the same
+  // valid offset the paginator displays. Skipped when the offset is already
+  // valid to avoid redundant updates.
+  useEffect(() => {
+    if (clampedOffset !== offset) {
+      onOffsetChange(clampedOffset);
+    }
+  }, [clampedOffset, offset, onOffsetChange]);
 
   const rangeStart = total === 0 ? 0 : clampedOffset + 1;
   const rangeEnd = Math.min(clampedOffset + limit, total);
