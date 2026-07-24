@@ -1,0 +1,49 @@
+/**
+ * Brand theming for @uiw/react-json-view.
+ *
+ * Maps the library's `--w-rjv-*` CSS custom properties onto the project's
+ * `--ff-*` token system so the JSON tree adapts to light/dark themes
+ * automatically. No new colors are introduced.
+ */
+.ff-json-grid {
+  --w-rjv-background-color: transparent;
+  --w-rjv-font-family: var(--ff-mono);
+  --w-rjv-line-color: var(--ff-page-border);
+
+  /* Keys — violet secondary accent for emphasis */
+  --w-rjv-key-string: var(--ff-page-text-muted);
+
+  /* Values */
+  --w-rjv-type-int-color: var(--ff-color-primary);
+  --w-rjv-type-float-color: var(--ff-color-primary);
+  --w-rjv-type-bigint-color: var(--ff-color-primary);
+  --w-rjv-type-boolean-color: var(--ff-color-secondary);
+  --w-rjv-type-date-color: var(--ff-color-info);
+  --w-rjv-type-null-color: var(--ff-page-text-muted);
+  --w-rjv-type-undefined-color: var(--ff-page-text-muted);
+  --w-rjv-type-nan-color: var(--ff-color-danger);
+  --w-rjv-type-infinity-color: var(--ff-color-danger);
+  
+  /* String values use the theme-aware page text so they stay readable on
+     both light (#0F172A on #F8FAFC) and dark (#F8FAFC on #0B1220) surfaces.
+     The earlier mapping to --ff-color-text (fixed #F8FAFC) was invisible
+     in light mode. */
+  --w-rjv-type-string-color: var(--ff-page-text);
+
+  /* Counts / braces / punctuation — use theme-aware muted text. */
+  --w-rjv-braces-color: var(--ff-page-text-muted);
+  --w-rjv-size-color: var(--ff-page-text-muted);
+  --w-rjv-copied-color: var(--ff-color-primary);
+  --w-rjv-quotes-color: var(--ff-page-text-muted);
+  --w-rjv-quotes-string-color: var(--ff-page-text-muted);
+  --w-rjv-colon-color: var(--ff-page-text-muted);
+  --w-rjv-info-color: #236a7c;
+
+  // background: var(--ff-card-bg);
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius);
+  padding: 16px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow: auto;
+}

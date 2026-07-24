@@ -1,0 +1,228 @@
+.ff-jobs {
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  &__count {
+    font-size: 0.875rem;
+    color: var(--ff-page-text-muted);
+  }
+
+  &--error {
+    color: var(--ff-color-danger);
+  }
+
+  // Status filter pills
+  &__status-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  &__status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text-muted);
+    transition: all 0.15s;
+
+    &:hover {
+      border-color: var(--ff-color-primary);
+      color: var(--ff-page-text);
+    }
+
+    &--active {
+      background: var(--ff-color-primary);
+      border-color: var(--ff-color-primary);
+      color: var(--ff-color-bg);
+
+      &:hover {
+        color: var(--ff-color-bg);
+      }
+    }
+  }
+
+  &__status-count {
+    font-size: 0.75rem;
+    opacity: 0.7;
+
+    // Attention state for the blocked count when blocked jobs exist
+    // but the blocked filter is not currently selected. Uses the amber
+    // warning accent per the brand-colors rules (urgency / attention).
+    &--highlight {
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--ff-warning-bg-strong);
+      color: var(--ff-on-warning);
+      font-weight: 600;
+      opacity: 1;
+    }
+  }
+
+  // When the pill is active, the count inherits the active pill's
+  // contrast color and the highlight must not override it.
+  &__status-pill--active &__status-count--highlight {
+    background: transparent;
+    color: var(--ff-color-bg);
+    opacity: 0.85;
+  }
+
+  // Role + search filters
+  &__filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__select {
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    font-size: 0.875rem;
+    min-width: 180px;
+    cursor: pointer;
+
+    &:focus {
+      outline: 2px solid var(--ff-color-primary);
+      outline-offset: -1px;
+    }
+  }
+
+  &__search {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: var(--ff-radius);
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    font-size: 0.875rem;
+
+    &::placeholder {
+      color: var(--ff-page-text-muted);
+    }
+
+    &:focus {
+      outline: 2px solid var(--ff-color-primary);
+      outline-offset: -1px;
+    }
+  }
+
+  // Table
+  &__table-wrap {
+    background: var(--ff-card-bg);
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--ff-shadow-sm);
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  &__th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ff-page-text-muted);
+    background: var(--ff-color-light-soft);
+    border-bottom: 1px solid var(--ff-page-border);
+    white-space: nowrap;
+
+    &--sortable {
+      cursor: pointer;
+      user-select: none;
+
+      &:hover {
+        color: var(--ff-page-text);
+      }
+    }
+  }
+
+  &__row {
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--ff-page-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: var(--ff-color-light-soft);
+    }
+  }
+
+  &__td {
+    padding: 10px 14px;
+    color: var(--ff-page-text);
+    vertical-align: middle;
+
+    &--id {
+      font-family: var(--ff-mono);
+      font-size: 0.8125rem;
+      color: var(--ff-page-text-muted);
+      white-space: nowrap;
+    }
+
+    &--summary {
+      max-width: 360px;
+    }
+
+    &--priority {
+      font-family: var(--ff-mono);
+      text-align: center;
+    }
+
+    &--parent {
+      font-family: var(--ff-mono);
+      font-size: 0.8125rem;
+      color: var(--ff-page-text-muted);
+      white-space: nowrap;
+    }
+
+    &--mono {
+      font-family: var(--ff-mono);
+      font-size: 0.8125rem;
+    }
+
+    &--date {
+      font-size: 0.8125rem;
+      color: var(--ff-page-text-muted);
+      white-space: nowrap;
+    }
+  }
+
+  &__empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--ff-page-text-muted);
+    font-size: 0.9rem;
+  }
+
+  // Paginator footer — sits below the table card, aligned to its width.
+  &__footer {
+    margin-top: 12px;
+    background: var(--ff-card-bg);
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius-lg);
+    box-shadow: var(--ff-shadow-sm);
+  }
+}

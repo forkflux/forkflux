@@ -9,6 +9,7 @@ wheels/
 # Virtual environments
 .venv
 
+.DS_Store
 .idea
 .mypy_cache
 .ruff_cache
@@ -33,3 +34,4 @@ AGENTS.md
 .claude
 .kilocodeignore
 .kilo
+plans/

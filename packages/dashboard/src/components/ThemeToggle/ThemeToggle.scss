@@ -1,0 +1,25 @@
+.ff-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-left: 8px;
+  border-radius: var(--ff-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ff-color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    color: var(--ff-color-text);
+    background: var(--ff-color-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ff-color-primary);
+    outline-offset: 1px;
+  }
+}
