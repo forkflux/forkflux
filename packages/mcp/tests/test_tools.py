@@ -434,3 +434,88 @@ async def test_get_reopen_context_calls_api_request_with_expected_contract_and_r
 
     mock_api_request.assert_called_once_with("GET", "/jobs/300/reopen-context")
     _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_update_job_with_context_payload_only_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"job_id": 55, "message": "job with job_id 55 updated successfully"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_update_job",
+            arguments={
+                "job_id": 55,
+                "context_payload": {"ticket_id": "TCK-2", "extra": "data"},
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "PATCH",
+        "/jobs/55",
+        json_data={
+            "context_payload": {"ticket_id": "TCK-2", "extra": "data"},
+            "constraints": None,
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_update_job_with_constraints_only_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"job_id": 55, "message": "job with job_id 55 updated successfully"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_update_job",
+            arguments={
+                "job_id": 55,
+                "constraints": ["deadline:tomorrow", "priority:high"],
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "PATCH",
+        "/jobs/55",
+        json_data={
+            "context_payload": None,
+            "constraints": ["deadline:tomorrow", "priority:high"],
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_update_job_with_both_fields_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"job_id": 55, "message": "job with job_id 55 updated successfully"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_update_job",
+            arguments={
+                "job_id": 55,
+                "context_payload": {"ticket_id": "TCK-2"},
+                "constraints": ["deadline:tomorrow"],
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "PATCH",
+        "/jobs/55",
+        json_data={
+            "context_payload": {"ticket_id": "TCK-2"},
+            "constraints": ["deadline:tomorrow"],
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)

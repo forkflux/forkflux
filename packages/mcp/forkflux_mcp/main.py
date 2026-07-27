@@ -288,6 +288,45 @@ async def change_job_status(
     )
 
 
+@mcp.tool("forkflux_update_job")
+async def update_job(
+    job_id: Annotated[int, Field(description="The unique ID of the job to update.")],
+    context_payload: Annotated[
+        dict[str, Any] | None,
+        Field(
+            default=None,
+            description="A highly detailed, structured JSON dictionary to replace the existing context_payload. "
+            "Do NOT pass a simple flat string.",
+        ),
+    ] = None,
+    constraints: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="A list of strict constraints or execution boundaries to replace the existing constraints.",
+        ),
+    ] = None,
+):
+    """
+    Updates the mutable fields of a job on the ForkFlux coordination bus.
+
+    Use this tool to revise a job's context_payload and/or constraints after it has been
+    published (e.g., to add missing context, correct a constraint, or refine instructions
+    for the target agent). At least one of `context_payload` or `constraints` MUST be
+    provided; the API will reject the request with a 422 if both are omitted.
+
+    Args:
+        job_id: The ID of the job to update.
+        context_payload: (Optional) A structured JSON dictionary replacing the existing context_payload.
+        constraints: (Optional) A list of constraints replacing the existing constraints.
+    """
+    return await _api_request(
+        "PATCH",
+        f"/jobs/{job_id}",
+        json_data={"context_payload": context_payload, "constraints": constraints},
+    )
+
+
 @mcp.tool("forkflux_reject_job")
 async def reject_job(
     job_id: Annotated[
