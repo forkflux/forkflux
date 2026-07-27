@@ -29,14 +29,9 @@ import type {
 } from '../types/job.ts';
 import type { JobDataSource } from './types.ts';
 
-const API_BASE_URL = import.meta.env.FE_API_BASE_URL as string | undefined;
+const API_BASE_URL = (import.meta.env.FE_API_BASE_URL as string | undefined) || '/api/v1';
 
 function getBaseUrl(): string {
-  if (!API_BASE_URL) {
-    throw new Error(
-      'FE_API_BASE_URL is not set. Configure it to use the live API, or run with `npm run dev:mocked` for mock data.',
-    );
-  }
   return API_BASE_URL.replace(/\/$/, '');
 }
 
