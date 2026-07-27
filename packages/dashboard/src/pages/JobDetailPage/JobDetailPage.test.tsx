@@ -157,34 +157,6 @@ describe('JobDetailPage', () => {
     })
   })
 
-  describe('ticket key extraction', () => {
-    it('renders ticket badge when summary contains a ticket key', async () => {
-      const detail = createMockJobDetail({
-        id: 1,
-        summary: 'Fix bug [FF-1000] now',
-      })
-      setDetailResponse(detail)
-      renderDetailPage('/jobs/1')
-      await waitFor(() => {
-        expect(screen.getByText('FF-1000')).toBeInTheDocument()
-      })
-    })
-
-    it('does not render ticket badge when summary has no ticket key', async () => {
-      const detail = createMockJobDetail({
-        id: 1,
-        summary: 'Fix bug without ticket',
-      })
-      setDetailResponse(detail)
-      renderDetailPage('/jobs/1')
-      await waitFor(() => {
-        expect(screen.getByText('Fix bug without ticket')).toBeInTheDocument()
-      })
-      // No ticket badge — the only "FF-" text would be in the summary itself
-      // which doesn't contain "FF-"
-    })
-  })
-
   describe('failure / blocked reasons', () => {
     it('renders failure reason callout when present', async () => {
       const detail = createMockJobDetail({

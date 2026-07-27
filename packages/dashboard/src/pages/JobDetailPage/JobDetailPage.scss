@@ -44,17 +44,6 @@
     margin-bottom: 6px;
   }
 
-  &__ticket {
-    display: inline-block;
-    font-family: var(--ff-mono);
-    font-size: 0.8125rem;
-    color: var(--ff-color-secondary);
-    background: var(--ff-color-secondary-soft);
-    padding: 2px 8px;
-    border-radius: var(--ff-radius-sm);
-    border: 1px solid var(--ff-secondary-border);
-  }
-
   &__header-right {
     display: flex;
     align-items: center;

@@ -5,7 +5,6 @@ import { Drawer } from '../../components/Drawer/Drawer'
 import { JsonGrid } from '../../components/JsonGrid/JsonGrid'
 import { jobService } from '../../services/jobService'
 import {
-  extractTicketKey,
   formatAssignee,
   formatDate,
   getTimeline,
@@ -132,7 +131,6 @@ export function JobDetailPage() {
     )
   }
 
-  const ticket = extractTicketKey(detail.summary)
   const timeline = getTimeline(detail)
 
   return (
@@ -149,9 +147,6 @@ export function JobDetailPage() {
       <div className="ff-detail__header">
         <div className="ff-detail__header-left">
           <h1 className="ff-detail__title">{detail.summary}</h1>
-          {ticket && (
-            <span className="ff-detail__ticket">{ticket}</span>
-          )}
         </div>
         <div className="ff-detail__header-right">
           <StatusBadge status={detail.status} />
