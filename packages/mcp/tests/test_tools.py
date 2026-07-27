@@ -106,6 +106,70 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
             "artifacts": expected_artifacts,
             "priority": JobPriorityEnum.HIGH,
             "parent_job_id": 42,
+            "blocked_by": [],
+            "routing_rules": None,
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_create_job_with_routing_rules_passes_them_to_api_request(
+    client: Client[FastMCPTransport],
+) -> None:
+    """forkflux_create_job must serialize routing_rules and pass them to _api_request."""
+    routing_rules_payload = [
+        {
+            "target_role_key": "security_reviewer",
+            "summary": "Review the completed work",
+            "context_payload": {"review_type": "security_audit"},
+            "constraints": ["must approve before merge"],
+            "priority": JobPriorityEnum.NORMAL,
+            "artifacts": [],
+        }
+    ]
+    expected_routing_rules = [
+        {
+            "target_role_key": "security_reviewer",
+            "summary": "Review the completed work",
+            "context_payload": {"review_type": "security_audit"},
+            "constraints": ["must approve before merge"],
+            "priority": JobPriorityEnum.NORMAL,
+            "artifacts": [],
+        }
+    ]
+
+    expected_payload = {
+        "success": True,
+        "details": {"id": 102, "status": "published"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_create_job",
+            arguments={
+                "summary": "Build the auth feature",
+                "context_payload": {"feature": "auth"},
+                "target_role_key": TargetRoleEnum.qa_agent,
+                "constraints": ["deadline:today"],
+                "artifacts": [],
+                "priority": JobPriorityEnum.HIGH,
+                "routing_rules": routing_rules_payload,
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs",
+        json_data={
+            "summary": "Build the auth feature",
+            "context_payload": {"feature": "auth"},
+            "target_role_key": "qa_agent",
+            "constraints": ["deadline:today"],
+            "artifacts": [],
+            "priority": JobPriorityEnum.HIGH,
+            "parent_job_id": None,
+            "blocked_by": [],
+            "routing_rules": expected_routing_rules,
         },
     )
     _assert_tool_result_envelope(result, expected_payload)
@@ -274,4 +338,99 @@ async def test_change_job_status_failed_calls_api_request_with_failure_reason_an
             "blocked_reason": None,
         },
     )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_create_job_with_blocked_by_calls_api_request_with_correct_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"job_id": 201, "status": "pending"},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_create_job",
+            arguments={
+                "summary": "Fan-in job waiting for upstream",
+                "context_payload": {"task": "qa_review"},
+                "target_role_key": TargetRoleEnum.qa_agent,
+                "constraints": ["deadline:today"],
+                "artifacts": [],
+                "priority": JobPriorityEnum.NORMAL,
+                "parent_job_id": None,
+                "blocked_by": [101, 102],
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs",
+        json_data={
+            "summary": "Fan-in job waiting for upstream",
+            "context_payload": {"task": "qa_review"},
+            "target_role_key": "qa_agent",
+            "constraints": ["deadline:today"],
+            "artifacts": [],
+            "priority": JobPriorityEnum.NORMAL,
+            "parent_job_id": None,
+            "blocked_by": [101, 102],
+            "routing_rules": None,
+        },
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_reject_job_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {"job_id": 300, "original_job_id": 200, "retry_count": 1},
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_reject_job",
+            arguments={
+                "job_id": 150,
+                "target_job_id": 200,
+                "reason": "Tests failed on edge case",
+            },
+        )
+
+    mock_api_request.assert_called_once_with(
+        "POST",
+        "/jobs/150/reject",
+        json_data={"target_job_id": 200, "reason": "Tests failed on edge case"},
+    )
+    _assert_tool_result_envelope(result, expected_payload)
+
+
+async def test_get_reopen_context_calls_api_request_with_expected_contract_and_returns_payload(
+    client: Client[FastMCPTransport],
+) -> None:
+    expected_payload = {
+        "success": True,
+        "details": {
+            "job_id": 300,
+            "original_job_id": 200,
+            "rejected_by_job_id": 150,
+            "retry_count": 1,
+            "max_retries": 3,
+            "rejection_reason": "Tests failed on edge case",
+            "summary": "[Retry 1] Fix the bug",
+            "constraints": ["deadline:today"],
+            "target_role_key": "backend",
+        },
+    }
+
+    with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
+        result = await client.call_tool(
+            "forkflux_get_reopen_context",
+            arguments={"job_id": 300},
+        )
+
+    mock_api_request.assert_called_once_with("GET", "/jobs/300/reopen-context")
     _assert_tool_result_envelope(result, expected_payload)

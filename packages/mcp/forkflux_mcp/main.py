@@ -8,7 +8,7 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum, JobStatusEnum
-from forkflux_mcp.schemas import JobArtifact
+from forkflux_mcp.schemas import JobArtifact, RoutingRule
 
 FORKFLUX_INSTRUCTIONS = """
 You are connected to the ForkFlux Coordination Bus, an infrastructure layer for decentralized AI agents to securely hand off jobs across isolated machines.
@@ -117,6 +117,8 @@ async def create_job(
     artifacts: list[JobArtifact],
     priority: JobPriorityEnum,
     parent_job_id: int | None = None,
+    blocked_by: list[int] | None = None,
+    routing_rules: list[RoutingRule] | None = None,
 ):
     """
     Publishes a new handoff job to the ForkFlux coordination bus for delegation.
@@ -138,8 +140,17 @@ async def create_job(
         artifacts: A list of external resources (like S3 URIs, Git commits, or database dumps) attached to this job.
         priority: The urgency of the job.
         parent_job_id: (Optional) The ID of the job that spawned this job, used for tracing the handoff chain.
+        blocked_by: (Optional) A list of upstream job IDs that must complete before this job becomes claimable.
+            When provided, the job is created in 'pending' status and transitions to 'published' once all
+            upstream blockers reach 'completed' status (barrier synchronization). Fan-out is achieved by
+            calling create_job multiple times; fan-in is achieved by calling create_job once with blocked_by.
+        routing_rules: (Optional) A list of conditional routing rules. When this job transitions to 'completed',
+            each rule is used to auto-create a new 'published' job. This enables conditional routing where
+            the source agent specifies what should happen after this job completes. Each rule must specify
+            target_role_key, summary, context_payload, constraints, priority, and optionally artifacts.
     """
     serialized_artifacts = [artifact.model_dump() for artifact in artifacts] if artifacts else []
+    serialized_routing_rules = [rule.model_dump() for rule in routing_rules] if routing_rules else None
 
     return await _api_request(
         "POST",
@@ -152,6 +163,8 @@ async def create_job(
             "artifacts": serialized_artifacts,
             "priority": priority,
             "parent_job_id": parent_job_id,
+            "blocked_by": blocked_by or [],
+            "routing_rules": serialized_routing_rules,
         },
     )
 
@@ -273,6 +286,65 @@ async def change_job_status(
         f"/jobs/{job_id}/status",
         json_data={"status": status.value, "failure_reason": failure_reason, "blocked_reason": blocked_reason},
     )
+
+
+@mcp.tool("forkflux_reject_job")
+async def reject_job(
+    job_id: Annotated[
+        int, Field(description="The ID of the job that is performing the rejection (e.g., a review job).")
+    ],
+    target_job_id: Annotated[
+        int, Field(description="The ID of the original job whose work is being rejected and needs to be redone.")
+    ],
+    reason: Annotated[
+        str, Field(description="A detailed explanation of why the work is being rejected and what needs to change.")
+    ],
+):
+    """
+    Rejects the output of a completed job and creates a reopen iteration for the original work.
+
+    This tool creates a new job that is a reopen of the target job, with retry_count incremented by 1.
+    The new job inherits the target role, constraints, and context from the original job, with the
+    rejection reason added to the context payload. A REOPEN_OF dependency edge links the new job
+    to the original.
+
+    Use this when a reviewer or downstream agent determines that a completed job's output does not
+    meet the required standards and the work needs to be redone.
+
+    Args:
+        job_id: The ID of the job performing the rejection (e.g., a QA/review job that found issues).
+        target_job_id: The ID of the original job whose work is being rejected and needs to be redone.
+        reason: A detailed explanation of why the work is being rejected and what needs to change.
+    """
+    return await _api_request(
+        "POST",
+        f"/jobs/{job_id}/reject",
+        json_data={"target_job_id": target_job_id, "reason": reason},
+    )
+
+
+@mcp.tool("forkflux_get_reopen_context")
+async def get_reopen_context(
+    job_id: Annotated[int, Field(description="The unique ID of the reopened job (a retry iteration).")],
+):
+    """
+    Fetches the focused reopen context for a job that was created as a retry iteration.
+
+    Returns ONLY the diff/rejection metadata — the rejection reason, original job ID,
+    retry count, max_retries, summary, and constraints — NOT the full original
+    context_payload. This is designed for CLI agents with limited context windows
+    who need to understand what changed since the last attempt without parsing
+    the entire original context blob.
+
+    Use this tool when:
+    - You have claimed (or are about to claim) a job that is a retry iteration.
+    - You need to understand why the previous attempt was rejected.
+    - You want focused context instead of the full context_payload.
+
+    Args:
+        job_id: The ID of the reopened job (the retry iteration, not the original).
+    """
+    return await _api_request("GET", f"/jobs/{job_id}/reopen-context")
 
 
 @mcp.prompt("board")

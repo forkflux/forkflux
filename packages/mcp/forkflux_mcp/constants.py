@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 
 
 class JobStatusEnum(str, Enum):
+    PENDING = "pending"
     PUBLISHED = "published"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
