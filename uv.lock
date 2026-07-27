@@ -8,7 +8,7 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "forkflux-api",
+    "forkflux",
     "forkflux-mcp",
     "forkflux-workspace",
 ]
@@ -554,8 +554,8 @@ wheels = [
 ]
 
 [[package]]
-name = "forkflux-api"
-version = "0.6.0"
+name = "forkflux"
+version = "1.0.0"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "aiosqlite" },

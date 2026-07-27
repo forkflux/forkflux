@@ -387,22 +387,26 @@ describe('apiDataSource', () => {
 })
 
 // ---------------------------------------------------------------------------
-// getBaseUrl error (separate describe to control env)
+// getBaseUrl default (separate describe to control env)
 // ---------------------------------------------------------------------------
 
 describe('apiDataSource without FE_API_BASE_URL', () => {
-  it('throws synchronously when FE_API_BASE_URL is not set', async () => {
+  it('defaults to /api/v1 when FE_API_BASE_URL is not set', async () => {
     // Reset modules so the env is re-read on import.
     vi.resetModules()
     vi.stubEnv('FE_API_BASE_URL', '')
 
     const { apiDataSource: freshDataSource } = await import('./apiDataSource')
 
-    // getBaseUrl() throws synchronously inside fetchJobs before the promise
-    // is created, so we assert a synchronous throw rather than a rejection.
-    expect(() => freshDataSource.fetchJobs(defaultQuery())).toThrow(
-      'FE_API_BASE_URL is not set',
-    )
+    fetchMock.mockReset()
+    fetchMock.mockResolvedValue(jsonResponse({ items: [], total: 0, limit: 10, offset: 0 }))
+
+    await freshDataSource.fetchJobs(defaultQuery())
+
+    // The request URL should use the default /api/v1 base.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/api/v1/ui/jobs')
 
     // Restore for subsequent tests.
     vi.stubEnv('FE_API_BASE_URL', API_BASE)

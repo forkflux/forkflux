@@ -18,6 +18,9 @@ wheels/
 local.yml
 docker_data
 
+# Built dashboard (generated from packages/dashboard, not source)
+packages/api/forkflux_api/static/
+
 AGENTS.md
 .aiginore
 .agents

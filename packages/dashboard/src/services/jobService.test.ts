@@ -40,19 +40,45 @@ describe('jobService data-source resolution', () => {
     vi.stubEnv('FE_USE_MOCKS', '')
     vi.stubEnv('FE_API_BASE_URL', '')
 
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], total: 0, limit: 10, offset: 0 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+
     const { jobService } = await import('./jobService')
 
-    // apiDataSource.getBaseUrl() throws synchronously inside fetchJobs when
-    // FE_API_BASE_URL is empty — proving the API source is selected.
-    expect(() => jobService.fetchJobs(defaultQuery())).toThrow('FE_API_BASE_URL')
+    await jobService.fetchJobs(defaultQuery())
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/api/v1/ui/jobs')
+
+    vi.unstubAllGlobals()
   })
 
   it('uses apiDataSource when FE_USE_MOCKS is "false"', async () => {
     vi.stubEnv('FE_USE_MOCKS', 'false')
     vi.stubEnv('FE_API_BASE_URL', '')
 
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], total: 0, limit: 10, offset: 0 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+
     const { jobService } = await import('./jobService')
 
-    expect(() => jobService.fetchJobs(defaultQuery())).toThrow('FE_API_BASE_URL')
+    await jobService.fetchJobs(defaultQuery())
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/api/v1/ui/jobs')
+
+    vi.unstubAllGlobals()
   })
 })

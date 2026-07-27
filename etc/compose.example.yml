@@ -1,6 +1,8 @@
+# The API image now serves the dashboard as static files — no separate
+# frontend service is needed. Access the dashboard at http://localhost:8000/.
 services:
   migrate:
-    image: ghcr.io/forkflux/forkflux-api:latest
+    image: ghcr.io/forkflux/forkflux:latest
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     working_dir: /app/packages/api
@@ -11,7 +13,7 @@ services:
         condition: service_healthy
 
   api:
-    image: ghcr.io/forkflux/forkflux-api:latest
+    image: ghcr.io/forkflux/forkflux:latest
     ports:
       - "8000:8000"
     environment:

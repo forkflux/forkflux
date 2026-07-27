@@ -1,4 +1,4 @@
-name: Release API
+name: Release
 
 on:
   release:
@@ -11,8 +11,8 @@ permissions:
   id-token: none
 
 jobs:
-  release-api:
-    if: startsWith(github.event.release.tag_name, 'ff-api@')
+  release:
+    if: startsWith(github.event.release.tag_name, 'ff@')
     runs-on: ubuntu-latest
 
     steps:
@@ -41,9 +41,9 @@ jobs:
           set -euo pipefail
           TAG="${{ github.event.release.tag_name }}"
 
-          if [[ ! "$TAG" =~ ^ff-api@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-            echo "Invalid API tag format: $TAG"
-            echo "Expected format: ff-api@X.Y.Z"
+          if [[ ! "$TAG" =~ ^ff@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Invalid tag format: $TAG"
+            echo "Expected format: ff@X.Y.Z"
             exit 1
           fi
 
@@ -69,18 +69,36 @@ jobs:
             exit 1
           fi
 
-      - name: Build API image
+      - name: Build image
         uses: docker/build-push-action@v7.2.0
         with:
           context: .
-          file: etc/Dockerfile.api
+          file: etc/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/forkflux/forkflux-api:latest
-            ghcr.io/forkflux/forkflux-api:${{ steps.tag.outputs.version }}
+            ghcr.io/forkflux/forkflux:latest
+            ghcr.io/forkflux/forkflux:${{ steps.tag.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: packages/dashboard/package-lock.json
+
+      - name: Build dashboard
+        working-directory: packages/dashboard
+        run: |
+          npm ci
+          FE_API_BASE_URL=/api/v1 npm run build
+
+      - name: Copy dashboard dist into API package
+        run: |
+          mkdir -p packages/api/forkflux_api/static
+          cp -r packages/dashboard/dist/* packages/api/forkflux_api/static/
 
       - name: Set up Python
         uses: actions/setup-python@v6.2.0
@@ -90,11 +108,11 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.2.0
 
-      - name: Build API package
+      - name: Build package
         run: |
           uv build packages/api
 
-      - name: Publish API package to PyPI with uv
+      - name: Publish package to PyPI with uv
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish
