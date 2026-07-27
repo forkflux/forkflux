@@ -54,6 +54,8 @@ export interface Job {
   source_agent_label: string;
   assignee_agent_label: string | null;
   target_role_label: string;
+  retry_count: number;
+  max_retries: number;
   created_at: string;
 }
 
@@ -65,6 +67,7 @@ export interface Job {
 export interface JobDetail extends Job {
   context_payload: ContextPayload;
   constraints: string[];
+  routing_rules: JsonValue[] | null;
   artifacts: JobArtifact[];
   failure_reason: string | null;
   blocked_reason: string | null;
@@ -263,4 +266,3 @@ export interface CreateAgentResponse {
   target_role_ids: number[];
   api_token: string;
 }
-

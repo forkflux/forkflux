@@ -101,6 +101,8 @@ export function createMockJob(overrides: Partial<Job> = {}): Job {
     source_agent_label: 'source-agent',
     assignee_agent_label: null,
     target_role_label: 'Frontend Engineer',
+    retry_count: 0,
+    max_retries: 3,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   }
@@ -161,6 +163,7 @@ export function createMockJobDetail(overrides: Partial<JobDetail> = {}): JobDeta
     ...createMockJob(overrides),
     context_payload: { key: 'value' },
     constraints: ['Constraint one', 'Constraint two'],
+    routing_rules: null,
     artifacts: [],
     failure_reason: null,
     blocked_reason: null,

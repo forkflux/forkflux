@@ -3,11 +3,12 @@ from typing import Any, List, cast
 
 import structlog
 from sqlalchemy import Row, Select, UnaryExpression, column, func, select, table
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
+from forkflux_api.jobs.constants import DependencyTypeEnum, JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
@@ -17,17 +18,20 @@ from forkflux_api.jobs.dto import (
     HandoffJobUiItem,
     HandoffJobUpdate,
     JobArtifactCreate,
+    JobDependencyCreate,
     JobEventCreate,
     JobEventUiItem,
+    RoutingRuleCreate,
 )
 from forkflux_api.jobs.exceptions import (
     HandoffJobConflictError,
     HandoffJobHasChildrenError,
     HandoffJobNotFoundError,
     JobArtifactConflictError,
+    JobDependencyConflictError,
     JobEventConflictError,
 )
-from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
+from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobDependency, JobEvent
 
 MAX_STATS_DURATION_SAMPLES = 200
 AGENT_IDENTITY_TABLE = table("agent_identity", column("id"), column("agent_label"))
@@ -35,28 +39,68 @@ TARGET_ROLE_TABLE = table("target_role", column("id"), column("role_key"), colum
 AGENT_API_TOKEN_TABLE = table("agent_api_token", column("agent_id"), column("is_active"), column("last_used_at"))
 
 
+def _serialize_routing_rules(rules: list[RoutingRuleCreate] | None) -> list[dict[str, Any]] | None:
+    """Serialize ``RoutingRuleCreate`` dataclasses into plain dicts for JSON storage.
+
+    Both ``target_role_id`` (for the service to use at completion time) and
+    ``target_role_key`` (for human-readable API responses) are stored so the
+    response model can deserialize back into a ``RoutingRule`` Pydantic model.
+    """
+    if rules is None:
+        return None
+
+    return [
+        {
+            "target_role_id": rule.target_role_id,
+            "target_role_key": rule.target_role_key,
+            "summary": rule.summary,
+            "context_payload": rule.context_payload,
+            "constraints": rule.constraints,
+            "priority": rule.priority.value,
+            "artifacts": [
+                {
+                    "type": artifact.artifact_type,
+                    "uri": artifact.artifact_uri,
+                    "checksum": artifact.artifact_checksum,
+                    "metadata_json": artifact.metadata_json,
+                }
+                for artifact in rule.artifacts
+            ],
+        }
+        for rule in rules
+    ]
+
+
 class HandoffJobRepository:
     def __init__(self, session: AsyncSession, trace_id: str) -> None:
         self._session = session
         self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
 
-    async def create(self, dto: HandoffJobCreate) -> HandoffJob:
-        now = datetime.now(timezone.utc)
+    @staticmethod
+    def _build_job(dto: HandoffJobCreate, status: JobStatusEnum, now: datetime) -> HandoffJob:
+        """Construct a ``HandoffJob`` from a create DTO.
 
-        handoff_job = HandoffJob(
+        Shared by ``create()`` and ``create_in_savepoint()`` so the field
+        set stays consistent. Does not touch the session — callers own the
+        ``add``/``flush`` and ``IntegrityError`` handling.
+        """
+        return HandoffJob(
             parent_job_id=dto.parent_job_id,
             summary=dto.summary,
             context_payload=dto.context_payload,
-            status=JobStatusEnum.PUBLISHED,
+            status=status,
             priority=dto.priority,
             source_agent_id=dto.source_agent_id,
             target_role_id=dto.target_role_id,
             assignee_agent_id=None,
             constraints=dto.constraints,
+            routing_rules=_serialize_routing_rules(dto.routing_rules),
+            retry_count=dto.retry_count,
+            max_retries=dto.max_retries,
             failure_reason=None,
             blocked_reason=None,
             unblock_reason=None,
-            published_at=now,
+            published_at=now if status == JobStatusEnum.PUBLISHED else None,
             claimed_at=None,
             started_at=None,
             completed_at=None,
@@ -69,11 +113,36 @@ class HandoffJobRepository:
             updated_at=now,
         )
 
+    async def create(self, dto: HandoffJobCreate, status: JobStatusEnum) -> HandoffJob:
+        now = datetime.now(timezone.utc)
+        handoff_job = self._build_job(dto, status, now)
+
         self._session.add(handoff_job)
         try:
             await self._session.flush()
         except IntegrityError as err:
             await self._session.rollback()
+            raise HandoffJobConflictError from err
+
+        return handoff_job
+
+    async def create_in_savepoint(self, dto: HandoffJobCreate, status: JobStatusEnum) -> HandoffJob:
+        """Create a job within a SAVEPOINT.
+
+        Unlike ``create()``, an ``IntegrityError`` (e.g., stale FK) only
+        rolls back the savepoint — the outer transaction (parent job
+        completion, barrier sync, prior events) is preserved. This is
+        used by ``_evaluate_routing_rules`` where a stale
+        ``target_role_id`` should skip the rule, not abort the completion.
+        """
+        now = datetime.now(timezone.utc)
+        handoff_job = self._build_job(dto, status, now)
+
+        self._session.add(handoff_job)
+        try:
+            async with self._session.begin_nested():
+                await self._session.flush()
+        except IntegrityError as err:
             raise HandoffJobConflictError from err
 
         return handoff_job
@@ -157,6 +226,9 @@ class HandoffJobRepository:
             assignee_agent_label=row.assignee_agent_label,
             target_role_label=row.target_role_label,
             constraints=row.constraints,
+            routing_rules=row.routing_rules,
+            retry_count=row.retry_count,
+            max_retries=row.max_retries,
             failure_reason=row.failure_reason,
             blocked_reason=row.blocked_reason,
             unblock_reason=row.unblock_reason,
@@ -194,6 +266,9 @@ class HandoffJobRepository:
                 assignee_agent.c.agent_label.label("assignee_agent_label"),
                 TARGET_ROLE_TABLE.c.role_label.label("target_role_label"),
                 HandoffJob.constraints.label("constraints"),
+                HandoffJob.routing_rules.label("routing_rules"),
+                HandoffJob.retry_count.label("retry_count"),
+                HandoffJob.max_retries.label("max_retries"),
                 HandoffJob.failure_reason.label("failure_reason"),
                 HandoffJob.blocked_reason.label("blocked_reason"),
                 HandoffJob.unblock_reason.label("unblock_reason"),
@@ -232,6 +307,14 @@ class HandoffJobRepository:
             raise HandoffJobNotFoundError
 
         return handoff_job
+
+    async def count_existing_job_ids(self, job_ids: list[int]) -> int:
+        """Count how many of the given job IDs actually exist (single batch query)."""
+        if not job_ids:
+            return 0
+
+        stmt = select(func.count()).select_from(HandoffJob).where(HandoffJob.id.in_(job_ids))
+        return int((await self._session.scalar(stmt)) or 0)
 
     async def list(self, filter_params: HandoffJobFilterParams) -> List[HandoffJobItem]:
         stmt = self._base_list_item_stmt()
@@ -287,6 +370,8 @@ class HandoffJobRepository:
             source_agent_label=row.source_agent_label,
             assignee_agent_label=row.assignee_agent_label,
             target_role_label=row.target_role_label,
+            retry_count=row.retry_count,
+            max_retries=row.max_retries,
             created_at=row.created_at,
         )
 
@@ -316,6 +401,8 @@ class HandoffJobRepository:
                 source_agent.c.agent_label.label("source_agent_label"),
                 assignee_agent.c.agent_label.label("assignee_agent_label"),
                 TARGET_ROLE_TABLE.c.role_label.label("target_role_label"),
+                HandoffJob.retry_count.label("retry_count"),
+                HandoffJob.max_retries.label("max_retries"),
                 HandoffJob.created_at.label("created_at"),
             )
             .join(TARGET_ROLE_TABLE, HandoffJob.target_role_id == TARGET_ROLE_TABLE.c.id)
@@ -588,6 +675,23 @@ class JobArtifactRepository:
 
         return list(result.scalars().all())
 
+    async def find_by_type(self, job_id: int, artifact_type: str) -> JobArtifact | None:
+        """Find the first artifact matching ``job_id`` and ``artifact_type``."""
+        log = self._logger.bind(method="find_by_type", job_id=job_id, artifact_type=artifact_type)
+        log.info("operation_started")
+
+        stmt = (
+            select(JobArtifact)
+            .where(JobArtifact.job_id == job_id, JobArtifact.artifact_type == artifact_type)
+            .order_by(JobArtifact.created_at.asc())
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        artifact = result.scalar_one_or_none()
+
+        log.info("operation_completed", found=artifact is not None)
+        return artifact
+
 
 class JobEventRepository:
     def __init__(self, session: AsyncSession, trace_id: str) -> None:
@@ -647,3 +751,153 @@ class JobEventRepository:
 
         log.info("operation_completed", events_count=len(items))
         return items
+
+
+class JobDependencyRepository:
+    def __init__(self, session: AsyncSession, trace_id: str) -> None:
+        self._session = session
+        self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
+
+    async def bulk_create(self, dtos: list[JobDependencyCreate]) -> list[JobDependency]:
+        if not dtos:
+            return []
+
+        now = datetime.now(timezone.utc)
+        dependencies = [
+            JobDependency(
+                upstream_job_id=dto.upstream_job_id,
+                downstream_job_id=dto.downstream_job_id,
+                dep_type=dto.dep_type,
+                created_at=now,
+            )
+            for dto in dtos
+        ]
+
+        self._session.add_all(dependencies)
+        try:
+            await self._session.flush()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise JobDependencyConflictError from err
+
+        return dependencies
+
+    async def find_downstream_pending_job_ids(self, upstream_job_id: int) -> list[int]:
+        """Find PENDING downstream job IDs that have a BLOCKS edge from the given upstream job."""
+        log = self._logger.bind(method="find_downstream_pending_job_ids", upstream_job_id=upstream_job_id)
+        log.info("operation_started")
+
+        downstream = aliased(HandoffJob, name="downstream_job")
+
+        stmt = (
+            select(JobDependency.downstream_job_id)
+            .join(downstream, JobDependency.downstream_job_id == downstream.id)
+            .where(
+                JobDependency.upstream_job_id == upstream_job_id,
+                JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+                downstream.status == JobStatusEnum.PENDING,
+            )
+        )
+
+        result = await self._session.execute(stmt)
+        job_ids = [row[0] for row in result.all()]
+
+        log.info("operation_completed", downstream_pending_count=len(job_ids))
+        return job_ids
+
+    async def count_unmet_blockers(self, downstream_job_id: int) -> int:
+        """Count BLOCKS edges where the upstream job is NOT COMPLETED."""
+        log = self._logger.bind(method="count_unmet_blockers", downstream_job_id=downstream_job_id)
+        log.info("operation_started")
+
+        upstream = aliased(HandoffJob, name="upstream_job")
+
+        stmt = (
+            select(func.count())
+            .select_from(JobDependency)
+            .join(upstream, JobDependency.upstream_job_id == upstream.id)
+            .where(
+                JobDependency.downstream_job_id == downstream_job_id,
+                JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+                upstream.status != JobStatusEnum.COMPLETED,
+            )
+        )
+
+        count = int((await self._session.scalar(stmt)) or 0)
+
+        log.info("operation_completed", unmet_blockers=count)
+        return count
+
+    async def find_failed_blockers(self, downstream_job_id: int) -> list[tuple[int, JobStatusEnum]]:
+        """Find upstream jobs that are FAILED or CANCELLED for a given downstream job.
+
+        Returns a list of ``(upstream_job_id, upstream_status)`` tuples so the
+        caller can propagate the matching terminal status (FAILED → FAILED,
+        CANCELLED → CANCELLED) to the downstream job.
+
+        Used by barrier-sync to detect terminally-failed blockers so downstream
+        PENDING jobs can be propagated to a matching terminal status instead of
+        remaining stuck indefinitely.
+        """
+        log = self._logger.bind(method="find_failed_blockers", downstream_job_id=downstream_job_id)
+        log.info("operation_started")
+
+        upstream = aliased(HandoffJob, name="upstream_job")
+
+        stmt = (
+            select(JobDependency.upstream_job_id, upstream.status)
+            .join(upstream, JobDependency.upstream_job_id == upstream.id)
+            .where(
+                JobDependency.downstream_job_id == downstream_job_id,
+                JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+                upstream.status.in_([JobStatusEnum.FAILED, JobStatusEnum.CANCELLED]),
+            )
+        )
+
+        result = await self._session.execute(stmt)
+        blockers = [(row[0], row[1]) for row in result.all()]
+
+        log.info("operation_completed", failed_blocker_count=len(blockers))
+        return blockers
+
+    async def has_blocks_edge(self, upstream_job_id: int, downstream_job_id: int) -> bool:
+        """Check if a BLOCKS dependency edge exists from upstream to downstream."""
+        log = self._logger.bind(
+            method="has_blocks_edge",
+            upstream_job_id=upstream_job_id,
+            downstream_job_id=downstream_job_id,
+        )
+        log.info("operation_started")
+
+        stmt = (
+            select(func.count())
+            .select_from(JobDependency)
+            .where(
+                JobDependency.upstream_job_id == upstream_job_id,
+                JobDependency.downstream_job_id == downstream_job_id,
+                JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+            )
+        )
+
+        exists = int((await self._session.scalar(stmt)) or 0) > 0
+
+        log.info("operation_completed", has_edge=exists)
+        return exists
+
+    async def delete_blocks_edge(self, upstream_job_id: int, downstream_job_id: int) -> None:
+        """Delete a BLOCKS dependency edge from upstream to downstream."""
+        log = self._logger.bind(
+            method="delete_blocks_edge",
+            upstream_job_id=upstream_job_id,
+            downstream_job_id=downstream_job_id,
+        )
+        log.info("operation_started")
+
+        stmt = sa_delete(JobDependency).where(
+            JobDependency.upstream_job_id == upstream_job_id,
+            JobDependency.downstream_job_id == downstream_job_id,
+            JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+        )
+        result = await self._session.execute(stmt)
+
+        log.info("operation_completed", deleted_count=result.rowcount)  # type: ignore[attr-defined]

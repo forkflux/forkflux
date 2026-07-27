@@ -46,7 +46,7 @@ async def test_handoff_job_repository_create_persists_and_applies_defaults(db_se
         constraints=["deadline:today"],
     )
 
-    created_job = await repository.create(dto=dto)
+    created_job = await repository.create(dto=dto, status=JobStatusEnum.PUBLISHED)
     fetched_job = await db_session.get(HandoffJob, created_job.id)
 
     assert isinstance(created_job, HandoffJob)
@@ -132,7 +132,7 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_source_a
     )
 
     with pytest.raises(HandoffJobConflictError):
-        await repository.create(dto=invalid_source_dto)
+        await repository.create(dto=invalid_source_dto, status=JobStatusEnum.PUBLISHED)
 
     valid_dto = HandoffJobCreate(
         parent_job_id=None,
@@ -143,7 +143,7 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_source_a
         target_role_id=target_role_id,
         constraints=[],
     )
-    created_job = await repository.create(dto=valid_dto)
+    created_job = await repository.create(dto=valid_dto, status=JobStatusEnum.PUBLISHED)
 
     assert created_job.id is not None
     assert created_job.source_agent_id == valid_source_agent_id
@@ -177,7 +177,7 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_target_r
     )
 
     with pytest.raises(HandoffJobConflictError):
-        await repository.create(dto=invalid_target_dto)
+        await repository.create(dto=invalid_target_dto, status=JobStatusEnum.PUBLISHED)
 
     valid_dto = HandoffJobCreate(
         parent_job_id=None,
@@ -188,7 +188,7 @@ async def test_handoff_job_repository_create_raises_conflict_on_invalid_target_r
         target_role_id=valid_target_role_id,
         constraints=[],
     )
-    created_job = await repository.create(dto=valid_dto)
+    created_job = await repository.create(dto=valid_dto, status=JobStatusEnum.PUBLISHED)
 
     assert created_job.id is not None
     assert created_job.source_agent_id == source_agent_id

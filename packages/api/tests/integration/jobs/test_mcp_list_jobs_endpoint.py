@@ -107,6 +107,9 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         "source_agent_label": source_agent.agent_label,
         "assignee_agent_label": None,
         "target_role_key": source_role_key,
+        "retry_count": 0,
+        "max_retries": 3,
+        "routing_rules": None,
         "created_at": oldest_job.created_at.isoformat().replace("+00:00", "Z"),
     }
     assert body[1] == {
@@ -118,6 +121,9 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         "source_agent_label": source_agent.agent_label,
         "assignee_agent_label": assignee_agent.agent_label,
         "target_role_key": source_role_key,
+        "retry_count": 0,
+        "max_retries": 3,
+        "routing_rules": None,
         "created_at": newest_job.created_at.isoformat().replace("+00:00", "Z"),
     }
 

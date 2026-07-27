@@ -1,9 +1,57 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, TypedDict
 
-from forkflux_api.jobs.constants import JobEventTypeEnum, JobListOrderEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.constants import (
+    DependencyTypeEnum,
+    JobEventTypeEnum,
+    JobListOrderEnum,
+    JobPriorityEnum,
+    JobStatusEnum,
+)
 from forkflux_api.jobs.models import HandoffJob, JobArtifact
+
+
+@dataclass(slots=True)
+class ReopenContext:
+    """Focused context for a reopened job — returns only the diff/rejection
+    metadata, not the full original ``context_payload``.
+
+    This is the context-window-management feature: CLI agents with limited
+    context windows get the rejection reason, retry count, and constraints
+    without parsing the entire original context blob.
+    """
+
+    job_id: int
+    original_job_id: int
+    rejected_by_job_id: int
+    retry_count: int
+    max_retries: int
+    rejection_reason: str
+    summary: str
+    constraints: list[Any]
+    target_role_key: str
+
+
+@dataclass(slots=True)
+class RoutingRuleCreate:
+    """A single conditional routing rule — a job template to be auto-created
+    when the parent job transitions to COMPLETED.
+
+    The ``target_role_id`` is pre-resolved from ``target_role_key`` at
+    validation time (FastAPI dependency) so the service does not need
+    role-resolution logic at completion time. Both fields are stored in the
+    database so the response model can show the human-readable
+    ``target_role_key`` while the service uses ``target_role_id``.
+    """
+
+    target_role_id: int
+    target_role_key: str
+    summary: str
+    context_payload: dict[str, Any]
+    constraints: list[str]
+    priority: JobPriorityEnum
+    artifacts: list[JobArtifactCreate] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -15,6 +63,17 @@ class HandoffJobCreate:
     source_agent_id: int
     target_role_id: int
     constraints: list[str]
+    blocked_by: list[int] = field(default_factory=list)
+    routing_rules: list[RoutingRuleCreate] | None = None
+    retry_count: int = 0
+    max_retries: int = 3
+
+
+@dataclass(slots=True)
+class JobDependencyCreate:
+    upstream_job_id: int
+    downstream_job_id: int
+    dep_type: DependencyTypeEnum
 
 
 @dataclass(slots=True)
@@ -117,6 +176,8 @@ class HandoffJobUiItem:
     source_agent_label: str
     assignee_agent_label: str | None
     target_role_label: str
+    retry_count: int
+    max_retries: int
     created_at: datetime
 
 
@@ -150,10 +211,13 @@ class HandoffJobUiDetailItem:
     assignee_agent_label: str | None
     target_role_label: str
     constraints: list[Any]
+    routing_rules: list[Any] | None
+    retry_count: int
+    max_retries: int
     failure_reason: str | None
     blocked_reason: str | None
     unblock_reason: str | None
-    published_at: datetime
+    published_at: datetime | None
     claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None

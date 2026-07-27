@@ -49,6 +49,8 @@ async def list_jobs(
                 source_agent_label=item.source_agent_label,
                 assignee_agent_label=item.assignee_agent_label,
                 target_role_label=item.target_role_label,
+                retry_count=item.retry_count,
+                max_retries=item.max_retries,
                 created_at=item.created_at,
             )
             for item in page.items
@@ -93,6 +95,8 @@ async def get_job(
         assignee_agent_label=job.assignee_agent_label,
         target_role_label=job.target_role_label,
         constraints=job.constraints,
+        retry_count=job.retry_count,
+        max_retries=job.max_retries,
         artifacts=[
             JobArtifactUiItem(
                 id=artifact.id,

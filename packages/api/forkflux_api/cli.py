@@ -49,7 +49,12 @@ from forkflux_api.jobs.constants import JobListOrderEnum, JobStatusEnum
 from forkflux_api.jobs.dto import HandoffJobFilterParams
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobHasChildrenError, HandoffJobNotFoundError
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
-from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
+from forkflux_api.jobs.repositories import (
+    HandoffJobRepository,
+    JobArtifactRepository,
+    JobDependencyRepository,
+    JobEventRepository,
+)
 from forkflux_api.jobs.services import HandoffJobService
 
 app = typer.Typer(help="ForkFlux Management CLI")
@@ -240,10 +245,12 @@ async def stats(
         handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
         job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
         job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        job_dependency_repo = JobDependencyRepository(session=session, trace_id=trace_id)
         stats_data = await HandoffJobService(
             handoff_job_repo=handoff_job_repo,
             job_artifact_repo=job_artifact_repo,
             job_event_repo=job_event_repo,
+            job_dependency_repo=job_dependency_repo,
             trace_id=trace_id,
         ).stats(window_hours=window_hours, stuck_minutes=stuck_minutes)
 
@@ -595,10 +602,12 @@ async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target
         handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
         job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
         job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        job_dependency_repo = JobDependencyRepository(session=session, trace_id=trace_id)
         jobs = await HandoffJobService(
             handoff_job_repo=handoff_job_repo,
             job_artifact_repo=job_artifact_repo,
             job_event_repo=job_event_repo,
+            job_dependency_repo=job_dependency_repo,
             trace_id=trace_id,
         ).list_jobs(
             HandoffJobFilterParams(
@@ -634,12 +643,14 @@ async def job_details(job_id: int) -> None:
         handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
         job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
         job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        job_dependency_repo = JobDependencyRepository(session=session, trace_id=trace_id)
 
         try:
             job = await HandoffJobService(
                 handoff_job_repo=handoff_job_repo,
                 job_artifact_repo=job_artifact_repo,
                 job_event_repo=job_event_repo,
+                job_dependency_repo=job_dependency_repo,
                 trace_id=trace_id,
             ).get_job_with_artifacts(job_id=job_id)
         except HandoffJobNotFoundError:
@@ -665,12 +676,14 @@ async def delete_job(job_id: int) -> None:
         handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
         job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
         job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        job_dependency_repo = JobDependencyRepository(session=session, trace_id=trace_id)
 
         try:
             await HandoffJobService(
                 handoff_job_repo=handoff_job_repo,
                 job_artifact_repo=job_artifact_repo,
                 job_event_repo=job_event_repo,
+                job_dependency_repo=job_dependency_repo,
                 trace_id=trace_id,
             ).delete_job(job_id=job_id)
         except HandoffJobNotFoundError:
@@ -713,12 +726,14 @@ async def change_job_status(
         handoff_job_repo = HandoffJobRepository(session=session, trace_id=trace_id)
         job_artifact_repo = JobArtifactRepository(session=session, trace_id=trace_id)
         job_event_repo = JobEventRepository(session=session, trace_id=trace_id)
+        job_dependency_repo = JobDependencyRepository(session=session, trace_id=trace_id)
 
         try:
             await HandoffJobService(
                 handoff_job_repo=handoff_job_repo,
                 job_artifact_repo=job_artifact_repo,
                 job_event_repo=job_event_repo,
+                job_dependency_repo=job_dependency_repo,
                 trace_id=trace_id,
             ).change_job_status(
                 job_id=job_id,

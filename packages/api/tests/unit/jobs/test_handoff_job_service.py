@@ -13,6 +13,7 @@ from forkflux_api.jobs.dto import (
     HandoffJobUpdate,
     JobEventCreate,
     JobEventUiItem,
+    ReopenContext,
 )
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest, JobArtifact
@@ -30,11 +31,13 @@ async def test_handoff_job_service_get_job_delegates_and_returns_job() -> None:
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     repository.get = AsyncMock(return_value=expected_job)
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -57,6 +60,7 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     repository.get = AsyncMock(return_value=expected_job)
     job_artifact_repo.list = AsyncMock(return_value=expected_artifacts)
@@ -65,6 +69,7 @@ async def test_handoff_job_service_get_job_with_artifacts_delegates_and_returns_
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -89,7 +94,10 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
         source_agent_label="source-agent",
         assignee_agent_label=None,
         target_role_label="Backend",
+        retry_count=0,
+        max_retries=3,
         constraints=["deadline:today"],
+        routing_rules=None,
         failure_reason=None,
         blocked_reason=None,
         unblock_reason=None,
@@ -119,6 +127,7 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     repository.ui_get = AsyncMock(return_value=expected_job)
     job_artifact_repo.list = AsyncMock(return_value=expected_artifacts)
@@ -128,6 +137,7 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -153,12 +163,14 @@ async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> Non
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     repository.list = AsyncMock(return_value=expected_jobs)
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -187,6 +199,8 @@ async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> 
             source_agent_label="source-agent",
             assignee_agent_label=None,
             target_role_label="Backend",
+            retry_count=0,
+            max_retries=3,
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         ),
         HandoffJobUiItem(
@@ -199,6 +213,8 @@ async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> 
             source_agent_label="source-agent",
             assignee_agent_label="assignee-agent",
             target_role_label="Backend",
+            retry_count=0,
+            max_retries=3,
             created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
         ),
     ]
@@ -207,6 +223,7 @@ async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> 
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     repository.ui_list = AsyncMock(return_value=expected_items)
     repository.ui_count = AsyncMock(return_value=expected_total)
 
@@ -214,6 +231,7 @@ async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> 
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -242,12 +260,14 @@ async def test_handoff_job_service_count_jobs_by_status_delegates_and_returns_co
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     repository.count_by_status = AsyncMock(return_value=expected_counts)
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -263,12 +283,14 @@ async def test_handoff_job_service_delete_job_delegates_to_repository_delete() -
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     repository.delete = AsyncMock()
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -281,6 +303,7 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     base = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
     repository.stats = AsyncMock(
@@ -331,6 +354,7 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -369,6 +393,7 @@ async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data()
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     repository.stats = AsyncMock(
         return_value=HandoffJobRawStats(
@@ -390,6 +415,7 @@ async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data()
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -427,6 +453,7 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
     repository = Mock()
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     created_job = Mock()
     created_job.id = 321
@@ -439,6 +466,7 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -477,7 +505,7 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
         constraints=job_data.constraints,
     )
 
-    repository.create.assert_awaited_once_with(dto=expected_job)
+    repository.create.assert_awaited_once_with(dto=expected_job, status=JobStatusEnum.PUBLISHED)
     job_artifact_repo.bulk_create.assert_awaited_once()
     job_event_repo.create.assert_awaited_once_with(
         dto=JobEventCreate(
@@ -489,6 +517,7 @@ async def test_handoff_job_service_create_job_creates_job_and_bulk_creates_artif
                 "priority": job_data.priority.value,
                 "target_role_id": 20,
                 "artifact_count": 2,
+                "blocked_by": [],
             },
         )
     )
@@ -517,6 +546,7 @@ async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pas
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.PUBLISHED
@@ -528,6 +558,7 @@ async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pas
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -551,6 +582,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.CLAIMED
@@ -562,6 +594,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -578,6 +611,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_role_mismatch(
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.PUBLISHED
@@ -589,6 +623,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_role_mismatch(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -605,6 +640,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.PUBLISHED
@@ -616,6 +652,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_as
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -632,6 +669,7 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -644,6 +682,7 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -670,18 +709,22 @@ async def test_handoff_job_service_change_job_status_sets_completed_at_for_assig
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock(return_value=[])
     job_event_repo.create = AsyncMock()
 
     job = Mock()
     job.status = JobStatusEnum.IN_PROGRESS
     job.assignee_agent_id = 10
     job.source_agent_id = 42
+    job.routing_rules = None
     repository.get_by_id_for_update.return_value = job
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -707,6 +750,8 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -719,6 +764,7 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -753,6 +799,8 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -765,6 +813,7 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -790,6 +839,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_for_invalid
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.PUBLISHED
@@ -801,6 +851,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_for_invalid
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -817,6 +868,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_assign
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.CLAIMED
@@ -828,6 +880,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_assign
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -844,6 +897,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_so
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.PUBLISHED
@@ -855,6 +909,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_so
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -871,18 +926,22 @@ async def test_handoff_job_service_change_job_status_restarts_from_failed_for_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
     job.status = JobStatusEnum.FAILED
     job.assignee_agent_id = 10
     job.source_agent_id = 42
+    job.retry_count = 0
+    job.max_retries = 3
     repository.get_by_id_for_update.return_value = job
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -902,6 +961,7 @@ async def test_handoff_job_service_change_job_status_restarts_from_failed_for_as
     assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
     assert event_dto.actor_agent_id == 10
     assert "timestamp" in event_dto.payload_json
+    assert event_dto.payload_json["retry_count"] == 1
 
 
 async def test_handoff_job_service_change_job_status_raises_conflict_when_non_assignee_restarts_from_failed() -> None:
@@ -911,17 +971,21 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.FAILED
     job.assignee_agent_id = 10
     job.source_agent_id = 42
+    job.retry_count = 0
+    job.max_retries = 3
     repository.get_by_id_for_update.return_value = job
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -939,6 +1003,7 @@ async def test_handoff_job_service_change_job_status_sets_blocked_at_and_blocked
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -951,6 +1016,7 @@ async def test_handoff_job_service_change_job_status_sets_blocked_at_and_blocked
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -985,6 +1051,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_resumi
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.BLOCKED
@@ -996,6 +1063,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_resumi
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1013,6 +1081,8 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_failed_clea
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1025,6 +1095,7 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_failed_clea
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1055,6 +1126,8 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_cancelled_c
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1067,6 +1140,7 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_cancelled_c
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1090,6 +1164,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.IN_PROGRESS
@@ -1101,6 +1176,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1118,6 +1194,7 @@ async def test_handoff_job_service_update_job_updates_context_payload_and_create
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     old_context = {"ticket_id": "TCK-1"}
@@ -1132,6 +1209,7 @@ async def test_handoff_job_service_update_job_updates_context_payload_and_create
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1159,6 +1237,7 @@ async def test_handoff_job_service_update_job_updates_constraints_and_creates_ev
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     old_constraints = ["deadline:today"]
@@ -1173,6 +1252,7 @@ async def test_handoff_job_service_update_job_updates_constraints_and_creates_ev
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1200,6 +1280,7 @@ async def test_handoff_job_service_update_job_updates_both_fields_and_creates_ev
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     old_context = {"ticket_id": "TCK-1"}
@@ -1216,6 +1297,7 @@ async def test_handoff_job_service_update_job_updates_both_fields_and_creates_ev
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1244,12 +1326,14 @@ async def test_handoff_job_service_update_job_raises_not_found_when_job_missing(
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     service = HandoffJobService(
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1269,6 +1353,7 @@ async def test_handoff_job_service_change_job_status_sets_unblock_reason_and_unb
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1281,6 +1366,7 @@ async def test_handoff_job_service_change_job_status_sets_unblock_reason_and_unb
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1316,6 +1402,7 @@ async def test_handoff_job_service_change_job_status_unblocks_without_agent_id()
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1328,6 +1415,7 @@ async def test_handoff_job_service_change_job_status_unblocks_without_agent_id()
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1350,6 +1438,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_unbloc
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.BLOCKED
@@ -1361,6 +1450,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_unbloc
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1382,6 +1472,7 @@ async def test_handoff_job_service_change_job_status_resumes_from_unblocked_for_
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1394,6 +1485,7 @@ async def test_handoff_job_service_change_job_status_resumes_from_unblocked_for_
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1422,6 +1514,8 @@ async def test_handoff_job_service_change_job_status_fails_from_unblocked_clears
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1434,6 +1528,7 @@ async def test_handoff_job_service_change_job_status_fails_from_unblocked_clears
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1464,6 +1559,8 @@ async def test_handoff_job_service_change_job_status_cancels_from_unblocked_clea
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1476,6 +1573,7 @@ async def test_handoff_job_service_change_job_status_cancels_from_unblocked_clea
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1499,6 +1597,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.UNBLOCKED
@@ -1510,6 +1609,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1527,6 +1627,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
 
     job_artifact_repo = Mock()
     job_event_repo = Mock()
+    job_dependency_repo = Mock()
 
     job = Mock()
     job.status = JobStatusEnum.BLOCKED
@@ -1538,6 +1639,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
         handoff_job_repo=repository,
         job_artifact_repo=job_artifact_repo,
         job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
         trace_id="trace-123",
     )
 
@@ -1551,3 +1653,257 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_non_as
 
     repository.save.assert_not_called()
     job_event_repo.create.assert_not_called()
+
+
+async def test_change_job_status_failed_to_in_progress_raises_conflict_when_max_retries_exceeded() -> None:
+    """FAILED → IN_PROGRESS must be rejected when retry_count >= max_retries."""
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+
+    job = Mock()
+    job.status = JobStatusEnum.FAILED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    job.retry_count = 3
+    job.max_retries = 3
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
+
+    repository.save.assert_not_called()
+    job_event_repo.create.assert_not_called()
+
+
+async def test_change_job_status_failed_to_in_progress_increments_retry_count() -> None:
+    """FAILED → IN_PROGRESS must increment retry_count and include it in the event payload."""
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    job = Mock()
+    job.status = JobStatusEnum.FAILED
+    job.assignee_agent_id = 10
+    job.source_agent_id = 42
+    job.retry_count = 1
+    job.max_retries = 3
+    repository.get_by_id_for_update.return_value = job
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
+
+    repository.save.assert_awaited_once_with(job=job)
+    assert job.status == JobStatusEnum.IN_PROGRESS
+    assert job.retry_count == 2
+    job_event_repo.create.assert_awaited_once()
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.event_type == JobEventTypeEnum.TASK_RESTARTED
+    assert event_dto.payload_json["retry_count"] == 2
+
+
+async def test_get_reopen_context_returns_focused_data_from_artifact() -> None:
+    """get_reopen_context must return the rejection reason from the artifact when present."""
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+
+    job_details = Mock()
+    job_details.id = 500
+    job_details.summary = "[Retry 1] Fix the bug"
+    job_details.context_payload = {
+        "original_job_id": 200,
+        "rejected_by_job_id": 150,
+        "rejection_reason": "old reason in payload",
+        "retry_count": 1,
+    }
+    job_details.retry_count = 1
+    job_details.max_retries = 3
+    job_details.constraints = ["deadline:today"]
+
+    repository.get = AsyncMock(
+        return_value=HandoffJobItem(
+            job_details=job_details,
+            target_role_key="backend",
+            source_agent_label="source-agent",
+            assignee_agent_label=None,
+        )
+    )
+
+    artifact = Mock()
+    artifact.metadata_json = {"reason": "Tests failed on edge case", "original_job_id": 200}
+    job_artifact_repo.find_by_type = AsyncMock(return_value=artifact)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.get_reopen_context(job_id=500)
+
+    repository.get.assert_awaited_once_with(job_id=500)
+    job_artifact_repo.find_by_type.assert_awaited_once_with(job_id=500, artifact_type="rejection_reason")
+    assert isinstance(result, ReopenContext)
+    assert result.job_id == 500
+    assert result.original_job_id == 200
+    assert result.rejected_by_job_id == 150
+    assert result.retry_count == 1
+    assert result.max_retries == 3
+    assert result.rejection_reason == "Tests failed on edge case"
+    assert result.summary == "[Retry 1] Fix the bug"
+    assert result.constraints == ["deadline:today"]
+    assert result.target_role_key == "backend"
+
+
+async def test_get_reopen_context_falls_back_to_context_payload_when_artifact_missing() -> None:
+    """When the rejection_reason artifact is missing, fall back to context_payload."""
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+
+    job_details = Mock()
+    job_details.id = 500
+    job_details.summary = "[Retry 1] Fix the bug"
+    job_details.context_payload = {
+        "original_job_id": 200,
+        "rejected_by_job_id": 150,
+        "rejection_reason": "fallback reason from payload",
+    }
+    job_details.retry_count = 1
+    job_details.max_retries = 3
+    job_details.constraints = []
+
+    repository.get = AsyncMock(
+        return_value=HandoffJobItem(
+            job_details=job_details,
+            target_role_key="frontend",
+            source_agent_label="source-agent",
+            assignee_agent_label=None,
+        )
+    )
+
+    job_artifact_repo.find_by_type = AsyncMock(return_value=None)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.get_reopen_context(job_id=500)
+
+    assert result.rejection_reason == "fallback reason from payload"
+    assert result.target_role_key == "frontend"
+
+
+async def test_get_reopen_context_raises_conflict_for_non_reopen_job() -> None:
+    """get_reopen_context must raise HandoffJobConflictError for a job without reopen metadata."""
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+
+    job_details = Mock()
+    job_details.id = 100
+    job_details.context_payload = {"task": "regular job, no reopen metadata"}
+    job_details.status = JobStatusEnum.PUBLISHED
+
+    repository.get = AsyncMock(
+        return_value=HandoffJobItem(
+            job_details=job_details,
+            target_role_key="backend",
+            source_agent_label="source-agent",
+            assignee_agent_label=None,
+        )
+    )
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    with pytest.raises(HandoffJobConflictError):
+        await service.get_reopen_context(job_id=100)
+
+    job_artifact_repo.find_by_type.assert_not_called()
+
+
+async def test_get_reopen_context_falls_back_when_artifact_reason_not_string() -> None:
+    """When the artifact's reason field is not a string (e.g. externally modified),
+    fall back to the context_payload rejection_reason."""
+    repository = Mock()
+    job_artifact_repo = Mock()
+    job_event_repo = Mock()
+    job_dependency_repo = Mock()
+
+    job_details = Mock()
+    job_details.id = 500
+    job_details.summary = "[Retry 1] Fix the bug"
+    job_details.context_payload = {
+        "original_job_id": 200,
+        "rejected_by_job_id": 150,
+        "rejection_reason": "fallback from payload",
+    }
+    job_details.retry_count = 1
+    job_details.max_retries = 3
+    job_details.constraints = []
+
+    repository.get = AsyncMock(
+        return_value=HandoffJobItem(
+            job_details=job_details,
+            target_role_key="backend",
+            source_agent_label="source-agent",
+            assignee_agent_label=None,
+        )
+    )
+
+    # Artifact exists but reason is not a string (e.g. corrupted/externally modified).
+    artifact = Mock()
+    artifact.metadata_json = {"reason": 12345}
+    job_artifact_repo.find_by_type = AsyncMock(return_value=artifact)
+
+    service = HandoffJobService(
+        handoff_job_repo=repository,
+        job_artifact_repo=job_artifact_repo,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+        trace_id="trace-123",
+    )
+
+    result = await service.get_reopen_context(job_id=500)
+
+    assert result.rejection_reason == "fallback from payload"

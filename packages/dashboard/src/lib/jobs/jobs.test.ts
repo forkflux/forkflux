@@ -30,6 +30,8 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     source_agent_label: 'source-agent',
     assignee_agent_label: null,
     target_role_label: 'Frontend Engineer',
+    retry_count: 0,
+    max_retries: 3,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   }
@@ -40,6 +42,7 @@ function makeDetail(overrides: Partial<JobDetail> = {}): JobDetail {
     ...makeJob(overrides),
     context_payload: {},
     constraints: [],
+    routing_rules: null,
     artifacts: [],
     failure_reason: null,
     blocked_reason: null,

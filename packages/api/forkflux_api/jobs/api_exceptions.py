@@ -6,6 +6,11 @@ class ParentJobValidationError(BaseValidationError):
     msg = "Parent job is invalid."
 
 
+class BlockedByJobValidationError(BaseValidationError):
+    code = "blocked_by_job.invalid"
+    msg = "Blocked-by job is invalid."
+
+
 class TargetRoleValidationError(BaseValidationError):
     code = "target_role.invalid"
     msg = "Target role is invalid."
@@ -29,3 +34,8 @@ class HandoffJobStatusValidationError(BaseValidationError):
 class HandoffJobUpdateValidationError(BaseValidationError):
     code = "handoff_job_update.invalid"
     msg = "Handoff job update is invalid."
+
+
+class RoutingRuleValidationError(BaseValidationError):
+    code = "routing_rule.invalid"
+    msg = "Routing rule is invalid."
