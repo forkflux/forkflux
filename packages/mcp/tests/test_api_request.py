@@ -35,7 +35,7 @@ async def test_api_request_returns_success_payload_and_forwards_request_args(mon
 
     assert result == {"success": True, "details": {"ok": True}}
     assert captured["method"] == "GET"
-    assert captured["url"] == "http://api.example.test/agents/roles"
+    assert captured["url"] == "http://api.example.test/mcp/agents/roles"
     assert captured["params"] == {"page": 1}
     assert captured["json"] == {"x": "y"}
     assert captured["headers"] == {
