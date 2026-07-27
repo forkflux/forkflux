@@ -14,12 +14,14 @@ from forkflux_api.jobs.api_exceptions import (
 from forkflux_api.jobs.constants import JobListOrderEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_api.jobs.dependencies import (
     get_handoff_job_service,
+    validate_blocked_by_jobs,
     validate_parent_job,
+    validate_routing_rules,
     validate_target_role,
     validate_target_role_claim_next,
     validate_target_role_query_param,
 )
-from forkflux_api.jobs.dto import HandoffJobFilterParams, HandoffJobUpdate
+from forkflux_api.jobs.dto import HandoffJobFilterParams, HandoffJobUpdate, RoutingRuleCreate
 from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.helpers import handoff_job_to_response_model
 from forkflux_api.jobs.mcp_schemas import (
@@ -29,6 +31,9 @@ from forkflux_api.jobs.mcp_schemas import (
     HandoffJobCreateRequest,
     HandoffJobCreateResponse,
     HandoffJobListItem,
+    HandoffJobRejectRequest,
+    HandoffJobRejectResponse,
+    HandoffJobReopenContextResponse,
     HandoffJobUpdateRequest,
     HandoffJobUpdateResponse,
     HandoffJobWithArtifactsItem,
@@ -42,15 +47,21 @@ router = APIRouter(prefix="/jobs", tags=["mcp"], dependencies=[Depends(verify_to
     "",
     response_model=HandoffJobCreateResponse,
     status_code=http_status.HTTP_201_CREATED,
-    dependencies=[Depends(validate_parent_job)],
+    dependencies=[Depends(validate_parent_job), Depends(validate_blocked_by_jobs)],
 )
 async def create_job(
     job_data: HandoffJobCreateRequest,
     valid_target_role: TargetRole = Depends(validate_target_role),
+    resolved_routing_rules: list[RoutingRuleCreate] | None = Depends(validate_routing_rules),
     current_agent: AgentIdentity = Depends(get_current_agent),
     job_service: HandoffJobService = Depends(get_handoff_job_service),
 ):
-    job_id = await job_service.create_job(job_data, valid_target_role.id, current_agent.id)
+    job_id = await job_service.create_job(
+        job_data,
+        valid_target_role.id,
+        current_agent.id,
+        routing_rules=resolved_routing_rules,
+    )
     return {"job_id": job_id}
 
 
@@ -81,6 +92,9 @@ async def list_jobs(
             source_agent_label=x.source_agent_label,
             assignee_agent_label=x.assignee_agent_label,
             target_role_key=x.target_role_key,
+            retry_count=x.job_details.retry_count,
+            max_retries=x.job_details.max_retries,
+            routing_rules=x.job_details.routing_rules,
             created_at=x.job_details.created_at,
         )
         for x in jobs
@@ -205,3 +219,48 @@ async def update_job(
         raise HandoffJobUpdateValidationError(field_name="job_id", value=job_id, loc="path")
 
     return {"job_id": job_id, "message": f"job with job_id {job_id} updated successfully"}
+
+
+@router.post(
+    "/{job_id}/reject",
+    response_model=HandoffJobRejectResponse,
+    status_code=http_status.HTTP_201_CREATED,
+)
+async def reject_job(
+    job_id: int,
+    data: HandoffJobRejectRequest,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+):
+    try:
+        new_job_id, retry_count = await job_service.reject_job(
+            job_id=job_id,
+            target_job_id=data.target_job_id,
+            reason=data.reason,
+            source_agent_id=current_agent.id,
+        )
+    except HandoffJobNotFoundError:
+        raise HandoffJobIdentityValidationError(field_name="target_job_id", value=data.target_job_id, loc="body")
+    except HandoffJobConflictError:
+        raise HandoffJobStatusValidationError(field_name="target_job_id", value=data.target_job_id, loc="body")
+
+    return {"job_id": new_job_id, "original_job_id": data.target_job_id, "retry_count": retry_count}
+
+
+@router.get(
+    "/{job_id}/reopen-context",
+    response_model=HandoffJobReopenContextResponse,
+    status_code=http_status.HTTP_200_OK,
+)
+async def get_reopen_context(
+    job_id: int,
+    job_service: HandoffJobService = Depends(get_handoff_job_service),
+):
+    try:
+        reopen_context = await job_service.get_reopen_context(job_id=job_id)
+    except HandoffJobNotFoundError:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=HandoffJobNotFoundError.msg)
+    except HandoffJobConflictError:
+        raise HandoffJobStatusValidationError(field_name="job_id", value=job_id, loc="path")
+
+    return reopen_context

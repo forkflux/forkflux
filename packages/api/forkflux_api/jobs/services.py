@@ -5,7 +5,13 @@ from typing import Any
 
 import structlog
 
-from forkflux_api.jobs.constants import JobEventTypeEnum, JobStatusEnum, resolve_event_type
+from forkflux_api.jobs.constants import (
+    DependencyTypeEnum,
+    JobEventTypeEnum,
+    JobPriorityEnum,
+    JobStatusEnum,
+    resolve_event_type,
+)
 from forkflux_api.jobs.dto import (
     HandoffJobCreate,
     HandoffJobFilterParams,
@@ -17,11 +23,20 @@ from forkflux_api.jobs.dto import (
     HandoffJobWithArtifacts,
     HandoffJobWithArtifactsAndEvents,
     JobArtifactCreate,
+    JobDependencyCreate,
     JobEventCreate,
+    ReopenContext,
+    RoutingRuleCreate,
 )
 from forkflux_api.jobs.exceptions import HandoffJobConflictError
 from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest
-from forkflux_api.jobs.repositories import HandoffJobRepository, JobArtifactRepository, JobEventRepository
+from forkflux_api.jobs.models import HandoffJob
+from forkflux_api.jobs.repositories import (
+    HandoffJobRepository,
+    JobArtifactRepository,
+    JobDependencyRepository,
+    JobEventRepository,
+)
 
 
 class HandoffJobService:
@@ -32,12 +47,14 @@ class HandoffJobService:
         handoff_job_repo: HandoffJobRepository,
         job_artifact_repo: JobArtifactRepository,
         job_event_repo: JobEventRepository,
+        job_dependency_repo: JobDependencyRepository,
         trace_id: str,
     ) -> None:
         self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
         self._handoff_job_repo = handoff_job_repo
         self._job_artifact_repo = job_artifact_repo
         self._job_event_repo = job_event_repo
+        self._job_dependency_repo = job_dependency_repo
 
     @staticmethod
     def _duration_minutes(started_at: datetime, finished_at: datetime) -> float:
@@ -146,9 +163,21 @@ class HandoffJobService:
             p90_time_to_resolution_minutes=self._percentile_or_none(time_to_resolution_minutes, 0.9),
         )
 
-    async def create_job(self, job_data: HandoffJobCreateRequest, target_role_id: int, source_agent_id: int) -> int:
+    async def create_job(
+        self,
+        job_data: HandoffJobCreateRequest,
+        target_role_id: int,
+        source_agent_id: int,
+        routing_rules: list[RoutingRuleCreate] | None = None,
+    ) -> int:
         log = self._logger.bind(method="create_job")
         log.info("operation_started")
+
+        # Deduplicate blocked_by IDs to prevent unique constraint failures on dependency edges.
+        blocked_by = list(dict.fromkeys(job_data.blocked_by or []))
+
+        # Determine initial status: PENDING if there are unmet blockers, PUBLISHED otherwise.
+        status = JobStatusEnum.PENDING if blocked_by else JobStatusEnum.PUBLISHED
 
         job = HandoffJobCreate(
             parent_job_id=job_data.parent_job_id,
@@ -158,10 +187,33 @@ class HandoffJobService:
             source_agent_id=source_agent_id,
             target_role_id=target_role_id,
             constraints=job_data.constraints,
+            blocked_by=blocked_by,
+            routing_rules=routing_rules,
         )
 
-        created_job = await self._handoff_job_repo.create(dto=job)
+        created_job = await self._handoff_job_repo.create(dto=job, status=status)
         log = log.bind(job_id=created_job.id)
+
+        # Create BLOCKS dependency edges for each upstream job.
+        if blocked_by:
+            dependency_dtos = [
+                JobDependencyCreate(
+                    upstream_job_id=upstream_id,
+                    downstream_job_id=created_job.id,
+                    dep_type=DependencyTypeEnum.BLOCKS,
+                )
+                for upstream_id in blocked_by
+            ]
+            await self._job_dependency_repo.bulk_create(dtos=dependency_dtos)
+
+            # If all upstream blockers are already COMPLETED, transition to PUBLISHED immediately.
+            unmet = await self._job_dependency_repo.count_unmet_blockers(downstream_job_id=created_job.id)
+            if unmet == 0:
+                created_job.status = JobStatusEnum.PUBLISHED
+                created_job.published_at = datetime.now(timezone.utc)
+                await self._handoff_job_repo.save(job=created_job)
+                status = JobStatusEnum.PUBLISHED
+                log.info("barrier_sync_immediate_activation", unmet_blockers=0)
 
         artifact_dtos = [
             JobArtifactCreate(
@@ -175,21 +227,25 @@ class HandoffJobService:
         ]
         await self._job_artifact_repo.bulk_create(dtos=artifact_dtos)
 
+        event_type = (
+            resolve_event_type(JobStatusEnum.PENDING, status) if blocked_by else JobEventTypeEnum.TASK_PUBLISHED
+        )
         await self._job_event_repo.create(
             dto=JobEventCreate(
                 job_id=created_job.id,
-                event_type=JobEventTypeEnum.TASK_PUBLISHED,
-                current_status=JobStatusEnum.PUBLISHED,
+                event_type=event_type,
+                current_status=status,
                 actor_agent_id=source_agent_id,
                 payload_json={
                     "priority": job_data.priority.value,
                     "target_role_id": target_role_id,
                     "artifact_count": len(artifact_dtos),
+                    "blocked_by": blocked_by,
                 },
             )
         )
 
-        log.info("operation_completed", artifact_count=len(artifact_dtos))
+        log.info("operation_completed", artifact_count=len(artifact_dtos), status=status.value)
         return created_job.id
 
     async def get_job(self, job_id: int) -> HandoffJobItem:
@@ -200,6 +256,16 @@ class HandoffJobService:
 
         log.info("operation_completed")
         return job
+
+    async def count_existing_job_ids(self, job_ids: list[int]) -> int:
+        """Count how many of the given job IDs exist (single batch query)."""
+        log = self._logger.bind(method="count_existing_job_ids", job_id_count=len(job_ids))
+        log.info("operation_started")
+
+        count = await self._handoff_job_repo.count_existing_job_ids(job_ids)
+
+        log.info("operation_completed", existing_count=count)
+        return count
 
     async def get_job_with_artifacts(self, job_id: int) -> HandoffJobWithArtifacts:
         log = self._logger.bind(method="get_job_with_artifacts", job_id=job_id)
@@ -334,6 +400,8 @@ class HandoffJobService:
         current_status = job.status
 
         allowed_transitions = {
+            (JobStatusEnum.PENDING, JobStatusEnum.PUBLISHED),
+            (JobStatusEnum.PENDING, JobStatusEnum.CANCELLED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED),
@@ -358,9 +426,25 @@ class HandoffJobService:
             )
             raise HandoffJobConflictError
 
+        # Enforce max_retries on the FAILED → IN_PROGRESS restart path.
+        # This prevents infinite retry loops via manual restarts, mirroring
+        # the guard already present in reject_job.
+        if current_status == JobStatusEnum.FAILED and status == JobStatusEnum.IN_PROGRESS:
+            if job.retry_count >= job.max_retries:
+                log.warning(
+                    "operation_failed",
+                    reason="max_retries_exceeded",
+                    retry_count=job.retry_count,
+                    max_retries=job.max_retries,
+                )
+                raise HandoffJobConflictError
+
+            job.retry_count += 1
+            log.info("retry_restart", retry_count=job.retry_count, max_retries=job.max_retries)
+
         if status == JobStatusEnum.UNBLOCKED and agent_id is None:
             pass  # UI/admin unblock — skip assignee authorization check
-        elif current_status == JobStatusEnum.PUBLISHED and status == JobStatusEnum.CANCELLED:
+        elif current_status in (JobStatusEnum.PENDING, JobStatusEnum.PUBLISHED) and status == JobStatusEnum.CANCELLED:
             if job.source_agent_id != agent_id:
                 log.warning(
                     "operation_failed",
@@ -405,6 +489,8 @@ class HandoffJobService:
         # Set fields for the target state.
         if status == JobStatusEnum.IN_PROGRESS:
             job.started_at = timestamp
+            if current_status == JobStatusEnum.FAILED:
+                event_payload["retry_count"] = job.retry_count
         elif status == JobStatusEnum.COMPLETED:
             job.completed_at = timestamp
         elif status == JobStatusEnum.FAILED:
@@ -431,6 +517,15 @@ class HandoffJobService:
 
         await self._handoff_job_repo.save(job=job)
 
+        # Barrier sync and conditional routing happen BEFORE the completion event
+        # is created, so the event payload can include routed_job_ids provenance.
+        if status == JobStatusEnum.COMPLETED:
+            await self._barrier_sync(upstream_job_id=job_id, actor_agent_id=agent_id)
+            # Conditional routing: evaluate routing rules and auto-create downstream jobs.
+            routed_job_ids = await self._evaluate_routing_rules(completed_job=job, actor_agent_id=agent_id)
+            if routed_job_ids:
+                event_payload["routed_job_ids"] = routed_job_ids
+
         await self._job_event_repo.create(
             dto=JobEventCreate(
                 job_id=job_id,
@@ -443,6 +538,387 @@ class HandoffJobService:
 
         log.info("operation_completed", previous_status=current_status.value, current_status=status.value)
         return current_status, status
+
+    async def _barrier_sync(self, upstream_job_id: int, actor_agent_id: int | None) -> None:
+        """Check downstream PENDING jobs and activate those whose blockers are all COMPLETED."""
+        log = self._logger.bind(method="_barrier_sync", upstream_job_id=upstream_job_id)
+        log.info("operation_started")
+
+        downstream_ids = await self._job_dependency_repo.find_downstream_pending_job_ids(
+            upstream_job_id=upstream_job_id
+        )
+
+        if not downstream_ids:
+            log.info("operation_completed", activated_count=0)
+            return
+
+        activated_count = 0
+        timestamp = datetime.now(timezone.utc)
+
+        for downstream_id in downstream_ids:
+            unmet = await self._job_dependency_repo.count_unmet_blockers(downstream_job_id=downstream_id)
+            if unmet > 0:
+                continue
+
+            downstream_job = await self._handoff_job_repo.get_by_id_for_update(job_id=downstream_id)
+            if downstream_job.status != JobStatusEnum.PENDING:
+                continue
+
+            downstream_job.status = JobStatusEnum.PUBLISHED
+            downstream_job.published_at = timestamp
+            downstream_job.updated_at = timestamp
+            await self._handoff_job_repo.save(job=downstream_job)
+
+            await self._job_event_repo.create(
+                dto=JobEventCreate(
+                    job_id=downstream_id,
+                    event_type=JobEventTypeEnum.TASK_ACTIVATED,
+                    current_status=JobStatusEnum.PUBLISHED,
+                    actor_agent_id=actor_agent_id,
+                    payload_json={
+                        "timestamp": timestamp.isoformat(),
+                        "activated_by": upstream_job_id,
+                        "reason": "barrier_sync_all_blockers_completed",
+                    },
+                )
+            )
+            activated_count += 1
+            log.info("barrier_sync_activated_job", downstream_job_id=downstream_id)
+
+        log.info("operation_completed", activated_count=activated_count)
+
+    async def _evaluate_routing_rules(self, completed_job: HandoffJob, actor_agent_id: int | None) -> list[int]:
+        """Evaluate routing rules on a completed job and auto-create downstream jobs.
+
+        This is the conditional routing feature (Phase 3). When a job with
+        ``routing_rules`` transitions to ``COMPLETED``, each rule is used to
+        create a new ``PUBLISHED`` job. The new job's ``parent_job_id`` is set
+        to the completing job's ID, and its ``context_payload`` is enhanced
+        with ``routed_from_job_id``.
+
+        This is **opt-in**: jobs without routing rules (``None`` or empty list)
+        return an empty list and behave exactly as before.
+
+        If a routing rule's ``target_role_id`` no longer exists (role was
+        deleted between creation and completion), the FK constraint will fail.
+        The service catches this, logs a warning, and skips that rule — the
+        job still completes successfully.
+
+        Returns a list of created job IDs (empty if no rules fired).
+        """
+        rules = completed_job.routing_rules
+        if not rules:
+            return []
+
+        log = self._logger.bind(
+            method="_evaluate_routing_rules",
+            completed_job_id=completed_job.id,
+            rule_count=len(rules),
+        )
+        log.info("operation_started")
+
+        created_job_ids: list[int] = []
+
+        for rule in rules:
+            target_role_id = rule.get("target_role_id")
+            if target_role_id is None:
+                log.warning("routing_rule_skipped", reason="missing_target_role_id")
+                continue
+
+            rule_summary = rule.get("summary", "")
+            rule_context = rule.get("context_payload", {})
+            rule_constraints = rule.get("constraints", [])
+            rule_priority = JobPriorityEnum(rule.get("priority", JobPriorityEnum.NORMAL.value))
+            rule_artifacts = rule.get("artifacts", [])
+
+            # Enhance context with routing provenance.
+            routed_context = {
+                **rule_context,
+                "routed_from_job_id": completed_job.id,
+            }
+
+            job_dto = HandoffJobCreate(
+                parent_job_id=completed_job.id,
+                summary=rule_summary,
+                context_payload=routed_context,
+                priority=rule_priority,
+                source_agent_id=completed_job.source_agent_id,
+                target_role_id=target_role_id,
+                constraints=rule_constraints,
+            )
+
+            try:
+                created_job = await self._handoff_job_repo.create_in_savepoint(
+                    dto=job_dto, status=JobStatusEnum.PUBLISHED
+                )
+            except HandoffJobConflictError:
+                log.warning(
+                    "routing_rule_skipped",
+                    reason="target_role_id_fk_violation",
+                    target_role_id=target_role_id,
+                )
+                continue
+
+            # Create artifacts for the routed job.
+            if rule_artifacts:
+                artifact_dtos = [
+                    JobArtifactCreate(
+                        job_id=created_job.id,
+                        artifact_type=artifact.get("type", ""),
+                        artifact_uri=artifact.get("uri", ""),
+                        artifact_checksum=artifact.get("checksum"),
+                        metadata_json=artifact.get("metadata_json", {}),
+                    )
+                    for artifact in rule_artifacts
+                ]
+                await self._job_artifact_repo.bulk_create(dtos=artifact_dtos)
+
+            # Create a TASK_PUBLISHED event with routing provenance.
+            await self._job_event_repo.create(
+                dto=JobEventCreate(
+                    job_id=created_job.id,
+                    event_type=JobEventTypeEnum.TASK_PUBLISHED,
+                    current_status=JobStatusEnum.PUBLISHED,
+                    actor_agent_id=actor_agent_id,
+                    payload_json={
+                        "routed_from_job_id": completed_job.id,
+                        "target_role_id": target_role_id,
+                        "priority": rule_priority.value,
+                    },
+                )
+            )
+
+            created_job_ids.append(created_job.id)
+            log.info(
+                "routing_rule_created_job",
+                routed_job_id=created_job.id,
+                target_role_id=target_role_id,
+            )
+
+        # Create a TASK_ROUTED event on the completing job for audit trail.
+        if created_job_ids:
+            await self._job_event_repo.create(
+                dto=JobEventCreate(
+                    job_id=completed_job.id,
+                    event_type=JobEventTypeEnum.TASK_ROUTED,
+                    current_status=JobStatusEnum.COMPLETED,
+                    actor_agent_id=actor_agent_id,
+                    payload_json={
+                        "routed_job_ids": created_job_ids,
+                        "rule_count": len(rules),
+                    },
+                )
+            )
+
+        log.info("operation_completed", created_job_count=len(created_job_ids))
+        return created_job_ids
+
+    MAX_REJECTION_REASON_LENGTH = 2000
+
+    async def reject_job(
+        self,
+        job_id: int,
+        target_job_id: int,
+        reason: str,
+        source_agent_id: int,
+    ) -> tuple[int, int]:
+        """Create a reopen iteration of target_job_id with retry_count + 1.
+
+        Authorization: the caller must be the assignee of job_id, which must be
+        IN_PROGRESS. The target_job_id must be COMPLETED.
+
+        The new job inherits the target role and constraints from the original job.
+        A REOPEN_OF dependency edge links the new job to the original.
+        The rejection reason is stored as a structured ``rejection_reason`` artifact
+        (authoritative source of truth). It is also copied into ``context_payload``
+        as legacy compatibility data for jobs that may be read by pre-Phase 2 consumers.
+        """
+        log = self._logger.bind(
+            method="reject_job",
+            job_id=job_id,
+            target_job_id=target_job_id,
+            source_agent_id=source_agent_id,
+        )
+        log.info("operation_started")
+
+        # Authorization: fetch the reviewing job and verify the caller is its assignee.
+        reviewing_job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+
+        if reviewing_job.assignee_agent_id != source_agent_id:
+            log.warning(
+                "operation_failed",
+                reason="not_assignee_of_reviewing_job",
+                assignee_agent_id=reviewing_job.assignee_agent_id,
+            )
+            raise HandoffJobConflictError
+
+        if reviewing_job.status != JobStatusEnum.IN_PROGRESS:
+            log.warning(
+                "operation_failed",
+                reason="reviewing_job_not_in_progress",
+                current_status=reviewing_job.status.value,
+            )
+            raise HandoffJobConflictError
+
+        # The target job must be COMPLETED.
+        original_job = await self._handoff_job_repo.get_by_id_for_update(job_id=target_job_id)
+
+        if original_job.status != JobStatusEnum.COMPLETED:
+            log.warning(
+                "operation_failed",
+                reason="target_job_not_completed",
+                target_status=original_job.status.value,
+            )
+            raise HandoffJobConflictError
+
+        # Verify the reviewing job (job_id) is blocked by the target job (target_job_id).
+        # This ensures the reviewer can only reject work it was waiting on.
+        has_edge = await self._job_dependency_repo.has_blocks_edge(
+            upstream_job_id=target_job_id,
+            downstream_job_id=job_id,
+        )
+        if not has_edge:
+            log.warning(
+                "operation_failed",
+                reason="no_blocks_edge_from_target_to_reviewer",
+                target_job_id=target_job_id,
+                reviewing_job_id=job_id,
+            )
+            raise HandoffJobConflictError
+
+        # Enforce max_retries: reject if the original job has already exhausted its retry budget.
+        if original_job.retry_count >= original_job.max_retries:
+            log.warning(
+                "operation_failed",
+                reason="max_retries_exceeded",
+                retry_count=original_job.retry_count,
+                max_retries=original_job.max_retries,
+            )
+            raise HandoffJobConflictError
+
+        # Enforce reason length limit to prevent payload/log poisoning.
+        truncated_reason = reason[: self.MAX_REJECTION_REASON_LENGTH]
+
+        new_retry_count = original_job.retry_count + 1
+
+        job = HandoffJobCreate(
+            parent_job_id=original_job.parent_job_id,
+            summary=f"[Retry {new_retry_count}] {original_job.summary}",
+            context_payload={
+                **original_job.context_payload,
+                # NOTE: These context_payload fields are legacy compatibility
+                # data only. The authoritative source of truth for the rejection
+                # reason is the rejection_reason artifact created below.
+                # get_reopen_context() reads the artifact first and falls back to
+                # these fields only for jobs created before Phase 2.
+                "rejection_reason": truncated_reason,
+                "rejected_by_job_id": job_id,
+                "original_job_id": target_job_id,
+                "retry_count": new_retry_count,
+            },
+            priority=JobPriorityEnum(original_job.priority),
+            source_agent_id=source_agent_id,
+            target_role_id=original_job.target_role_id,
+            constraints=original_job.constraints,
+            retry_count=new_retry_count,
+            max_retries=original_job.max_retries,
+        )
+
+        created_job = await self._handoff_job_repo.create(dto=job, status=JobStatusEnum.PUBLISHED)
+        log = log.bind(new_job_id=created_job.id)
+
+        # Store the rejection reason as a structured artifact on the new job.
+        # This makes the reason queryable and durable as a first-class artifact,
+        # not buried in the context_payload JSON blob.
+        await self._job_artifact_repo.bulk_create(
+            dtos=[
+                JobArtifactCreate(
+                    job_id=created_job.id,
+                    artifact_type="rejection_reason",
+                    artifact_uri="inline://rejection_reason",
+                    artifact_checksum=None,
+                    metadata_json={
+                        "reason": truncated_reason,
+                        "original_job_id": target_job_id,
+                        "rejected_by_job_id": job_id,
+                        "retry_count": new_retry_count,
+                    },
+                )
+            ]
+        )
+
+        # Create REOPEN_OF edge from original to retry (version lineage).
+        # Create new BLOCKS edge from retry to reviewer (so reviewer is reactivated when retry completes).
+        await self._job_dependency_repo.bulk_create(
+            dtos=[
+                JobDependencyCreate(
+                    upstream_job_id=target_job_id,
+                    downstream_job_id=created_job.id,
+                    dep_type=DependencyTypeEnum.REOPEN_OF,
+                ),
+                JobDependencyCreate(
+                    upstream_job_id=created_job.id,
+                    downstream_job_id=job_id,
+                    dep_type=DependencyTypeEnum.BLOCKS,
+                ),
+            ]
+        )
+
+        # Delete the old BLOCKS edge from original to reviewer — the reviewer
+        # is now blocked by the retry, not the original.
+        await self._job_dependency_repo.delete_blocks_edge(
+            upstream_job_id=target_job_id,
+            downstream_job_id=job_id,
+        )
+
+        # Transition the reviewer from IN_PROGRESS to PENDING so it waits
+        # for the retry to complete. Barrier sync will reactivate it.
+        # Clear ownership fields so the reviewer can be claimed by any agent
+        # when it returns to PUBLISHED.
+        timestamp = datetime.now(timezone.utc)
+        reviewing_job.status = JobStatusEnum.PENDING
+        reviewing_job.assignee_agent_id = None
+        reviewing_job.claimed_at = None
+        reviewing_job.started_at = None
+        reviewing_job.updated_at = timestamp
+        await self._handoff_job_repo.save(job=reviewing_job)
+
+        await self._job_event_repo.create(
+            dto=JobEventCreate(
+                job_id=created_job.id,
+                event_type=JobEventTypeEnum.TASK_PUBLISHED,
+                current_status=JobStatusEnum.PUBLISHED,
+                actor_agent_id=source_agent_id,
+                payload_json={
+                    "retry_count": new_retry_count,
+                    "max_retries": original_job.max_retries,
+                    "rejected_by_job_id": job_id,
+                    "original_job_id": target_job_id,
+                    "rejection_reason": truncated_reason,
+                },
+            )
+        )
+
+        await self._job_event_repo.create(
+            dto=JobEventCreate(
+                job_id=job_id,
+                event_type=JobEventTypeEnum.TASK_PENDING,
+                current_status=JobStatusEnum.PENDING,
+                actor_agent_id=source_agent_id,
+                payload_json={
+                    "timestamp": timestamp.isoformat(),
+                    "reason": "rejected_upstream_retry_created",
+                    "retry_job_id": created_job.id,
+                },
+            )
+        )
+
+        log.info(
+            "operation_completed",
+            retry_count=new_retry_count,
+            reviewer_transitioned_to="pending",
+        )
+        return created_job.id, new_retry_count
 
     async def update_job(self, job_id: int, dto: HandoffJobUpdate, agent_id: int) -> None:
         log = self._logger.bind(method="update_job", job_id=job_id, agent_id=agent_id)
@@ -474,3 +950,75 @@ class HandoffJobService:
         )
 
         log.info("operation_completed", updated_fields=list(changes.keys()))
+
+    REJECTION_REASON_ARTIFACT_TYPE = "rejection_reason"
+
+    async def get_reopen_context(self, job_id: int) -> ReopenContext:
+        """Return focused reopen context — only the diff/rejection metadata,
+        not the full original ``context_payload``.
+
+        This is the context-window-management feature: CLI agents with limited
+        context windows get the rejection reason, retry count, and constraints
+        without parsing the entire original context blob.
+
+        The ``rejection_reason`` artifact is the authoritative source of truth.
+        The ``context_payload`` fields (``rejection_reason``, ``original_job_id``,
+        ``rejected_by_job_id``, ``retry_count``) are legacy compatibility data
+        used as a fallback only for jobs created before Phase 2.
+
+        Raises ``HandoffJobConflictError`` if the job is not a reopen iteration
+        (i.e., its ``context_payload`` does not contain ``original_job_id``).
+        """
+        log = self._logger.bind(method="get_reopen_context", job_id=job_id)
+        log.info("operation_started")
+
+        job_item = await self._handoff_job_repo.get(job_id=job_id)
+        job = job_item.job_details
+
+        # A reopen iteration has ``original_job_id`` in its context_payload.
+        original_job_id = job.context_payload.get("original_job_id")
+        if original_job_id is None:
+            log.warning(
+                "operation_failed",
+                reason="job_is_not_reopen_iteration",
+                current_status=job.status.value,
+            )
+            raise HandoffJobConflictError
+
+        rejected_by_job_id = job.context_payload.get("rejected_by_job_id", 0)
+
+        # Prefer the structured rejection_reason artifact (Phase 2 source of truth).
+        # Fall back to context_payload for jobs created before Phase 2.
+        rejection_reason: str
+        artifact = await self._job_artifact_repo.find_by_type(
+            job_id=job_id,
+            artifact_type=self.REJECTION_REASON_ARTIFACT_TYPE,
+        )
+        if artifact is not None:
+            # Defensive: artifact metadata is JSON and may be externally modified.
+            # Verify the reason value is a string before using it; otherwise fall
+            # back to the legacy context_payload field.
+            artifact_reason = artifact.metadata_json.get("reason")
+            if isinstance(artifact_reason, str):
+                rejection_reason = artifact_reason
+            else:
+                log.warning(
+                    "artifact_reason_not_string",
+                    reason_type=type(artifact_reason).__name__,
+                )
+                rejection_reason = job.context_payload.get("rejection_reason", "")
+        else:
+            rejection_reason = job.context_payload.get("rejection_reason", "")
+
+        log.info("operation_completed", original_job_id=original_job_id, retry_count=job.retry_count)
+        return ReopenContext(
+            job_id=job.id,
+            original_job_id=original_job_id,
+            rejected_by_job_id=rejected_by_job_id,
+            retry_count=job.retry_count,
+            max_retries=job.max_retries,
+            rejection_reason=rejection_reason,
+            summary=job.summary,
+            constraints=job.constraints,
+            target_role_key=job_item.target_role_key,
+        )

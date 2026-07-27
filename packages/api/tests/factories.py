@@ -4,8 +4,8 @@ from itertools import count
 from typing import Any, TypeVar
 
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
-from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
-from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobEvent
+from forkflux_api.jobs.constants import DependencyTypeEnum, JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.models import HandoffJob, JobArtifact, JobDependency, JobEvent
 from forkflux_api.profile.models import Profile
 from polyfactory import AsyncPersistenceProtocol
 from polyfactory.factories.sqlalchemy_factory import SQLAASyncPersistence, SQLAlchemyFactory
@@ -106,6 +106,9 @@ class HandoffJobFactory(BaseSQLAlchemyFactory):
     priority: int = JobPriorityEnum.NORMAL.value
     assignee_agent_id: int | None = None
     constraints: list[str] = []
+    routing_rules: list[Any] | None = None
+    retry_count: int = 0
+    max_retries: int = 3
     failure_reason: str | None = None
     blocked_reason: str | None = None
     unblock_reason: str | None = None
@@ -141,6 +144,24 @@ class JobEventFactory(BaseSQLAlchemyFactory):
     current_status: JobStatusEnum = JobStatusEnum.CLAIMED
     actor_agent_id: int | None = None
     payload_json = Use(lambda: {"source": "factory", "version": 1})
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class JobDependencyFactory(BaseSQLAlchemyFactory):
+    __model__ = JobDependency
+
+    # Disable auto-generation of the bidirectional relationships
+    # (upstream_job, downstream_job). When left to the default, polyfactory
+    # generates phantom HandoffJob instances for these relationship-typed
+    # fields, and SQLAlchemy's flush gives the relationship objects precedence
+    # over the explicit FK ids (upstream_job_id / downstream_job_id), silently
+    # overwriting them. Tests that pass the relationship objects explicitly
+    # still work, since explicit kwargs are applied regardless of this flag.
+    __set_relationships__ = False
+
+    upstream_job_id: int
+    downstream_job_id: int
+    dep_type: DependencyTypeEnum = DependencyTypeEnum.BLOCKS
     created_at: datetime = datetime.now(timezone.utc)
 
 

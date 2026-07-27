@@ -23,7 +23,7 @@
   --w-rjv-type-undefined-color: var(--ff-page-text-muted);
   --w-rjv-type-nan-color: var(--ff-color-danger);
   --w-rjv-type-infinity-color: var(--ff-color-danger);
-  
+
   /* String values use the theme-aware page text so they stay readable on
      both light (#0F172A on #F8FAFC) and dark (#F8FAFC on #0B1220) surfaces.
      The earlier mapping to --ff-color-text (fixed #F8FAFC) was invisible

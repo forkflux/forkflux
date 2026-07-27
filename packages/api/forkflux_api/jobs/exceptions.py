@@ -18,6 +18,11 @@ class JobArtifactConflictError(Exception):
     msg = "Job artifact conflicts with existing data constraints."
 
 
+class JobDependencyConflictError(Exception):
+    code = "job_dependency.conflict"
+    msg = "Job dependency conflicts with existing data constraints."
+
+
 class JobEventConflictError(Exception):
     code = "job_event.conflict"
     msg = "Job event conflicts with existing data constraints."

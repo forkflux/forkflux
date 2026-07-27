@@ -18,6 +18,8 @@ class JobUiListItem(BaseModel):
     source_agent_label: str
     assignee_agent_label: str | None
     target_role_label: str
+    retry_count: int
+    max_retries: int
     created_at: datetime
 
 
@@ -73,13 +75,15 @@ class JobUiDetailItem(BaseModel):
     target_role_label: str
 
     constraints: list[str]
+    retry_count: int
+    max_retries: int
     artifacts: list[JobArtifactUiItem]
     events: list[JobEventUiItem]
     failure_reason: str | None
     blocked_reason: str | None
     unblock_reason: str | None
 
-    published_at: datetime
+    published_at: datetime | None
     claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None

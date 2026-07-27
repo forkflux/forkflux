@@ -18,6 +18,9 @@ def handoff_job_to_response_model(entity: HandoffJobWithArtifacts) -> HandoffJob
         assignee_agent_label=job.assignee_agent_label,
         target_role_key=job.target_role_key,
         constraints=job.job_details.constraints,
+        routing_rules=job.job_details.routing_rules,
+        retry_count=job.job_details.retry_count,
+        max_retries=job.job_details.max_retries,
         artifacts=[
             JobArtifact(
                 type=artifact.artifact_type,

@@ -41,6 +41,7 @@ function makeDetail(overrides: Partial<JobDetail> = {}): JobDetail {
     ...makeJob(overrides),
     context_payload: {},
     constraints: [],
+    routing_rules: null,
     artifacts: [],
     failure_reason: null,
     blocked_reason: null,

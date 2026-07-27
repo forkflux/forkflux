@@ -65,6 +65,7 @@ export interface Job {
 export interface JobDetail extends Job {
   context_payload: ContextPayload;
   constraints: string[];
+  routing_rules: JsonValue[] | null;
   artifacts: JobArtifact[];
   failure_reason: string | null;
   blocked_reason: string | null;
@@ -263,4 +264,3 @@ export interface CreateAgentResponse {
   target_role_ids: number[];
   api_token: string;
 }
-

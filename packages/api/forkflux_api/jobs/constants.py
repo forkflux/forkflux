@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 
 
 class JobStatusEnum(str, Enum):
+    PENDING = "pending"
     PUBLISHED = "published"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
@@ -10,6 +11,11 @@ class JobStatusEnum(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class DependencyTypeEnum(str, Enum):
+    BLOCKS = "blocks"
+    REOPEN_OF = "reopen_of"
 
 
 class JobPriorityEnum(IntEnum):
@@ -27,6 +33,7 @@ class JobListOrderEnum(str, Enum):
 
 
 class JobEventTypeEnum(str, Enum):
+    TASK_PENDING = "task_pending"
     TASK_PUBLISHED = "task_published"
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"
@@ -36,9 +43,13 @@ class JobEventTypeEnum(str, Enum):
     TASK_BLOCKED = "task_blocked"
     TASK_UNBLOCKED = "task_unblocked"
     TASK_UPDATED = "task_updated"
+    TASK_ACTIVATED = "task_activated"
+    TASK_ROUTED = "task_routed"
 
 
 _DEFAULT_EVENT_TYPE_BY_TARGET: dict[JobStatusEnum, JobEventTypeEnum] = {
+    JobStatusEnum.PENDING: JobEventTypeEnum.TASK_PENDING,
+    JobStatusEnum.PUBLISHED: JobEventTypeEnum.TASK_PUBLISHED,
     JobStatusEnum.IN_PROGRESS: JobEventTypeEnum.TASK_STARTED,
     JobStatusEnum.COMPLETED: JobEventTypeEnum.TASK_COMPLETED,
     JobStatusEnum.FAILED: JobEventTypeEnum.TASK_FAILED,
@@ -49,6 +60,7 @@ _DEFAULT_EVENT_TYPE_BY_TARGET: dict[JobStatusEnum, JobEventTypeEnum] = {
 
 _EVENT_TYPE_OVERRIDES: dict[tuple[JobStatusEnum, JobStatusEnum], JobEventTypeEnum] = {
     (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS): JobEventTypeEnum.TASK_RESTARTED,
+    (JobStatusEnum.PENDING, JobStatusEnum.PUBLISHED): JobEventTypeEnum.TASK_ACTIVATED,
 }
 
 
@@ -56,10 +68,12 @@ def resolve_event_type(previous: JobStatusEnum, target: JobStatusEnum) -> JobEve
     """Resolve the event type for a status transition.
 
     Most transitions map to a default event type based solely on the target
-    status. One transition overrides this default because it represents
-    recovery from a problem state rather than a fresh start:
+    status. Two transitions override this default because they represent
+    semantically distinct events rather than a fresh start:
 
     * ``FAILED -> IN_PROGRESS`` → ``TASK_RESTARTED``
+    * ``PENDING -> PUBLISHED`` → ``TASK_ACTIVATED`` (barrier sync: all
+      upstream blockers have completed and the job is now claimable)
     """
     return _EVENT_TYPE_OVERRIDES.get(
         (previous, target),

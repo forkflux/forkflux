@@ -6,7 +6,8 @@ license = "Apache-2.0"
 
 [tool.uv.workspace]
 members = [
-    "packages/*",
+    "packages/api",
+    "packages/mcp",
 ]
 
 [dependency-groups]

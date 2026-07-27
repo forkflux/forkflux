@@ -161,6 +161,7 @@ export function createMockJobDetail(overrides: Partial<JobDetail> = {}): JobDeta
     ...createMockJob(overrides),
     context_payload: { key: 'value' },
     constraints: ['Constraint one', 'Constraint two'],
+    routing_rules: null,
     artifacts: [],
     failure_reason: null,
     blocked_reason: null,

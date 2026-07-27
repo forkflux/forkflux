@@ -122,6 +122,7 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
         "priority": payload["priority"],
         "target_role_id": target_role.id,
         "artifact_count": len(payload["artifacts"]),
+        "blocked_by": [],
     }
 
 
