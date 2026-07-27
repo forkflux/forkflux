@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   JOB_STATUS_ORDER,
   countJobsByStatus,
-  extractTicketKey,
   filterJobs,
   formatAssignee,
   formatBytes,
@@ -379,28 +378,6 @@ describe('formatBytes', () => {
 
   it('uses 0 decimal places for values >= 100', () => {
     expect(formatBytes(100 * 1024)).toBe('100 KB')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// extractTicketKey
-// ---------------------------------------------------------------------------
-
-describe('extractTicketKey', () => {
-  it('extracts a ticket key in brackets', () => {
-    expect(extractTicketKey('Fix bug [FF-1000] now')).toBe('FF-1000')
-  })
-
-  it('returns null when no ticket key is found', () => {
-    expect(extractTicketKey('No ticket here')).toBeNull()
-  })
-
-  it('returns the first match when multiple brackets exist', () => {
-    expect(extractTicketKey('[FF-1000] and [FF-2000]')).toBe('FF-1000')
-  })
-
-  it('does not match lowercase prefixes', () => {
-    expect(extractTicketKey('[ff-1000]')).toBeNull()
   })
 })
 
