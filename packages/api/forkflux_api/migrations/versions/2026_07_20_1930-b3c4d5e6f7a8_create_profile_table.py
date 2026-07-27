@@ -33,6 +33,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
+    op.execute(sa.text("INSERT INTO profile (is_onboarded) VALUES (true)"))
+
 
 def downgrade() -> None:
     """Downgrade schema."""
