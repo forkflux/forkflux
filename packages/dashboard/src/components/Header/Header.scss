@@ -20,6 +20,10 @@
     align-items: center;
     gap: 10px;
     text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
   }
 
   &__logo {
