@@ -751,6 +751,7 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -799,6 +800,7 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1080,6 +1082,7 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_failed_clea
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1124,6 +1127,7 @@ async def test_handoff_job_service_change_job_status_from_blocked_to_cancelled_c
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1511,6 +1515,7 @@ async def test_handoff_job_service_change_job_status_fails_from_unblocked_clears
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()
@@ -1555,6 +1560,7 @@ async def test_handoff_job_service_change_job_status_cancels_from_unblocked_clea
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
     job_event_repo.create = AsyncMock()
 
     job = Mock()

@@ -54,6 +54,8 @@ export interface Job {
   source_agent_label: string;
   assignee_agent_label: string | null;
   target_role_label: string;
+  retry_count: number;
+  max_retries: number;
   created_at: string;
 }
 

@@ -1,5 +1,6 @@
 from unittest.mock import ANY, AsyncMock, Mock
 
+import pytest
 from forkflux_api.jobs.constants import (
     DependencyTypeEnum,
     JobEventTypeEnum,
@@ -52,6 +53,7 @@ async def test_create_job_with_blocked_by_creates_pending_job_and_dependency_edg
     job_dependency_repo = Mock()
     job_dependency_repo.bulk_create = AsyncMock()
     job_dependency_repo.count_unmet_blockers = AsyncMock(return_value=1)
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[])
     job_event_repo = Mock()
     job_event_repo.create = AsyncMock()
 
@@ -96,6 +98,7 @@ async def test_create_job_with_blocked_by_all_completed_transitions_to_published
     job_dependency_repo = Mock()
     job_dependency_repo.bulk_create = AsyncMock()
     job_dependency_repo.count_unmet_blockers = AsyncMock(return_value=0)
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[])
     job_event_repo = Mock()
     job_event_repo.create = AsyncMock()
 
@@ -495,16 +498,17 @@ async def test_reject_job_raises_not_found_when_reviewing_job_missing() -> None:
     repository.get_by_id_for_update = AsyncMock(side_effect=HandoffJobNotFoundError)
 
     service = _make_service(repository=repository)
-
-    import pytest
-
-    with pytest.raises(HandoffJobNotFoundError):
+    with pytest.raises(HandoffJobNotFoundError) as exc_info:
         await service.reject_job(
             job_id=999,
             target_job_id=50,
             reason="not found",
             source_agent_id=70,
         )
+
+    # The service must tag the error so the handler can attribute it to the
+    # reviewing job (path job_id), not to target_job_id.
+    assert exc_info.value.which == "job_id"
 
 
 async def test_reject_job_raises_conflict_when_max_retries_exceeded() -> None:
@@ -567,3 +571,205 @@ async def test_reject_job_raises_conflict_when_no_blocks_edge() -> None:
             reason="no edge",
             source_agent_id=70,
         )
+
+
+# ---------------------------------------------------------------------------
+# Terminal-failure propagation tests
+# ---------------------------------------------------------------------------
+
+
+async def test_create_job_with_already_failed_upstream_transitions_to_failed() -> None:
+    """When an upstream blocker is already FAILED at creation time, the new job
+    should be immediately transitioned to FAILED with provenance instead of
+    remaining stuck in PENDING."""
+    repository = Mock()
+    repository.create = AsyncMock()
+    repository.save = AsyncMock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.bulk_create = AsyncMock()
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[(1, JobStatusEnum.FAILED)])
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    created_job = Mock()
+    created_job.id = 100
+    created_job.status = JobStatusEnum.PENDING
+    repository.create.return_value = created_job
+
+    service = _make_service(
+        repository=repository,
+        job_dependency_repo=job_dependency_repo,
+        job_event_repo=job_event_repo,
+    )
+
+    job_data = _build_create_request(blocked_by=[1, 2])
+
+    await service.create_job(job_data, target_role_id=10, source_agent_id=20)
+
+    # Job should be transitioned to FAILED
+    assert created_job.status == JobStatusEnum.FAILED
+    repository.save.assert_awaited_once()
+
+    # Event should be TASK_FAILED
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.event_type == JobEventTypeEnum.TASK_FAILED
+    assert event_dto.current_status == JobStatusEnum.FAILED
+
+    # count_unmet_blockers should NOT have been called (failed check short-circuits)
+    job_dependency_repo.count_unmet_blockers.assert_not_called()
+
+
+async def test_create_job_with_already_cancelled_upstream_transitions_to_cancelled() -> None:
+    """When an upstream blocker is already CANCELLED at creation time, the new
+    job should be immediately transitioned to CANCELLED with provenance."""
+    repository = Mock()
+    repository.create = AsyncMock()
+    repository.save = AsyncMock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.bulk_create = AsyncMock()
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[(1, JobStatusEnum.CANCELLED)])
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+
+    created_job = Mock()
+    created_job.id = 100
+    created_job.status = JobStatusEnum.PENDING
+    repository.create.return_value = created_job
+
+    service = _make_service(
+        repository=repository,
+        job_dependency_repo=job_dependency_repo,
+        job_event_repo=job_event_repo,
+    )
+
+    job_data = _build_create_request(blocked_by=[1, 2])
+
+    await service.create_job(job_data, target_role_id=10, source_agent_id=20)
+
+    assert created_job.status == JobStatusEnum.CANCELLED
+    repository.save.assert_awaited_once()
+
+    event_dto = job_event_repo.create.await_args.kwargs["dto"]
+    assert event_dto.event_type == JobEventTypeEnum.TASK_CANCELLED
+    assert event_dto.current_status == JobStatusEnum.CANCELLED
+
+
+async def test_change_job_status_failed_propagates_to_downstream_pending() -> None:
+    """When a job transitions to FAILED, downstream PENDING jobs with this job
+    as a blocker should be propagated to FAILED with provenance."""
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock(return_value=[200])
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[(1, JobStatusEnum.FAILED)])
+
+    failed_job = Mock()
+    failed_job.status = JobStatusEnum.IN_PROGRESS
+    failed_job.assignee_agent_id = 10
+    failed_job.source_agent_id = 42
+    failed_job.routing_rules = None
+
+    downstream_job = Mock()
+    downstream_job.status = JobStatusEnum.PENDING
+    downstream_job.id = 200
+
+    repository.get_by_id_for_update.side_effect = [failed_job, downstream_job]
+
+    service = _make_service(
+        repository=repository,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+    )
+
+    await service.change_job_status(job_id=1, status=JobStatusEnum.FAILED, agent_id=10)
+
+    # Downstream should be transitioned to FAILED
+    assert downstream_job.status == JobStatusEnum.FAILED
+
+    # Should have created 2 events: one for the upstream FAILED, one for downstream TASK_FAILED
+    assert job_event_repo.create.await_count == 2
+    downstream_event = job_event_repo.create.await_args_list[1].kwargs["dto"]
+    assert downstream_event.event_type == JobEventTypeEnum.TASK_FAILED
+    assert downstream_event.current_status == JobStatusEnum.FAILED
+    assert downstream_event.payload_json["failed_by"] == 1
+    assert downstream_event.payload_json["upstream_terminal_status"] == "failed"
+    assert downstream_event.payload_json["reason"] == "barrier_sync_upstream_terminal_failure"
+
+
+async def test_change_job_status_cancelled_propagates_to_downstream_pending() -> None:
+    """When a job transitions to CANCELLED, downstream PENDING jobs with this
+    job as a blocker should be propagated to CANCELLED with provenance."""
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock(return_value=[200])
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[(1, JobStatusEnum.CANCELLED)])
+
+    cancelled_job = Mock()
+    cancelled_job.status = JobStatusEnum.PUBLISHED
+    cancelled_job.assignee_agent_id = None
+    cancelled_job.source_agent_id = 42
+    cancelled_job.routing_rules = None
+
+    downstream_job = Mock()
+    downstream_job.status = JobStatusEnum.PENDING
+    downstream_job.id = 200
+
+    repository.get_by_id_for_update.side_effect = [cancelled_job, downstream_job]
+
+    service = _make_service(
+        repository=repository,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+    )
+
+    await service.change_job_status(job_id=1, status=JobStatusEnum.CANCELLED, agent_id=42)
+
+    # Downstream should be transitioned to CANCELLED
+    assert downstream_job.status == JobStatusEnum.CANCELLED
+
+    assert job_event_repo.create.await_count == 2
+    downstream_event = job_event_repo.create.await_args_list[1].kwargs["dto"]
+    assert downstream_event.event_type == JobEventTypeEnum.TASK_CANCELLED
+    assert downstream_event.current_status == JobStatusEnum.CANCELLED
+    assert downstream_event.payload_json["upstream_terminal_status"] == "cancelled"
+
+
+async def test_change_job_status_failed_does_not_propagate_without_failed_blockers() -> None:
+    """When a job transitions to FAILED but downstream jobs have no terminally-
+    failed blockers (e.g. other blockers still in progress), the downstream
+    job should remain PENDING."""
+    repository = Mock()
+    repository.get_by_id_for_update = AsyncMock()
+    repository.save = AsyncMock()
+    job_event_repo = Mock()
+    job_event_repo.create = AsyncMock()
+    job_dependency_repo = Mock()
+    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock(return_value=[200])
+    job_dependency_repo.find_failed_blockers = AsyncMock(return_value=[])
+
+    failed_job = Mock()
+    failed_job.status = JobStatusEnum.IN_PROGRESS
+    failed_job.assignee_agent_id = 10
+    failed_job.source_agent_id = 42
+    failed_job.routing_rules = None
+    repository.get_by_id_for_update.return_value = failed_job
+
+    service = _make_service(
+        repository=repository,
+        job_event_repo=job_event_repo,
+        job_dependency_repo=job_dependency_repo,
+    )
+
+    await service.change_job_status(job_id=1, status=JobStatusEnum.FAILED, agent_id=10)
+
+    # Only the upstream FAILED event, no downstream propagation
+    assert job_event_repo.create.await_count == 1
+    # get_by_id_for_update should only have been called once (for the upstream job)
+    assert repository.get_by_id_for_update.await_count == 1

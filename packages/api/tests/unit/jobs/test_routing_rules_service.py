@@ -169,7 +169,7 @@ async def test_evaluate_routing_rules_noop_when_rules_none() -> None:
     result = await service._evaluate_routing_rules(completed_job=completed_job, actor_agent_id=10)
 
     assert result == []
-    repository.create.assert_not_called()
+    repository.create_in_savepoint.assert_not_called()
     job_event_repo.create.assert_not_called()
 
 
@@ -187,7 +187,7 @@ async def test_evaluate_routing_rules_noop_when_rules_empty() -> None:
     result = await service._evaluate_routing_rules(completed_job=completed_job, actor_agent_id=10)
 
     assert result == []
-    repository.create.assert_not_called()
+    repository.create_in_savepoint.assert_not_called()
     job_event_repo.create.assert_not_called()
 
 
@@ -259,6 +259,7 @@ async def test_evaluate_routing_rules_creates_multiple_downstream_jobs() -> None
     routing_rules = [
         {
             "target_role_id": 5,
+            "target_role_key": "reviewer",
             "summary": "Review the work",
             "context_payload": {},
             "constraints": [],
@@ -267,6 +268,7 @@ async def test_evaluate_routing_rules_creates_multiple_downstream_jobs() -> None
         },
         {
             "target_role_id": 6,
+            "target_role_key": "deployer",
             "summary": "Deploy the work",
             "context_payload": {},
             "constraints": [],
@@ -300,6 +302,7 @@ async def test_evaluate_routing_rules_creates_artifacts_for_routed_job() -> None
     routing_rules = [
         {
             "target_role_id": 5,
+            "target_role_key": "reviewer",
             "summary": "Review the work",
             "context_payload": {},
             "constraints": [],
@@ -345,6 +348,7 @@ async def test_evaluate_routing_rules_creates_task_published_event_with_routing_
     routing_rules = [
         {
             "target_role_id": 5,
+            "target_role_key": "reviewer",
             "summary": "Review the work",
             "context_payload": {},
             "constraints": [],
@@ -396,6 +400,7 @@ async def test_evaluate_routing_rules_skips_rule_with_fk_violation() -> None:
     routing_rules = [
         {
             "target_role_id": 999,  # deleted role
+            "target_role_key": "stale-role",
             "summary": "Stale rule",
             "context_payload": {},
             "constraints": [],
@@ -404,6 +409,7 @@ async def test_evaluate_routing_rules_skips_rule_with_fk_violation() -> None:
         },
         {
             "target_role_id": 5,
+            "target_role_key": "reviewer",
             "summary": "Valid rule",
             "context_payload": {},
             "constraints": [],
@@ -445,7 +451,7 @@ async def test_evaluate_routing_rules_skips_rule_with_missing_target_role_id() -
     result = await service._evaluate_routing_rules(completed_job=completed_job, actor_agent_id=10)
 
     assert result == []
-    repository.create.assert_not_called()
+    repository.create_in_savepoint.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +481,7 @@ async def test_change_job_status_completed_triggers_routing_rules_evaluation() -
     job.routing_rules = [
         {
             "target_role_id": 5,
+            "target_role_key": "reviewer",
             "summary": "Review",
             "context_payload": {},
             "constraints": [],
@@ -524,7 +531,7 @@ async def test_change_job_status_completed_without_routing_rules_does_not_create
     await service.change_job_status(job_id=100, status=JobStatusEnum.COMPLETED, agent_id=10)
 
     # Only the TASK_COMPLETED event, no routing events
-    repository.create.assert_not_called()
+    repository.create_in_savepoint.assert_not_called()
     assert job_event_repo.create.await_count == 1
     event_dto = job_event_repo.create.await_args.kwargs["dto"]
     assert event_dto.event_type == JobEventTypeEnum.TASK_COMPLETED

@@ -54,13 +54,13 @@ class RoutingRule(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    target_role_key: str
+    target_role_key: str | None = None
     target_role_id: int | None = None
     summary: str
-    context_payload: dict[str, Any]
-    constraints: list[str]
+    context_payload: dict[str, Any] = Field(default_factory=dict)
+    constraints: list[str] = Field(default_factory=list)
     priority: JobPriorityEnum
-    artifacts: list[JobArtifact] = []
+    artifacts: list[JobArtifact] = Field(default_factory=list)
 
 
 class HandoffJobCreateRequest(BaseModel):

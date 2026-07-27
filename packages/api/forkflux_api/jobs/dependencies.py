@@ -98,6 +98,14 @@ async def validate_blocked_by_jobs(
             except HandoffJobNotFoundError:
                 raise BlockedByJobValidationError(field_name="blocked_by", value=upstream_id)
 
+        # All individual lookups succeeded but the batch count still mismatched
+        # (e.g. race condition). The blocked_by list is invalid regardless.
+        raise BlockedByJobValidationError(
+            field_name="blocked_by",
+            value=job_data.blocked_by,
+            detail="One or more blocked_by job IDs could not be verified",
+        )
+
     return None
 
 

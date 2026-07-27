@@ -7,6 +7,14 @@ class HandoffJobNotFoundError(Exception):
     code = "handoff_job.not_found"
     msg = "Handoff job not found."
 
+    def __init__(self, which: str | None = None):
+        # ``which`` lets callers (e.g. HandoffJobService.reject_job) tag which
+        # job identifier was not found so handlers can attribute the error to
+        # the correct field. Defaults to None to preserve all existing bare
+        # ``raise HandoffJobNotFoundError`` call sites.
+        self.which = which
+        super().__init__(which or "handoff_job")
+
 
 class HandoffJobHasChildrenError(Exception):
     code = "handoff_job.has_children"

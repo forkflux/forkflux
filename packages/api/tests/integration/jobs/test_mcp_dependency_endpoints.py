@@ -407,6 +407,51 @@ async def test_reject_job_returns_422_when_reviewing_job_not_found(
     )
 
     assert response.status_code == 422
+    # The reviewing job (path job_id) is the missing entity; the error must be
+    # attributed to job_id in the path, not to target_job_id in the body.
+    detail = response.json()["detail"][0]
+    assert detail["loc"] == ["path", "job_id"]
+    assert detail["input"] == 999_999
+
+
+async def test_reject_job_returns_422_when_target_job_not_found(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A missing target job (body target_job_id) must be attributed to
+    target_job_id in the body, distinct from a missing reviewing job."""
+    raw_token = "reject-target-not-found-token"
+    source_agent_id, target_role_id = await _create_authenticated_agent(
+        db_session,
+        raw_token=raw_token,
+        role_key="reject-target-not-found-role",
+        role_label="Reject target not found role",
+        agent_label="reject-target-not-found-agent",
+    )
+
+    # Reviewing job exists, is IN_PROGRESS, and is assigned to the caller so
+    # the service reaches the target_job lookup, which then misses.
+    reviewing_job = await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent_id,
+        target_role_id=target_role_id,
+        status=JobStatusEnum.IN_PROGRESS,
+        assignee_agent_id=source_agent_id,
+    )
+
+    response = await client.post(
+        f"/api/v1/mcp/jobs/{reviewing_job.id}/reject",
+        headers={"Authorization": f"Bearer {raw_token}"},
+        json={
+            "target_job_id": 999_998,
+            "reason": "target missing",
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"][0]
+    assert detail["loc"] == ["body", "target_job_id"]
+    assert detail["input"] == 999_998
 
 
 async def test_reject_job_returns_422_when_caller_not_assignee(
