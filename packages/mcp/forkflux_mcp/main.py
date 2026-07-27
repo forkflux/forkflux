@@ -47,7 +47,7 @@ async def _api_request(
         "Content-Type": "application/json",
         "Authorization": f"Bearer {API_KEY}",
     }
-    url = f"{API_URL}{endpoint}"
+    url = f"{API_URL}/mcp{endpoint}"
 
     try:
         async with httpx.AsyncClient() as client:
