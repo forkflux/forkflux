@@ -28,7 +28,7 @@ from forkflux_api.jobs.dto import (
     ReopenContext,
     RoutingRuleCreate,
 )
-from forkflux_api.jobs.exceptions import HandoffJobConflictError
+from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotFoundError
 from forkflux_api.jobs.mcp_schemas import HandoffJobCreateRequest
 from forkflux_api.jobs.models import HandoffJob
 from forkflux_api.jobs.repositories import (
@@ -206,14 +206,42 @@ class HandoffJobService:
             ]
             await self._job_dependency_repo.bulk_create(dtos=dependency_dtos)
 
-            # If all upstream blockers are already COMPLETED, transition to PUBLISHED immediately.
-            unmet = await self._job_dependency_repo.count_unmet_blockers(downstream_job_id=created_job.id)
-            if unmet == 0:
-                created_job.status = JobStatusEnum.PUBLISHED
-                created_job.published_at = datetime.now(timezone.utc)
+            # Check if any upstream blocker is already terminally failed.
+            # If so, propagate the matching terminal status (FAILED → FAILED,
+            # CANCELLED → CANCELLED) to the new job instead of leaving it PENDING.
+            failed_blockers = await self._job_dependency_repo.find_failed_blockers(downstream_job_id=created_job.id)
+            if failed_blockers:
+                # Use the first failed blocker's status as the propagation target.
+                # When multiple blockers are terminally failed, the first one wins
+                # (deterministic by query order); provenance records all failed IDs.
+                propagated_status = failed_blockers[0][1]
+                failed_ids = [fb[0] for fb in failed_blockers]
+                timestamp = datetime.now(timezone.utc)
+                created_job.status = propagated_status
+                if propagated_status == JobStatusEnum.FAILED:
+                    created_job.failure_reason = (
+                        f"Upstream blocker(s) {failed_ids} reached terminal failure at creation time"
+                    )
+                    created_job.failed_at = timestamp
+                else:  # CANCELLED
+                    created_job.cancelled_at = timestamp
+                created_job.updated_at = timestamp
                 await self._handoff_job_repo.save(job=created_job)
-                status = JobStatusEnum.PUBLISHED
-                log.info("barrier_sync_immediate_activation", unmet_blockers=0)
+                status = propagated_status
+                log.info(
+                    "barrier_sync_immediate_failure",
+                    failed_blocker_ids=failed_ids,
+                    propagated_status=propagated_status.value,
+                )
+            else:
+                # If all upstream blockers are already COMPLETED, transition to PUBLISHED immediately.
+                unmet = await self._job_dependency_repo.count_unmet_blockers(downstream_job_id=created_job.id)
+                if unmet == 0:
+                    created_job.status = JobStatusEnum.PUBLISHED
+                    created_job.published_at = datetime.now(timezone.utc)
+                    await self._handoff_job_repo.save(job=created_job)
+                    status = JobStatusEnum.PUBLISHED
+                    log.info("barrier_sync_immediate_activation", unmet_blockers=0)
 
         artifact_dtos = [
             JobArtifactCreate(
@@ -400,7 +428,6 @@ class HandoffJobService:
         current_status = job.status
 
         allowed_transitions = {
-            (JobStatusEnum.PENDING, JobStatusEnum.PUBLISHED),
             (JobStatusEnum.PENDING, JobStatusEnum.CANCELLED),
             (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
@@ -425,22 +452,6 @@ class HandoffJobService:
                 current_status=current_status.value,
             )
             raise HandoffJobConflictError
-
-        # Enforce max_retries on the FAILED → IN_PROGRESS restart path.
-        # This prevents infinite retry loops via manual restarts, mirroring
-        # the guard already present in reject_job.
-        if current_status == JobStatusEnum.FAILED and status == JobStatusEnum.IN_PROGRESS:
-            if job.retry_count >= job.max_retries:
-                log.warning(
-                    "operation_failed",
-                    reason="max_retries_exceeded",
-                    retry_count=job.retry_count,
-                    max_retries=job.max_retries,
-                )
-                raise HandoffJobConflictError
-
-            job.retry_count += 1
-            log.info("retry_restart", retry_count=job.retry_count, max_retries=job.max_retries)
 
         if status == JobStatusEnum.UNBLOCKED and agent_id is None:
             pass  # UI/admin unblock — skip assignee authorization check
@@ -469,6 +480,23 @@ class HandoffJobService:
                 assignee_agent_id=job.assignee_agent_id,
             )
             raise HandoffJobConflictError
+
+        # Enforce max_retries on the FAILED → IN_PROGRESS restart path.
+        # This prevents infinite retry loops via manual restarts, mirroring
+        # the guard already present in reject_job. Runs after the assignee/source
+        # authorization chain so only authorized retry restarts increment and log.
+        if current_status == JobStatusEnum.FAILED and status == JobStatusEnum.IN_PROGRESS:
+            if job.retry_count >= job.max_retries:
+                log.warning(
+                    "operation_failed",
+                    reason="max_retries_exceeded",
+                    retry_count=job.retry_count,
+                    max_retries=job.max_retries,
+                )
+                raise HandoffJobConflictError
+
+            job.retry_count += 1
+            log.info("retry_restart", retry_count=job.retry_count, max_retries=job.max_retries)
 
         timestamp = datetime.now(timezone.utc)
         job.status = status
@@ -517,11 +545,10 @@ class HandoffJobService:
 
         await self._handoff_job_repo.save(job=job)
 
-        # Barrier sync and conditional routing happen BEFORE the completion event
-        # is created, so the event payload can include routed_job_ids provenance.
+        # Conditional routing: evaluate routing rules and auto-create downstream jobs.
+        # This happens BEFORE the completion event is created, so the event payload
+        # can include routed_job_ids provenance.
         if status == JobStatusEnum.COMPLETED:
-            await self._barrier_sync(upstream_job_id=job_id, actor_agent_id=agent_id)
-            # Conditional routing: evaluate routing rules and auto-create downstream jobs.
             routed_job_ids = await self._evaluate_routing_rules(completed_job=job, actor_agent_id=agent_id)
             if routed_job_ids:
                 event_payload["routed_job_ids"] = routed_job_ids
@@ -535,6 +562,15 @@ class HandoffJobService:
                 payload_json=event_payload,
             )
         )
+
+        # Barrier sync happens AFTER the completion event is recorded, so the
+        # completion event is logged first, followed by downstream activation events.
+        if status == JobStatusEnum.COMPLETED:
+            await self._barrier_sync(upstream_job_id=job_id, actor_agent_id=agent_id)
+        elif status in (JobStatusEnum.FAILED, JobStatusEnum.CANCELLED):
+            await self._propagate_terminal_failure(
+                upstream_job_id=job_id, terminal_status=status, actor_agent_id=agent_id
+            )
 
         log.info("operation_completed", previous_status=current_status.value, current_status=status.value)
         return current_status, status
@@ -586,6 +622,79 @@ class HandoffJobService:
             log.info("barrier_sync_activated_job", downstream_job_id=downstream_id)
 
         log.info("operation_completed", activated_count=activated_count)
+
+    async def _propagate_terminal_failure(
+        self, upstream_job_id: int, terminal_status: JobStatusEnum, actor_agent_id: int | None
+    ) -> None:
+        """Propagate terminal failure to downstream PENDING jobs when an upstream blocker fails.
+
+        Mirrors ``_barrier_sync`` but handles the case where an upstream blocker
+        reaches FAILED or CANCELLED. Downstream PENDING jobs that have any
+        terminally-failed blocker are transitioned to the matching terminal status
+        (FAILED → FAILED, CANCELLED → CANCELLED) with explicit provenance, so they
+        do not remain stuck in PENDING indefinitely.
+        """
+        log = self._logger.bind(
+            method="_propagate_terminal_failure",
+            upstream_job_id=upstream_job_id,
+            terminal_status=terminal_status.value,
+        )
+        log.info("operation_started")
+
+        downstream_ids = await self._job_dependency_repo.find_downstream_pending_job_ids(
+            upstream_job_id=upstream_job_id
+        )
+
+        if not downstream_ids:
+            log.info("operation_completed", propagated_count=0)
+            return
+
+        propagated_count = 0
+        timestamp = datetime.now(timezone.utc)
+
+        for downstream_id in downstream_ids:
+            failed_blockers = await self._job_dependency_repo.find_failed_blockers(downstream_job_id=downstream_id)
+            if not failed_blockers:
+                continue
+
+            downstream_job = await self._handoff_job_repo.get_by_id_for_update(job_id=downstream_id)
+            if downstream_job.status != JobStatusEnum.PENDING:
+                continue
+
+            # Use the triggering upstream's terminal status as the propagation target.
+            propagated_status = terminal_status
+            failed_ids = [fb[0] for fb in failed_blockers]
+
+            downstream_job.status = propagated_status
+            downstream_job.updated_at = timestamp
+            if propagated_status == JobStatusEnum.FAILED:
+                downstream_job.failure_reason = f"Upstream blocker(s) {failed_ids} reached terminal failure"
+                downstream_job.failed_at = timestamp
+            else:  # CANCELLED
+                downstream_job.cancelled_at = timestamp
+            await self._handoff_job_repo.save(job=downstream_job)
+
+            await self._job_event_repo.create(
+                dto=JobEventCreate(
+                    job_id=downstream_id,
+                    event_type=JobEventTypeEnum.TASK_FAILED
+                    if propagated_status == JobStatusEnum.FAILED
+                    else JobEventTypeEnum.TASK_CANCELLED,
+                    current_status=propagated_status,
+                    actor_agent_id=actor_agent_id,
+                    payload_json={
+                        "timestamp": timestamp.isoformat(),
+                        "failed_by": upstream_job_id,
+                        "upstream_terminal_status": terminal_status.value,
+                        "failed_blocker_ids": failed_ids,
+                        "reason": "barrier_sync_upstream_terminal_failure",
+                    },
+                )
+            )
+            propagated_count += 1
+            log.info("barrier_sync_failed_job", downstream_job_id=downstream_id)
+
+        log.info("operation_completed", propagated_count=propagated_count)
 
     async def _evaluate_routing_rules(self, completed_job: HandoffJob, actor_agent_id: int | None) -> list[int]:
         """Evaluate routing rules on a completed job and auto-create downstream jobs.
@@ -742,7 +851,11 @@ class HandoffJobService:
         log.info("operation_started")
 
         # Authorization: fetch the reviewing job and verify the caller is its assignee.
-        reviewing_job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+        try:
+            reviewing_job = await self._handoff_job_repo.get_by_id_for_update(job_id=job_id)
+        except HandoffJobNotFoundError:
+            log.warning("operation_failed", reason="reviewing_job_not_found", job_id=job_id)
+            raise HandoffJobNotFoundError(which="job_id") from None
 
         if reviewing_job.assignee_agent_id != source_agent_id:
             log.warning(
@@ -761,7 +874,11 @@ class HandoffJobService:
             raise HandoffJobConflictError
 
         # The target job must be COMPLETED.
-        original_job = await self._handoff_job_repo.get_by_id_for_update(job_id=target_job_id)
+        try:
+            original_job = await self._handoff_job_repo.get_by_id_for_update(job_id=target_job_id)
+        except HandoffJobNotFoundError:
+            log.warning("operation_failed", reason="target_job_not_found", target_job_id=target_job_id)
+            raise HandoffJobNotFoundError(which="target_job_id") from None
 
         if original_job.status != JobStatusEnum.COMPLETED:
             log.warning(

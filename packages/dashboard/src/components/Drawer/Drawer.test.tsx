@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { Drawer } from './Drawer'
 import { renderWithRouter } from '../../test/utils'
 
@@ -124,6 +125,49 @@ describe('Drawer', () => {
       // Focus is moved via queueMicrotask; flush it with a microtask await
       await Promise.resolve()
       expect(document.activeElement).toBe(panel)
+    })
+
+    /**
+     * Regression: when a parent re-renders with a fresh inline `onClose`
+     * arrow function (e.g. on every keystroke in a form field), the drawer's
+     * focus-management effect must NOT re-run and steal focus from the input
+     * the user is actively typing in.
+     */
+    it('does not steal focus from an input when the parent re-renders with a new onClose', async () => {
+      function Parent() {
+        const [value, setValue] = useState('')
+        return (
+          <Drawer open={true} onClose={() => {}} title="Test">
+            <input
+              data-testid="field"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </Drawer>
+        )
+      }
+
+      render(<Parent />)
+      const input = screen.getByTestId('field') as HTMLInputElement
+
+      // Flush the initial open-focus microtask (focus moves to the panel on
+      // open), then simulate the user clicking into the input field.
+      await Promise.resolve()
+      input.focus()
+      expect(document.activeElement).toBe(input)
+
+      // Type — each keystroke re-renders Parent with a new inline onClose
+      // closure. Before the fix this caused the effect to re-run and steal
+      // focus back to the panel on every keystroke.
+      fireEvent.change(input, { target: { value: 'a' } })
+      fireEvent.change(input, { target: { value: 'ab' } })
+      fireEvent.change(input, { target: { value: 'abc' } })
+
+      // Flush any pending microtasks (the focus move uses queueMicrotask).
+      await Promise.resolve()
+
+      expect(document.activeElement).toBe(input)
+      expect(input.value).toBe('abc')
     })
   })
 })

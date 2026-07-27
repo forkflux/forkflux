@@ -203,15 +203,6 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-/**
- * Extract the Jira-style ticket key (e.g. "FF-1000") from a job summary.
- * Returns null when no ticket key is found.
- */
-export function extractTicketKey(summary: string): string | null {
-  const match = summary.match(/\[([A-Z]+-\d+)\]/);
-  return match ? match[1] : null;
-}
-
 // ---------------------------------------------------------------------------
 // Timeline
 // ---------------------------------------------------------------------------

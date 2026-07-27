@@ -76,10 +76,15 @@ class HandoffJobRepository:
         self._session = session
         self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
 
-    async def create(self, dto: HandoffJobCreate, status: JobStatusEnum) -> HandoffJob:
-        now = datetime.now(timezone.utc)
+    @staticmethod
+    def _build_job(dto: HandoffJobCreate, status: JobStatusEnum, now: datetime) -> HandoffJob:
+        """Construct a ``HandoffJob`` from a create DTO.
 
-        handoff_job = HandoffJob(
+        Shared by ``create()`` and ``create_in_savepoint()`` so the field
+        set stays consistent. Does not touch the session — callers own the
+        ``add``/``flush`` and ``IntegrityError`` handling.
+        """
+        return HandoffJob(
             parent_job_id=dto.parent_job_id,
             summary=dto.summary,
             context_payload=dto.context_payload,
@@ -107,6 +112,10 @@ class HandoffJobRepository:
             created_at=now,
             updated_at=now,
         )
+
+    async def create(self, dto: HandoffJobCreate, status: JobStatusEnum) -> HandoffJob:
+        now = datetime.now(timezone.utc)
+        handoff_job = self._build_job(dto, status, now)
 
         self._session.add(handoff_job)
         try:
@@ -127,35 +136,7 @@ class HandoffJobRepository:
         ``target_role_id`` should skip the rule, not abort the completion.
         """
         now = datetime.now(timezone.utc)
-
-        handoff_job = HandoffJob(
-            parent_job_id=dto.parent_job_id,
-            summary=dto.summary,
-            context_payload=dto.context_payload,
-            status=status,
-            priority=dto.priority,
-            source_agent_id=dto.source_agent_id,
-            target_role_id=dto.target_role_id,
-            assignee_agent_id=None,
-            constraints=dto.constraints,
-            routing_rules=_serialize_routing_rules(dto.routing_rules),
-            retry_count=dto.retry_count,
-            max_retries=dto.max_retries,
-            failure_reason=None,
-            blocked_reason=None,
-            unblock_reason=None,
-            published_at=now if status == JobStatusEnum.PUBLISHED else None,
-            claimed_at=None,
-            started_at=None,
-            completed_at=None,
-            failed_at=None,
-            blocked_at=None,
-            unblocked_at=None,
-            cancelled_at=None,
-            expires_at=None,
-            created_at=now,
-            updated_at=now,
-        )
+        handoff_job = self._build_job(dto, status, now)
 
         self._session.add(handoff_job)
         try:
@@ -846,6 +827,38 @@ class JobDependencyRepository:
 
         log.info("operation_completed", unmet_blockers=count)
         return count
+
+    async def find_failed_blockers(self, downstream_job_id: int) -> list[tuple[int, JobStatusEnum]]:
+        """Find upstream jobs that are FAILED or CANCELLED for a given downstream job.
+
+        Returns a list of ``(upstream_job_id, upstream_status)`` tuples so the
+        caller can propagate the matching terminal status (FAILED → FAILED,
+        CANCELLED → CANCELLED) to the downstream job.
+
+        Used by barrier-sync to detect terminally-failed blockers so downstream
+        PENDING jobs can be propagated to a matching terminal status instead of
+        remaining stuck indefinitely.
+        """
+        log = self._logger.bind(method="find_failed_blockers", downstream_job_id=downstream_job_id)
+        log.info("operation_started")
+
+        upstream = aliased(HandoffJob, name="upstream_job")
+
+        stmt = (
+            select(JobDependency.upstream_job_id, upstream.status)
+            .join(upstream, JobDependency.upstream_job_id == upstream.id)
+            .where(
+                JobDependency.downstream_job_id == downstream_job_id,
+                JobDependency.dep_type == DependencyTypeEnum.BLOCKS,
+                upstream.status.in_([JobStatusEnum.FAILED, JobStatusEnum.CANCELLED]),
+            )
+        )
+
+        result = await self._session.execute(stmt)
+        blockers = [(row[0], row[1]) for row in result.all()]
+
+        log.info("operation_completed", failed_blocker_count=len(blockers))
+        return blockers
 
     async def has_blocks_edge(self, upstream_job_id: int, downstream_job_id: int) -> bool:
         """Check if a BLOCKS dependency edge exists from upstream to downstream."""

@@ -239,7 +239,13 @@ async def reject_job(
             reason=data.reason,
             source_agent_id=current_agent.id,
         )
-    except HandoffJobNotFoundError:
+    except HandoffJobNotFoundError as err:
+        # Distinguish a missing reviewing job (path job_id) from a missing
+        # target job (body target_job_id). The service tags the exception via
+        # ``which``; untagged errors default to the target_job_id attribution
+        # to preserve prior behavior for any legacy callers.
+        if err.which == "job_id":
+            raise HandoffJobIdentityValidationError(field_name="job_id", value=job_id, loc="path")
         raise HandoffJobIdentityValidationError(field_name="target_job_id", value=data.target_job_id, loc="body")
     except HandoffJobConflictError:
         raise HandoffJobStatusValidationError(field_name="target_job_id", value=data.target_job_id, loc="body")

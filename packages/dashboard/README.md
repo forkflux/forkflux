@@ -3,8 +3,9 @@
 The web UI for ForkFlux — a React + TypeScript single-page app that lets
 operators browse, filter, and inspect handoff jobs across all agent roles.
 
-Built with Vite, React Router, and Vitest. In local development it runs entirely
-against bundled mock data, so you can work on the UI with no backend running.
+Built with Vite, React Router, and Vitest. By default it runs against the live
+ForkFlux API; a mock data source is available for UI work with no backend
+running.
 
 ## Prerequisites
 
@@ -15,6 +16,7 @@ against bundled mock data, so you can work on the UI with no backend running.
 
 ```bash
 npm install
+cp .env.example .env   # local env (gitignored); edit FE_API_BASE_URL if needed
 ```
 
 All commands below run from `packages/dashboard`.
@@ -23,7 +25,8 @@ All commands below run from `packages/dashboard`.
 
 | Script | Command | What it does |
 |--------|---------|--------------|
-| `dev` | `npm run dev` | Starts the Vite dev server with HMR. Uses the **mock** data source by default (no backend required). |
+| `dev` | `npm run dev` | Starts the Vite dev server with HMR against the **live API** (default). Reads `FE_API_BASE_URL` from `.env`. |
+| `dev:mocked` | `npm run dev:mocked` | Starts the dev server with the **mock** data source (no backend required). Sets `FE_USE_MOCKS=true` inline. |
 | `build` | `npm run build` | Type-checks (`tsc -b`) then produces a production bundle in `dist/`. |
 | `preview` | `npm run preview` | Serves the production build locally to verify it before deploy. |
 | `lint` | `npm run lint` | Runs ESLint over the whole package. |
@@ -77,12 +80,30 @@ size resets `offset` to `0`.
 ## Mock vs API Behavior
 
 The dashboard talks to a single [`jobService`](src/services/jobService.ts)
-instance. Which data source it uses is decided at startup:
+instance. Which data source it uses is decided at startup via the `FE_USE_MOCKS`
+environment variable:
 
-- **Dev mode with no `VITE_API_BASE_URL`** → the **mock** data source. This is
-  the default for `npm run dev` and needs no backend.
-- **Any other case** (production build, preview, or dev with an explicit API
-  URL) → the **API** data source, which requires `VITE_API_BASE_URL`.
+- **`FE_USE_MOCKS === 'true'`** → the **mock** data source. Opt in with
+  `npm run dev:mocked` (no backend required).
+- **Otherwise (unset / any other value)** → the **API** data source. This is the
+  default for `npm run dev` and requires `FE_API_BASE_URL`.
+
+### Environment variables
+
+Client-exposed env vars use the `FE_` prefix (configured via `envPrefix` in
+[`vite.config.ts`](vite.config.ts)). See [`.env.example`](.env.example) for the
+full template:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `FE_API_BASE_URL` | Yes (API mode) | `http://localhost:8000/api/v1` | Base URL of the ForkFlux API, including the `/api/v1` prefix. Trailing slash is trimmed. |
+| `FE_USE_MOCKS` | No | unset | Set to `true` to use the in-memory mock data source instead of the live API. |
+
+Copy `.env.example` to `.env` (gitignored) for local overrides:
+
+```bash
+cp .env.example .env
+```
 
 ### Mock data source
 
@@ -98,9 +119,9 @@ single page plus a `total` count.
 
 ### API data source
 
-Calls the live ForkFlux API. The base URL comes from `VITE_API_BASE_URL`
-(trailing slash trimmed). If it is unset in a non-dev environment, requests
-throw. Endpoints used:
+Calls the live ForkFlux API. The base URL comes from `FE_API_BASE_URL`
+(trailing slash trimmed). If it is unset in API mode, requests throw.
+Endpoints used:
 
 - `GET {base}/ui/jobs` — paginated job list. Query params: `limit`, `offset`,
   `order` (e.g. `created_at_desc`), `my_roles_only=false`, plus optional
@@ -114,8 +135,9 @@ throw. Endpoints used:
 > backend adds support, the `search` param will be forwarded in
   [`apiDataSource.ts`](src/services/apiDataSource.ts).
 
-To point dev mode at a real API, set the variable before starting the server:
+To run against a different API, edit `FE_API_BASE_URL` in your local `.env`:
 
 ```bash
-VITE_API_BASE_URL=https://api.example.com/api/v1 npm run dev
+# .env
+FE_API_BASE_URL=https://api.example.com/api/v1
 ```

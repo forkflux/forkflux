@@ -20,6 +20,15 @@ export function Drawer({ open, onClose, title, width = '75%', children }: Drawer
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<Element | null>(null)
 
+  // Keep the latest onClose in a ref so the focus-management effect below can
+  // depend only on `open`. This prevents the effect from re-running (and
+  // stealing focus from inputs) when a parent re-renders with a fresh inline
+  // `onClose` arrow function — e.g. on every keystroke in a form field.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   // ESC to close + body scroll lock while open.
   useEffect(() => {
     if (!open) return
@@ -29,7 +38,7 @@ export function Drawer({ open, onClose, title, width = '75%', children }: Drawer
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
       }
     }
 
@@ -50,7 +59,7 @@ export function Drawer({ open, onClose, title, width = '75%', children }: Drawer
         triggerRef.current.focus()
       }
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

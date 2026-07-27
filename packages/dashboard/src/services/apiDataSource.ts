@@ -1,8 +1,8 @@
 /**
- * API data source — used in non-development environments.
+ * API data source — live ForkFlux API.
  *
  * Calls the live ForkFlux API. The base URL is configured via the
- * `VITE_API_BASE_URL` environment variable. All endpoints return JSON that
+ * `FE_API_BASE_URL` environment variable. All endpoints return JSON that
  * matches the types in `src/types/job.ts`.
  *
  * The jobs list endpoint returns a paginated envelope:
@@ -29,12 +29,12 @@ import type {
 } from '../types/job.ts';
 import type { JobDataSource } from './types.ts';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const API_BASE_URL = import.meta.env.FE_API_BASE_URL as string | undefined;
 
 function getBaseUrl(): string {
   if (!API_BASE_URL) {
     throw new Error(
-      'VITE_API_BASE_URL is not set. Configure it for non-dev environments.',
+      'FE_API_BASE_URL is not set. Configure it to use the live API, or run with `npm run dev:mocked` for mock data.',
     );
   }
   return API_BASE_URL.replace(/\/$/, '');

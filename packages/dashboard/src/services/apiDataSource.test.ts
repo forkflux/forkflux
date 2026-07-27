@@ -6,10 +6,10 @@ import type { JobListQuery } from '../types/job'
 // ---------------------------------------------------------------------------
 
 // We must set the env var BEFORE importing the module under test, because
-// `apiDataSource.ts` reads `import.meta.env.VITE_API_BASE_URL` at module load.
+// `apiDataSource.ts` reads `import.meta.env.FE_API_BASE_URL` at module load.
 const API_BASE = 'https://api.test.local'
 
-vi.stubEnv('VITE_API_BASE_URL', API_BASE)
+vi.stubEnv('FE_API_BASE_URL', API_BASE)
 
 // Mock global fetch.
 const fetchMock = vi.fn()
@@ -390,22 +390,22 @@ describe('apiDataSource', () => {
 // getBaseUrl error (separate describe to control env)
 // ---------------------------------------------------------------------------
 
-describe('apiDataSource without VITE_API_BASE_URL', () => {
-  it('throws synchronously when VITE_API_BASE_URL is not set', async () => {
+describe('apiDataSource without FE_API_BASE_URL', () => {
+  it('throws synchronously when FE_API_BASE_URL is not set', async () => {
     // Reset modules so the env is re-read on import.
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', '')
+    vi.stubEnv('FE_API_BASE_URL', '')
 
     const { apiDataSource: freshDataSource } = await import('./apiDataSource')
 
     // getBaseUrl() throws synchronously inside fetchJobs before the promise
     // is created, so we assert a synchronous throw rather than a rejection.
     expect(() => freshDataSource.fetchJobs(defaultQuery())).toThrow(
-      'VITE_API_BASE_URL is not set',
+      'FE_API_BASE_URL is not set',
     )
 
     // Restore for subsequent tests.
-    vi.stubEnv('VITE_API_BASE_URL', API_BASE)
+    vi.stubEnv('FE_API_BASE_URL', API_BASE)
     vi.resetModules()
   })
 })

@@ -41,18 +41,19 @@ def upgrade() -> None:
         # published_at becomes nullable to support PENDING jobs (no publication time yet).
         batch_op.alter_column("published_at", existing_type=sa.DateTime(timezone=True), nullable=True)
         batch_op.add_column(sa.Column("routing_rules", _ROUTING_RULES_TYPE, nullable=True))
+        # SQLite does not support ALTER TABLE ... ADD CONSTRAINT, so the check
+        # constraint must be created inside the batch block (table recreation).
+        if bind.dialect.name == "sqlite":
+            batch_op.create_check_constraint(
+                "chk_routing_rules_is_array_or_null",
+                "routing_rules IS NULL OR (json_valid(routing_rules) AND json_type(routing_rules) = 'array')",
+            )
 
     if bind.dialect.name == "postgresql":
         op.create_check_constraint(
             "chk_routing_rules_is_array_or_null",
             "handoff_job",
             "routing_rules IS NULL OR jsonb_typeof(routing_rules) = 'array'",
-        )
-    elif bind.dialect.name == "sqlite":
-        op.create_check_constraint(
-            "chk_routing_rules_is_array_or_null",
-            "handoff_job",
-            "routing_rules IS NULL OR (json_valid(routing_rules) AND json_type(routing_rules) = 'array')",
         )
 
     op.create_table(
@@ -78,6 +79,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    bind = op.get_bind()
+
     op.drop_index("idx_job_dependency_upstream", table_name="job_dependency")
     op.drop_index("idx_job_dependency_downstream", table_name="job_dependency")
     op.drop_table("job_dependency")
@@ -96,7 +99,12 @@ def downgrade() -> None:
     # The 'pending' value will remain in the job_status enum on PostgreSQL,
     # which is safe because no rows reference it after the columns are dropped.
 
-    op.drop_constraint("chk_routing_rules_is_array_or_null", "handoff_job", type_="check")
+    # SQLite does not support ALTER TABLE ... DROP CONSTRAINT, so the check
+    # constraint is dropped inside the batch block (table recreation) below.
+    if bind.dialect.name == "postgresql":
+        op.drop_constraint("chk_routing_rules_is_array_or_null", "handoff_job", type_="check")
 
     with op.batch_alter_table("handoff_job") as batch_op:
+        if bind.dialect.name == "sqlite":
+            batch_op.drop_constraint("chk_routing_rules_is_array_or_null", type_="check")
         batch_op.drop_column("routing_rules")

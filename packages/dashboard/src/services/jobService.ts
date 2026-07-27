@@ -1,10 +1,14 @@
 /**
  * Job service — environment-aware factory.
  *
- * Exposes a single `jobService` instance that components consume. In local
- * development (`import.meta.env.DEV` with no API base URL configured) it
- * uses the mock data source; in all other environments it uses the live API
- * data source.
+ * Exposes a single `jobService` instance that components consume. The active
+ * data source is selected via the `FE_USE_MOCKS` environment variable:
+ *
+ * - `FE_USE_MOCKS === 'true'` → mock data source (in-memory fixtures)
+ * - otherwise (unset / any other value) → live API data source (default)
+ *
+ * The API is the default data source. Mocks are opt-in via
+ * `npm run dev:mocked`, which sets `FE_USE_MOCKS=true` inline.
  *
  * Components import `jobService` and call its methods — they never need to
  * know which data source is active.
@@ -15,19 +19,14 @@ import { mockDataSource } from './mockDataSource.ts';
 import type { JobDataSource } from './types.ts';
 
 /**
- * Resolve the active data source.
+ * Resolve the active data source based on the `FE_USE_MOCKS` flag.
  *
- * - `DEV` mode without `VITE_API_BASE_URL` → mock (local development)
- * - Otherwise → API (staging, production, or dev with explicit API URL)
+ * - `'true'` → mock (local development with fixture JSON)
+ * - otherwise → API (default; staging, production, or dev with API URL)
  */
 function resolveDataSource(): JobDataSource {
-  const isDev = import.meta.env.DEV;
-  const hasApiUrl = Boolean(import.meta.env.VITE_API_BASE_URL);
-
-  if (isDev && !hasApiUrl) {
-    return mockDataSource;
-  }
-  return apiDataSource;
+  const useMocks = import.meta.env.FE_USE_MOCKS === 'true';
+  return useMocks ? mockDataSource : apiDataSource;
 }
 
 export const jobService: JobDataSource = resolveDataSource();
