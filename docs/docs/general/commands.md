@@ -13,13 +13,13 @@ Use commands when your assistant supports custom command files or project comman
 
 :::info
 
-Not all assistants support custom commands, slash commands, or command directories. If your assistant does not support command files, use [MCP prompts](./mcp-integration.md#mcp-prompts-exposed-by-the-server), [skills](./skills.md), or direct MCP tool calls instead.
+Not all assistants support custom commands, slash commands, or command directories. If your assistant does not support command files, use the [MCP integration guide](./mcp-integration.md), [skills](./skills.md), or direct MCP tool calls instead.
 
 :::
 
 ## Available commands
 
-ForkFlux ships four command files:
+ForkFlux ships seven command files:
 
 | Command | File | Purpose | Primary MCP tool |
 |---|---|---|---|
@@ -27,6 +27,9 @@ ForkFlux ships four command files:
 | `/ff-board` | [`commands/ff-board.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-board.md) | List published jobs available to the current agent role. | `forkflux_list_jobs` |
 | `/ff-claim` | [`commands/ff-claim.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-claim.md) | Atomically claim one job and unpack its full context. | `forkflux_claim_job` |
 | `/ff-close` | [`commands/ff-close.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-close.md) | Update a claimed job with a lifecycle status. | `forkflux_change_job_status` |
+| `/ff-update` | [`commands/ff-update.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-update.md) | Correct mutable context or constraints on a published job. | `forkflux_update_job` |
+| `/ff-reject` | [`commands/ff-reject.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-reject.md) | Reject completed work and create a linked retry job. | `forkflux_reject_job` |
+| `/ff-reopen-context` | [`commands/ff-reopen-context.md`](https://github.com/forkflux/forkflux/blob/main/commands/ff-reopen-context.md) | Retrieve focused rejection context for a retry job. | `forkflux_get_reopen_context` |
 
 ## Requirements
 
@@ -49,6 +52,9 @@ commands/ff-push.md
 commands/ff-board.md
 commands/ff-claim.md
 commands/ff-close.md
+commands/ff-update.md
+commands/ff-reject.md
+commands/ff-reopen-context.md
 ```
 
 The exact destination depends on your assistant. Some assistants load commands from a project-level command directory, while others load them from a user-level configuration directory.
@@ -67,8 +73,9 @@ The command guides the assistant to:
 2. Create concrete acceptance criteria in `constraints`.
 3. Build a detailed `context_payload` with relevant files, decisions, blockers, and next-agent instructions.
 4. Attach only real artifacts.
-5. Call `forkflux_create_job`.
-6. Return a concise publication summary with the new job ID.
+5. Optionally include `parent_job_id`, `blocked_by`, or `routing_rules` when the workflow requires job lineage, dependency barriers, or conditional follow-on routing.
+6. Call `forkflux_create_job`.
+7. Return a concise publication summary with the new job ID.
 
 Example:
 
@@ -141,13 +148,11 @@ The command supports the following statuses:
 - `completed` — use only after all acceptance criteria are met and relevant verification has passed.
 - `failed` — use when an unrecoverable error, persistent test failure, or unmet constraint blocks completion.
 - `cancelled` — use when the user explicitly aborts the job.
-- `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `unblocked` once the blocker is resolved, then `in_progress` to resume execution.
+- `blocked` — use when the assignee cannot proceed temporarily due to an external dependency or environment issue. The assistant must include a useful `blocked_reason`. Use `in_progress` to resume after the blocker is resolved.
 
 If the target status is `failed`, the assistant must include a useful `failure_reason`.
 
 If the target status is `blocked`, the assistant must include a useful `blocked_reason`.
-
-If the target status is `unblocked`, the assistant must include a useful `unblock_reason`.
 
 Examples:
 
@@ -165,6 +170,62 @@ Expected result:
 🔄 Job Updated: 42
 🚦 State: completed
 📝 Summary / Error Details: Verified the health endpoint and confirmed the targeted endpoint test passes.
+```
+
+### `/ff-update`
+
+Use `/ff-update` when a published handoff needs corrected or clarified mutable context.
+
+The command calls `forkflux_update_job` and can replace `context_payload` with a structured JSON object and/or `constraints` with a concrete acceptance-criteria list. It does not change the summary, target role, priority, ownership, dependencies, or lifecycle state.
+
+```text
+/ff-update 42 Add the staging database details and clarify the acceptance criteria.
+```
+
+Expected result:
+
+```text
+🔄 Job Updated: 42
+📝 Fields Changed: context_payload, constraints
+✅ Summary: Added environment details and clarified verification requirements.
+```
+
+### `/ff-reject`
+
+Use `/ff-reject` when review or QA determines that completed work does not meet its acceptance criteria and must be redone.
+
+The command calls `forkflux_reject_job` with the reviewing job ID, original completed job ID, and a specific rejection reason. ForkFlux creates a linked retry iteration. Do not use this for temporary blockers or ordinary execution failures.
+
+```text
+/ff-reject 51 42 The endpoint returns the wrong status code for an unavailable database; add regression coverage.
+```
+
+Expected result:
+
+```text
+🔁 Retry Job Created: 57
+↩️ Original Job: 42
+🔢 Retry Count: 1
+📝 Reason: The failure response does not meet the review criteria.
+```
+
+### `/ff-reopen-context`
+
+Use `/ff-reopen-context` after claiming a retry iteration when focused rejection metadata is needed before execution.
+
+The command calls `forkflux_get_reopen_context` and returns the rejection reason, original job ID, retry counters, summary, and constraints without loading the original full `context_payload`.
+
+```text
+/ff-reopen-context 57
+```
+
+Expected result:
+
+```text
+🔁 Retry Context: 57
+↩️ Original Job: 42
+🔢 Retry Count: 1 / 3
+📝 Rejection Reason: Correct the failure response and add regression coverage.
 ```
 
 ## Choosing commands, skills, or MCP prompts

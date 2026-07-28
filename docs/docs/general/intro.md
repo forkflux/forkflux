@@ -1,15 +1,16 @@
 ---
 slug: /
 title: Overview
-description: Learn what ForkFlux is, why AI-assisted engineering teams need a coordination and audit layer, and how the API and MCP server fit together.
+description: Learn what ForkFlux is, why AI-assisted engineering teams need a collaboration and audit layer, and how the API and MCP server fit together.
 sidebar_position: 1
 ---
 
 # Overview
 
-![Claude Code demo](/img/claude-demo.webp)
+<img src="/img/demo-list.webp" width="49%" />
+<img src="/img/demo-details.webp" width="49%" />
 
-ForkFlux is a self-hosted coordination and audit layer for AI-assisted engineering teams. It helps teams track what AI agents did, what context they used, where work is stuck, and who reviewed or approved it across developers, QA, PMs, tools, machines, and environments.
+ForkFlux is a self-hosted collaboration and audit layer for AI-assisted engineering teams. It helps teams track what AI agents did, what context they used, where work is stuck, and who reviewed or approved it across developers, QA, PMs, tools, machines, and environments.
 
 Use ForkFlux when you want a structured workflow timeline for AI-assisted work instead of scattered Slack messages, Jira or Linear comments, GitHub PR notes, local agent sessions, temporary Markdown files, and CI logs.
 
@@ -20,7 +21,7 @@ ForkFlux is the workflow layer between people and AI agents that work across dif
 At a high level, ForkFlux gives teams:
 
 - **A shared workflow timeline** for handoffs, context, artifacts, blockers, status changes, review notes, and approvals.
-- **A strict job lifecycle** so people and agents know whether work is published, claimed, blocked, completed, failed, or cancelled.
+- **A strict job lifecycle** so people and agents know whether work is pending, published, claimed, blocked, completed, failed, or cancelled.
 - **Machine-readable context payloads** for objectives, constraints, implementation notes, logs, decisions, and artifacts.
 - **Atomic claiming** so only one target agent can take ownership of a published job.
 - **MCP-native access** so compatible assistants can use ForkFlux through tools, prompts, commands, or skills while preserving a structured audit trail.
@@ -51,7 +52,7 @@ ForkFlux solves this by making AI-assisted engineering work explicit, structured
 
 ## Coordination bus model
 
-ForkFlux models AI-assisted engineering work as a coordination bus with a shared job pool and an auditable event timeline.
+ForkFlux models AI-assisted engineering work as a collaboration bus with a shared job pool and an auditable event timeline.
 
 The standard workflow is:
 
@@ -63,7 +64,7 @@ The standard workflow is:
 
 This lifecycle keeps the bus deterministic:
 
-- Jobs start as `published`.
+- Jobs start as `published` unless they declare `blocked_by` dependencies; dependency-gated jobs start as `pending` and are published automatically when all blockers complete.
 - Claiming moves a job to `in_progress`.
 - Lifecycle updates can temporarily move a job to `blocked`, record a cleared blocker as `unblocked`, resume it as `in_progress`, or close it with a terminal state: `completed`, `failed`, or `cancelled`.
 - Atomic claims prevent race conditions when more than one agent is watching the same role queue.
@@ -74,7 +75,7 @@ The bus is role-oriented rather than person-oriented. A job targets a role such 
 
 ForkFlux uses a small monorepo with two main packages:
 
-- **ForkFlux API** — the stateful coordination service. It stores agents, roles, jobs, events, and artifacts. It also enforces authentication, job lifecycle transitions, and atomic claim behavior.
+- **ForkFlux API** — the stateful collaboration service. It stores agents, roles, jobs, events, and artifacts. It also enforces authentication, job lifecycle transitions, and atomic claim behavior.
 - **ForkFlux MCP Server** — the Model Context Protocol adapter. It exposes ForkFlux operations as assistant-facing MCP tools and workflow prompts so agents can interact with the API without writing custom HTTP calls.
 
 The architecture looks like this:

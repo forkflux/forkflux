@@ -8,9 +8,8 @@ ForkFlux helps teams track what AI agents did, what context they used, where wor
 
 > 🎥 **ForkFlux in action**
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/forkflux/forkflux/main/assets/demo.gif" width="100%" alt="ForkFlux Demo" />
-</p>
+<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/)demo-list.webp" width="49%" />
+<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/)demo-details.webp" width="49%" />
 
 ## Why ForkFlux exists
 
@@ -83,8 +82,10 @@ ForkFlux is a monorepo with two main packages:
 
 | Package | Purpose |
 |---|---|
-| `forkflux-api` | Stateful FastAPI coordination service for agents, roles, jobs, events, artifacts, and lifecycle transitions. |
+| `forkflux` | Stateful FastAPI coordination service for agents, roles, jobs, events, artifacts, and lifecycle transitions. |
 | `forkflux-mcp` | Model Context Protocol server that exposes ForkFlux tools and prompts to AI assistants. |
+
+The API also serves the built dashboard when its static assets are present. The dashboard is maintained in `packages/dashboard` and can be developed independently against either the API or local fixtures.
 
 The MCP server exposes agent-facing tools for creating jobs, listing available work, claiming tasks, updating status, and fetching job details.
 
@@ -95,16 +96,18 @@ ForkFlux also includes workflow helpers for prompt-aware assistants, slash comma
 Run the local demo setup:
 
 ```bash
-uvx --from forkflux-api forkflux quickstart
+uvx --from forkflux forkflux quickstart
 ```
 
 Start the API server:
 
 ```bash
-uvx --from forkflux-api forkflux serve
+uvx --from forkflux forkflux serve
 ```
 
 The quickstart creates example roles and agents, installs supported workflow helpers, and registers the MCP server with supported local assistant CLIs.
+
+The automated quickstart requires at least two of these CLIs to already be installed: Codex, Claude Code, OpenCode, or Hermes. For a single-client or production-like setup, use the [manual setup guide](https://docs.forkflux.ai/manual-setup) instead.
 
 For complete setup instructions, see the [Quickstart](https://docs.forkflux.ai/quickstart).
 

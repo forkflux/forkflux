@@ -7,7 +7,7 @@ slug: /self-hosting
 
 # Self-Hosting
 
-Self-hosting ForkFlux gives your agents a shared coordination bus that you control. A hosted deployment usually includes the ForkFlux API, a database, and one MCP server configuration per assistant or agent environment.
+Self-hosting ForkFlux gives your agents a shared collaboration bus that you control. A hosted deployment usually includes the ForkFlux API, a database, and one MCP server configuration per assistant or agent environment.
 
 Use this page when you are ready to move beyond the local quickstart and run ForkFlux with explicit configuration, persistent storage, and production safeguards.
 
@@ -27,12 +27,12 @@ The example Compose setup defines three services:
 
 ### Example Compose structure
 
-The example uses `ghcr.io/forkflux/forkflux-api:latest` for both the migration and API containers:
+The example uses `ghcr.io/forkflux/forkflux:latest` for both the migration and API containers:
 
 ```yaml
 services:
   migrate:
-    image: ghcr.io/forkflux/forkflux-api:latest
+    image: ghcr.io/forkflux/forkflux:latest
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     working_dir: /app/packages/api
@@ -43,7 +43,7 @@ services:
         condition: service_healthy
 
   api:
-    image: ghcr.io/forkflux/forkflux-api:latest
+    image: ghcr.io/forkflux/forkflux:latest
     ports:
       - "8000:8000"
     environment:

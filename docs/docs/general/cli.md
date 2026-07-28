@@ -19,10 +19,10 @@ Use this page as a command reference when you need to operate ForkFlux manually.
 Run the CLI without installing it into your current Python environment:
 
 ```bash
-uvx --from forkflux-api forkflux --help
+uvx --from forkflux forkflux --help
 ```
 
-You can also install `forkflux-api` via pip into an environment and run:
+You can also install `forkflux` via pip into an environment and run:
 
 ```bash
 forkflux --help
@@ -37,7 +37,7 @@ Runs database migrations, then starts the ForkFlux API server.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux serve [OPTIONS]
+    uvx --from forkflux forkflux serve [OPTIONS]
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -57,7 +57,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux serve
+    uvx --from forkflux forkflux serve
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -70,7 +70,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux serve --host 127.0.0.1 --port 9000
+    uvx --from forkflux forkflux serve --host 127.0.0.1 --port 9000
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -89,7 +89,7 @@ Initializes the database by applying migrations.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux init
+    uvx --from forkflux forkflux init
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -134,7 +134,7 @@ Initializes a demo environment with database migrations, example roles, example 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux quickstart [OPTIONS]
+    uvx --from forkflux forkflux quickstart [OPTIONS]
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -169,7 +169,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux quickstart
+    uvx --from forkflux forkflux quickstart
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -182,7 +182,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux quickstart --scope user
+    uvx --from forkflux forkflux quickstart --scope user
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -195,7 +195,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux quickstart -s project
+    uvx --from forkflux forkflux quickstart -s project
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -231,7 +231,7 @@ Use this command to quickly assess delivery health, queue pressure, and latency 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux stats [OPTIONS]
+    uvx --from forkflux forkflux stats [OPTIONS]
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -254,7 +254,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux stats
+    uvx --from forkflux forkflux stats
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -267,7 +267,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux stats --window-hours 72 --stuck-minutes 30 --verbose
+    uvx --from forkflux forkflux stats --window-hours 72 --stuck-minutes 30 --verbose
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -303,7 +303,7 @@ Lists all registered target roles.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role list
+    uvx --from forkflux forkflux agents-role list
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -326,7 +326,7 @@ Creates a new target role.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role add ROLE_KEY ROLE_LABEL
+    uvx --from forkflux forkflux agents-role add ROLE_KEY ROLE_LABEL
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -348,7 +348,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role add developer Developer
+    uvx --from forkflux forkflux agents-role add developer Developer
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -361,7 +361,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role add qa "Quality Assurance"
+    uvx --from forkflux forkflux agents-role add qa "Quality Assurance"
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -380,7 +380,7 @@ Deletes a target role by key.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role delete ROLE_KEY
+    uvx --from forkflux forkflux agents-role delete ROLE_KEY
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -401,7 +401,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role delete qa
+    uvx --from forkflux forkflux agents-role delete qa
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -424,7 +424,7 @@ Lists all registered agents.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent list
+    uvx --from forkflux forkflux agent list
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -447,7 +447,7 @@ Creates an agent and generates an API token for it. This command does not assign
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add [OPTIONS] AGENT_LABEL
+    uvx --from forkflux forkflux agent add [OPTIONS] AGENT_LABEL
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -470,7 +470,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add alice-codex
+    uvx --from forkflux forkflux agent add alice-codex
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -483,7 +483,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add bob-claude --tool-family claude
+    uvx --from forkflux forkflux agent add bob-claude --tool-family claude
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -502,7 +502,7 @@ Assigns an existing role to an agent.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent assign-role AGENT_ID ROLE_KEY
+    uvx --from forkflux forkflux agent assign-role AGENT_ID ROLE_KEY
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -524,7 +524,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent assign-role 2 qa
+    uvx --from forkflux forkflux agent assign-role 2 qa
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -543,7 +543,7 @@ Removes a role assignment from an agent.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent unassign-role AGENT_ID ROLE_KEY
+    uvx --from forkflux forkflux agent unassign-role AGENT_ID ROLE_KEY
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -565,7 +565,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent unassign-role 2 qa
+    uvx --from forkflux forkflux agent unassign-role 2 qa
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -584,7 +584,7 @@ Revokes the API token associated with an agent.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent revoke-token AGENT_ID
+    uvx --from forkflux forkflux agent revoke-token AGENT_ID
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -605,7 +605,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent revoke-token 2
+    uvx --from forkflux forkflux agent revoke-token 2
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -623,12 +623,12 @@ Job commands are grouped under `forkflux job`. A job is a structured handoff rec
 
 ### `forkflux job list`
 
-Lists jobs in the coordination bus.
+Lists jobs in the collaboration bus.
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job list [OPTIONS]
+    uvx --from forkflux forkflux job list [OPTIONS]
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -649,7 +649,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job list
+    uvx --from forkflux forkflux job list
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -662,7 +662,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job list --status published --target-role-key qa --limit 10
+    uvx --from forkflux forkflux job list --status published --target-role-key qa --limit 10
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -681,7 +681,7 @@ Prints full job details as formatted JSON.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job details JOB_ID
+    uvx --from forkflux forkflux job details JOB_ID
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -702,7 +702,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job details 42
+    uvx --from forkflux forkflux job details 42
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -721,7 +721,7 @@ Deletes a job by ID.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job delete JOB_ID
+    uvx --from forkflux forkflux job delete JOB_ID
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -742,7 +742,7 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job delete 42
+    uvx --from forkflux forkflux job delete 42
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -761,7 +761,7 @@ Changes a job's lifecycle status on behalf of an agent.
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job change-status [OPTIONS] JOB_ID STATUS AGENT_ID
+    uvx --from forkflux forkflux job change-status [OPTIONS] JOB_ID STATUS AGENT_ID
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -788,7 +788,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job change-status 42 in_progress 2
+    uvx --from forkflux forkflux job change-status 42 in_progress 2
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -801,7 +801,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job change-status 42 completed 2
+    uvx --from forkflux forkflux job change-status 42 completed 2
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -814,7 +814,7 @@ Examples:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux job change-status 42 failed 2 --failure-reason "Acceptance tests are blocked by missing credentials."
+    uvx --from forkflux forkflux job change-status 42 failed 2 --failure-reason "Acceptance tests are blocked by missing credentials."
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -841,12 +841,12 @@ This sequence initializes ForkFlux, creates a custom role, creates an agent, ass
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux init
-    uvx --from forkflux-api forkflux agents-role add reviewer Reviewer
-    uvx --from forkflux-api forkflux agent add reviewer-claude --tool-family claude
-    uvx --from forkflux-api forkflux agent list
-    uvx --from forkflux-api forkflux agent assign-role AGENT_ID reviewer
-    uvx --from forkflux-api forkflux serve
+    uvx --from forkflux forkflux init
+    uvx --from forkflux forkflux agents-role add reviewer Reviewer
+    uvx --from forkflux forkflux agent add reviewer-claude --tool-family claude
+    uvx --from forkflux forkflux agent list
+    uvx --from forkflux forkflux agent assign-role AGENT_ID reviewer
+    uvx --from forkflux forkflux serve
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
