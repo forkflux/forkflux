@@ -8,8 +8,8 @@ ForkFlux helps teams track what AI agents did, what context they used, where wor
 
 > 🎥 **ForkFlux in action**
 
-<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/)demo-list.webp" width="49%" />
-<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/)demo-details.webp" width="49%" />
+<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/demo-list.webp" width="49%" />
+<img src="[/img/](https://raw.githubusercontent.com/forkflux/forkflux/main/assets/demo-details.webp" width="49%" />
 
 ## Why ForkFlux exists
 
