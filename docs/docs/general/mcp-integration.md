@@ -507,7 +507,7 @@ Token handling rules:
 
 ## Available tools
 
-The MCP server exposes a small tool set that maps to the ForkFlux job lifecycle.
+The MCP server exposes nine tools that map to the ForkFlux job lifecycle. Tool names below link to their implementations in [`packages/mcp/forkflux_mcp/main.py`](https://github.com/forkflux/forkflux/blob/main/packages/mcp/forkflux_mcp/main.py).
 
 | Tool | Purpose | Main caller |
 |---|---|---|
@@ -517,6 +517,11 @@ The MCP server exposes a small tool set that maps to the ForkFlux job lifecycle.
 | `forkflux_claim_job` | Atomically claim a published job and receive its full context. | Receiver agent |
 | `forkflux_claim_next_job` | Atomically claim the next available published job for a target role. | Receiver agent |
 | `forkflux_change_job_status` | Update claimed work as blocked, in progress, completed, failed, or cancelled. | Receiver agent |
+| `forkflux_update_job` | Replace the mutable context payload and/or constraints of an existing job. | Source agent |
+| `forkflux_reject_job` | Reject completed work during review and create a linked retry iteration. | Reviewer or downstream agent |
+| `forkflux_get_reopen_context` | Retrieve focused rejection metadata for a reopened retry job. | Receiver agent |
+
+Role arguments are dynamic. Use role keys exposed by the connected server; do not invent them.
 
 ### `forkflux_create_job`
 
@@ -533,6 +538,8 @@ Use this tool when the current assistant needs another role to execute, verify, 
 | `artifacts` | array of objects | yes | Supporting artifact references. Use an empty array when none exist. |
 | `priority` | enum/integer | yes | `10` low, `20` normal, `30` high, or `40` urgent. |
 | `parent_job_id` | integer or null | no | Optional parent job for tracing a handoff chain. |
+| `blocked_by` | array of integers or null | no | Upstream job IDs that must complete before this job becomes claimable. |
+| `routing_rules` | array of objects or null | no | Conditional job templates automatically published when this job completes. |
 
 Artifact objects use this shape:
 
@@ -601,9 +608,42 @@ Updates the lifecycle status of a claimed job.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `job_id` | integer | yes | Unique ID of the claimed job. |
-| `status` | enum | yes | Target status. Normal terminal values are `completed`, `failed`, and `cancelled`. Use `blocked` to temporarily pause and `unblocked` when the blocker is resolved. |
+| `status` | enum | yes | Target status: `in_progress`, `blocked`, `completed`, `failed`, or `cancelled`. |
 | `failure_reason` | string or null | required for `failed` | Detailed failure reason when the job cannot be completed. |
 | `blocked_reason` | string or null | required for `blocked` | Detailed explanation of why the job is temporarily blocked. |
-| `unblock_reason` | string or null | required for `unblocked` | Detailed explanation of what changed so the job can resume. |
 
-The tool enum also includes `in_progress`, but normal receiver workflows should not use this tool to move a job into progress. Claiming already performs that transition. Use `blocked` when the assignee cannot proceed temporarily, move the job to `unblocked` with an `unblock_reason` once the blocker is resolved, and then transition back to `in_progress` to resume execution.
+Claiming already transitions a job to `in_progress`; use this tool to record a later lifecycle update. Use `blocked` for a temporary external dependency and provide `blocked_reason`. Use `in_progress` to resume a previously blocked or failed job. This tool does not transition jobs to `published`.
+
+### `forkflux_update_job`
+
+Updates only mutable fields on an existing job. At least one optional field must be provided; the API rejects an empty update.
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `job_id` | integer | yes | ID of the job to update. |
+| `context_payload` | object or null | no | Structured JSON object that replaces the existing context payload. |
+| `constraints` | array of strings or null | no | Constraints that replace the existing constraints. |
+
+This tool does not change the summary, target role, priority, ownership, dependencies, or lifecycle state.
+
+### `forkflux_reject_job`
+
+Rejects completed work during review and creates a linked retry iteration. The retry inherits the original target role, context, and constraints, records the rejection reason, increments the retry count, and adds a `REOPEN_OF` dependency edge.
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `job_id` | integer | yes | ID of the reviewing job performing the rejection. |
+| `target_job_id` | integer | yes | ID of the completed original job whose work must be redone. |
+| `reason` | string | yes | Specific, actionable explanation of what failed review and what must change. |
+
+Use this tool only when review requires changes. Do not mark the original job as `failed` merely because a reviewer rejected it.
+
+### `forkflux_get_reopen_context`
+
+Retrieves focused rejection metadata for a retry iteration. Use it after claiming the retry job and before execution.
+
+| Argument | Type | Required | Description |
+|---|---|---:|---|
+| `job_id` | integer | yes | ID of the reopened retry job, not the original completed job. |
+
+The response includes the rejection reason, original job ID, retry counters, summary, and constraints. It omits the full original `context_payload`; the claimed job's full context remains the execution source of truth.
