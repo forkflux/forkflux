@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { JsonGrid } from '../../components/JsonGrid/JsonGrid'
-import { jobService } from '../../services/jobService'
+import { jobService } from '@job-service'
 import {
   formatAssignee,
   formatDate,
