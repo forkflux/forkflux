@@ -1,3 +1,49 @@
+## [1.0.0] - 2026-07-28
+
+### 🎨 Styling
+
+- *(ui)* Fix linter issues
+
+### ⚙️ Miscellaneous Tasks
+
+- *(api)* Change mcp api endpoints prefix
+- *(api)* Improve exception message
+
+### 🏗️ Build System
+
+- *(api)* Update dependencies
+- *(api)* Add ui to main package
+
+### 🐛 Bug Fixes
+
+- *(api)* Deduplicate target_role_ids in register_agent to prevent false not-found errors and unique-constraint violations
+- *(api)* Enforce BLOCKED→UNBLOCKED→IN_PROGRESS lifecycle and validate unblock_reason at schema boundary
+- *(api)* Improve dag logic
+- *(api)* Seed profile record with is_onboarded=true in create_profile_table migration
+- *(ui)* Cleanup coverage files and fix review comments
+- *(ui)* Lost focus on a new role creation
+
+### 📚 Documentation
+
+- Refactoring
+
+### 🚀 Features
+
+- *(api)* Add dashboard core endpoints
+- *(api)* Add update job mcp endpoint
+- *(api)* Add option to unblock job
+- *(ui)* Create dashboard core
+- *(ui)* Consume GET /api/v1/ui/agents/roles endpoint with structured Role type
+- *(ui)* Add unblocked job status with unblock form, API integration, and tests
+- *(ui)* Add roles and agents pages
+- *(ui)* Add favicons + update logo hover styles
+- *(ui)* Remove ticket key from the job details page
+- *(ui)* Mocks/api switch
+
+### 🚜 Refactor
+
+- *(api)* Dag based workflow
+
 ## [0.6.0] - 2026-07-17
 
 ### ⚙️ Miscellaneous Tasks
