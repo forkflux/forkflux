@@ -85,6 +85,7 @@ class JobUiDetailItem(BaseModel):
     target_role_label: str
 
     constraints: list[str]
+    routing_rules: list[dict[str, Any]] | None
     retry_count: int
     max_retries: int
     artifacts: list[JobArtifactUiItem]
