@@ -640,6 +640,110 @@
         }
       }
     },
+    "/api/v1/mcp/jobs/{job_id}/reject": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Reject Job",
+        "operationId": "reject_job_api_v1_mcp_jobs__job_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffJobRejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobRejectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/jobs/{job_id}/reopen-context": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Get Reopen Context",
+        "operationId": "get_reopen_context_api_v1_mcp_jobs__job_id__reopen_context_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffJobReopenContextResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ui/jobs": {
       "get": {
         "tags": [
@@ -1230,6 +1334,30 @@
           },
           "priority": {
             "$ref": "#/components/schemas/JobPriorityEnum"
+          },
+          "blocked_by": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Blocked By",
+            "default": []
+          },
+          "routing_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routing Rules",
+            "description": "Optional conditional routing rules. When the job transitions to 'completed', each rule auto-creates a new 'published' job. Maximum 10 rules."
           }
         },
         "type": "object",
@@ -1303,6 +1431,28 @@
             "type": "string",
             "title": "Target Role Key"
           },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
+          "routing_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routing Rules"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1319,9 +1469,110 @@
           "source_agent_label",
           "assignee_agent_label",
           "target_role_key",
+          "retry_count",
+          "max_retries",
+          "routing_rules",
           "created_at"
         ],
         "title": "HandoffJobListItem"
+      },
+      "HandoffJobRejectRequest": {
+        "properties": {
+          "target_job_id": {
+            "type": "integer",
+            "title": "Target Job Id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reason",
+            "description": "A detailed explanation of why the work is being rejected. Must be non-empty."
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_job_id",
+          "reason"
+        ],
+        "title": "HandoffJobRejectRequest"
+      },
+      "HandoffJobRejectResponse": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "original_job_id": {
+            "type": "integer",
+            "title": "Original Job Id"
+          },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "original_job_id",
+          "retry_count"
+        ],
+        "title": "HandoffJobRejectResponse"
+      },
+      "HandoffJobReopenContextResponse": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "original_job_id": {
+            "type": "integer",
+            "title": "Original Job Id"
+          },
+          "rejected_by_job_id": {
+            "type": "integer",
+            "title": "Rejected By Job Id"
+          },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
+          "rejection_reason": {
+            "type": "string",
+            "title": "Rejection Reason"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "constraints": {
+            "items": {},
+            "type": "array",
+            "title": "Constraints"
+          },
+          "target_role_key": {
+            "type": "string",
+            "title": "Target Role Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "original_job_id",
+          "rejected_by_job_id",
+          "retry_count",
+          "max_retries",
+          "rejection_reason",
+          "summary",
+          "constraints",
+          "target_role_key"
+        ],
+        "title": "HandoffJobReopenContextResponse",
+        "description": "Focused reopen context — returns only the diff/rejection metadata,\nnot the full original ``context_payload``.\n\nThis is the context-window-management feature: CLI agents with limited\ncontext windows get the rejection reason, retry count, and constraints\nwithout parsing the entire original context blob."
       },
       "HandoffJobUpdateRequest": {
         "properties": {
@@ -1431,6 +1682,28 @@
             "type": "array",
             "title": "Constraints"
           },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
+          "routing_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routing Rules"
+          },
           "artifacts": {
             "items": {
               "$ref": "#/components/schemas/JobArtifact"
@@ -1472,8 +1745,15 @@
             "title": "Unblock Reason"
           },
           "published_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
           },
           "claimed_at": {
@@ -1595,6 +1875,9 @@
           "assignee_agent_label",
           "target_role_key",
           "constraints",
+          "retry_count",
+          "max_retries",
+          "routing_rules",
           "artifacts",
           "failure_reason",
           "blocked_reason",
@@ -1779,6 +2062,7 @@
       "JobStatusEnum": {
         "type": "string",
         "enum": [
+          "pending",
           "published",
           "claimed",
           "in_progress",
@@ -1859,6 +2143,14 @@
             "type": "array",
             "title": "Constraints"
           },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
           "artifacts": {
             "items": {
               "$ref": "#/components/schemas/JobArtifactUiItem"
@@ -1907,8 +2199,15 @@
             "title": "Unblock Reason"
           },
           "published_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
           },
           "claimed_at": {
@@ -2031,6 +2330,8 @@
           "assignee_agent_label",
           "target_role_label",
           "constraints",
+          "retry_count",
+          "max_retries",
           "artifacts",
           "events",
           "failure_reason",
@@ -2107,6 +2408,14 @@
             "type": "string",
             "title": "Target Role Label"
           },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2124,6 +2433,8 @@
           "source_agent_label",
           "assignee_agent_label",
           "target_role_label",
+          "retry_count",
+          "max_retries",
           "created_at"
         ],
         "title": "JobUiListItem"
@@ -2202,6 +2513,65 @@
           "created_at"
         ],
         "title": "ListAgentsResponse"
+      },
+      "RoutingRule": {
+        "properties": {
+          "target_role_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Role Key"
+          },
+          "target_role_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Role Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "context_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Context Payload"
+          },
+          "constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Constraints"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityEnum"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/JobArtifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "priority"
+        ],
+        "title": "RoutingRule",
+        "description": "A single conditional routing rule — a job template to be auto-created\nwhen the parent job transitions to COMPLETED.\n\nThe source agent specifies ``target_role_key`` (a string). The API\nresolves it to ``target_role_id`` at validation time and stores both\nin the database. In create requests, ``target_role_id`` is absent;\nin responses, it is populated from the stored JSON.\n\nNote: ``target_role_key`` is a historical snapshot taken at creation\ntime. If the role is renamed after the job is created, the stored key\nwill not reflect the new name. The ``target_role_id`` is the\nauthoritative executable reference; the key is for human readability."
       },
       "UnblockJobRequest": {
         "properties": {

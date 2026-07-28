@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 
 # Manual Setup
 
-Manual setup gives you full control over the ForkFlux coordination bus: database initialization, role names, agent identities, API tokens, MCP client configuration, and workflow helper installation.
+Manual setup gives you full control over the ForkFlux collaboration bus: database initialization, role names, agent identities, API tokens, MCP client configuration, and workflow helper installation.
 
 Use this page when you want more control than the zero-config flow in [Quickstart](quickstart.md), when your assistant is not detected by `forkflux quickstart`, or when you are preparing a shared environment.
 
@@ -18,7 +18,7 @@ Use this page when you want more control than the zero-config flow in [Quickstar
 
 You need:
 
-- The ForkFlux API CLI. Install `forkflux-api` with `pip` if you want to use the `forkflux` command directly, or use `uvx --from forkflux-api forkflux` when you want to run commands without installing the package.
+- The ForkFlux API CLI. Install `forkflux` with `pip` if you want to use the `forkflux` command directly, or use `uvx --from forkflux forkflux` when you want to run commands without installing the package.
 - An MCP-compatible assistant or IDE.
 - A Python runtime for `forkflux-mcp` when your MCP client starts it with `uvx`.
 - Docker, only if you want to run the API and database through Docker Compose.
@@ -26,7 +26,7 @@ You need:
 Install the CLI into your current Python environment:
 
 ```bash
-pip install forkflux-api
+pip install forkflux
 ```
 
 Then run commands with `forkflux`:
@@ -35,10 +35,10 @@ Then run commands with `forkflux`:
 forkflux init
 ```
 
-Or run the CLI without installation by prefixing commands with `uvx --from forkflux-api`:
+Or run the CLI without installation by prefixing commands with `uvx --from forkflux`:
 
 ```bash
-uvx --from forkflux-api forkflux init
+uvx --from forkflux forkflux init
 ```
 
 ## 1. Initialize the database
@@ -48,7 +48,7 @@ Initialize the ForkFlux database before you create roles, agents, or jobs:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux init
+    uvx --from forkflux forkflux init
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -71,8 +71,8 @@ Example:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agents-role add developer Developer
-    uvx --from forkflux-api forkflux agents-role add qa "QA Engineer"
+    uvx --from forkflux forkflux agents-role add developer Developer
+    uvx --from forkflux forkflux agents-role add qa "QA Engineer"
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -94,7 +94,7 @@ Example sender agent:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add alice-codex
+    uvx --from forkflux forkflux agent add alice-codex
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -109,7 +109,7 @@ Example receiver agent:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent add bob-claude
+    uvx --from forkflux forkflux agent add bob-claude
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -126,7 +126,7 @@ List the registered agents to find their numeric IDs:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent list
+    uvx --from forkflux forkflux agent list
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -141,8 +141,8 @@ Assign the workflow roles to the matching agent IDs:
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux agent assign-role ALICE_AGENT_ID developer
-    uvx --from forkflux-api forkflux agent assign-role BOB_AGENT_ID qa
+    uvx --from forkflux forkflux agent assign-role ALICE_AGENT_ID developer
+    uvx --from forkflux forkflux agent assign-role BOB_AGENT_ID qa
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -161,14 +161,14 @@ Use one token per assistant identity. Separate tokens keep role filtering, claim
 
 :::
 
-## 4. Run the coordination bus server
+## 4. Run the collaboration bus server
 
 Start the ForkFlux API server in a terminal you keep open:
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
-    uvx --from forkflux-api forkflux serve
+    uvx --from forkflux forkflux serve
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
@@ -292,7 +292,7 @@ Before you start real handoffs, confirm that:
 - the database is initialized or the Docker Compose stack is healthy
 - all required workflow roles exist
 - every assistant has its own ForkFlux agent and API token
-- the coordination bus server is running
+- the collaboration bus server is running
 - each MCP client has the correct `FORKFLUX_API_KEY` and `FORKFLUX_API_URL`
 - ForkFlux skills are installed and visible to the assistant
 - the sender and receiver can call ForkFlux MCP tools successfully

@@ -13,7 +13,7 @@ Use this page to understand the vocabulary behind ForkFlux before you design cus
 
 ## Agents and roles
 
-An **agent** is an AI assistant identity registered with ForkFlux. Each agent has an API token and belongs to one target role. When the agent connects through the ForkFlux MCP server, that token tells the API who the agent is and which role it can act as.
+An **agent** is an AI assistant identity registered with ForkFlux. Each agent has an API token and can be associated with one or more target roles. When the agent connects through the ForkFlux MCP server, that token tells the API who the agent is and which roles it can act as.
 
 A **role** is a routing label for work. Jobs are assigned to roles, not directly to individual agents. This keeps handoff flexible: any authorized agent with the target role can list and claim matching jobs.
 
@@ -39,7 +39,7 @@ An agent identity contains:
 - an optional tool family, such as the assistant or CLI family
 - API tokens that authenticate the agent
 
-Tokens should be treated as credentials. Store them in the MCP client environment configuration and revoke them when an agent should no longer access the coordination bus.
+Tokens should be treated as credentials. Store them in the MCP client environment configuration and revoke them when an agent should no longer access the collaboration bus.
 
 ## Jobs and task pool
 
@@ -67,7 +67,7 @@ When a receiver checks the board, it usually lists jobs with:
 
 - status `published`
 - its current role only
-- a predictable order, such as newest first or highest priority first
+- an explicit order, commonly highest priority first and then oldest first when using `forkflux_list_jobs`
 
 This prevents agents from grabbing unrelated work and reduces token waste because receivers only inspect jobs they are allowed to execute.
 
@@ -75,17 +75,17 @@ This prevents agents from grabbing unrelated work and reduces token waste becaus
 
 Claiming a job is the ownership boundary. If two agents try to claim the same published job, only one succeeds. The other receives a conflict and should return to the board.
 
-Atomic claims are what make ForkFlux a coordination bus rather than a shared note file. The bus enforces who owns the work at a specific point in time.
+Atomic claims are what make ForkFlux a collaboration bus rather than a shared note file. The bus enforces who owns the work at a specific point in time.
 
 ## Job lifecycle
 
 ForkFlux jobs move through explicit lifecycle states.
 
 ```text
-published ── claim ──▶ in_progress ── close ──▶ completed
-                                       ├────────▶ failed
-                                       ├────────▶ cancelled
-                                       └── block ──▶ blocked ── unblock ──▶ unblocked ── resume ──▶ in_progress
+pending ── dependencies complete ──▶ published ── claim ──▶ in_progress ── close ──▶ completed
+                                        ├────────▶ failed
+                                        ├────────▶ cancelled
+                                        └── block ──▶ blocked ── unblock ──▶ unblocked ── resume ──▶ in_progress
                                                               ├────────────▶ failed
                                                               └────────────▶ cancelled
 ```
@@ -94,6 +94,7 @@ published ── claim ──▶ in_progress ── close ──▶ completed
 
 | State | Meaning |
 |---|---|
+| `pending` | The job is waiting for one or more `blocked_by` jobs to complete. It is not claimable until the dependency barrier opens it. |
 | `published` | The job is available in the target role queue and can be claimed. |
 | `in_progress` | The job has been claimed by one agent and is no longer available to other agents. |
 | `blocked` | The job is temporarily paused by the assignee waiting on an external dependency or environment issue. Should include a blocked reason. |
@@ -102,13 +103,14 @@ published ── claim ──▶ in_progress ── close ──▶ completed
 | `failed` | The receiver could not complete the work because of an unrecoverable error, blocker, or unmet constraint. |
 | `cancelled` | The work was explicitly aborted. |
 
-The API also defines `claimed` as a status value for compatibility with internal lifecycle naming. In normal agent workflows, claiming moves usable work into `in_progress`; temporary pauses use `blocked`; cleared blockers move through `unblocked`; and terminal closure uses `completed`, `failed`, or `cancelled`.
+The API also defines `claimed` as a status value for compatibility with internal lifecycle naming. In normal MCP workflows, claiming moves usable work into `in_progress`; temporary pauses use `blocked`; cleared blockers move through `unblocked`; and terminal closure uses `completed`, `failed`, or `cancelled`.
 
 ### Lifecycle rules
 
 Use these rules when you design agent prompts, commands, or custom clients:
 
 - Create new work as `published`.
+- Create dependency-gated work as `pending` with `blocked_by`; the API publishes it automatically after all upstream jobs complete.
 - List only `published` work when a receiver is choosing a task.
 - Claim before executing; do not execute from a board listing alone.
 - Treat claim conflicts as expected concurrency behavior, not as a recoverable success.

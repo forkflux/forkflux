@@ -11,21 +11,33 @@ from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum, JobStat
 from forkflux_mcp.schemas import JobArtifact, RoutingRule
 
 FORKFLUX_INSTRUCTIONS = """
-You are connected to the ForkFlux Coordination Bus, an infrastructure layer for decentralized AI agents to securely hand off jobs across isolated machines.
+You are connected to the ForkFlux collaboration and audit layer. ForkFlux lets isolated AI agents publish, claim, execute, review, and retry structured jobs through a shared API-backed workflow.
 
 You do not have a fixed role. You must dynamically act as either a Source or a Target based on what the user is asking you to do right now.
 
 WHEN THE USER ASKS YOU TO HAND OFF WORK (Acting as Source):
-- When a job requires execution by another agent (e.g., passing code to a QA agent), use `forkflux_create_job`.
-- Provide explicit, strict `constraints` and embed all necessary context in the `context_payload` and all necessary artifacts in the `artifacts`.
+- When a job requires execution by another agent, use `forkflux_create_job`.
+- Verify the exact target role key; never invent a role key.
+- Provide concrete acceptance criteria in `constraints`, structured execution context in `context_payload`, and only real supporting resources in `artifacts`.
+- Use `blocked_by` for dependency-gated jobs and `routing_rules` for conditional follow-on jobs when appropriate.
+- Use `forkflux_update_job` only to correct the mutable `context_payload` or `constraints` of a published handoff; do not silently change the job's objective or target role.
 
 WHEN THE USER ASKS YOU TO CHECK FOR OR RECEIVE NEW WORK (Acting as Target):
 1. Use `forkflux_list_jobs` to find available jobs with status 'published'.
+   Keep `my_roles_only` set to `true` so the board contains only jobs the current agent is authorized to claim.
 2. Display the available jobs to the user and proactively ask: "Shall I claim the first task in this list (<Job ID>), or would you like to specify another one?"
 3. Wait for the user's response. Once they confirm the first task or provide a specific one, automatically extract the `job_id` and use `forkflux_claim_job`. This tool will return the FULL context payload immediately (Fat Claim).
-4. EXTREMELY IMPORTANT: If the claim fails with a "409 Conflict" (Job already claimed), DO NOT complain to the user or stop. Silently fetch the list again and try claiming the next available job.
+4. If the claim fails with a "409 Conflict" because another agent claimed the job, do not report a false success or execute that job. Refresh the board and select another published job, or use `forkflux_claim_next_job` when the user wants the highest-priority job for a specific role.
 5. Once claimed, automatically analyze the returned `context_payload` and begin your work. Do not ask the user for permission to start unless specifically instructed.
-6. Complete the work locally, then update the status to 'completed' or 'failed' (include a failure_reason if it failed) using `forkflux_change_job_status`.
+6. Complete the work locally, then use `forkflux_change_job_status` to record `completed`, `failed`, `blocked`, `cancelled`, or resume with `in_progress`. Include `failure_reason` for `failed` and `blocked_reason` for `blocked`.
+
+WHEN REVIEW REJECTS COMPLETED WORK:
+- Use `forkflux_reject_job` with the reviewing job ID, original job ID, and a specific rejection reason. This creates a linked retry iteration; do not mark the original job as `failed` merely because review requested changes.
+- When a retry job is claimed, use `forkflux_get_reopen_context` to inspect focused rejection metadata before execution.
+
+GENERAL RULES:
+- Use MCP tools for ForkFlux operations; do not use shell commands, curl, custom scripts, mocked data, or direct HTTP calls instead.
+- Never dump raw JSON to the user. Summarize tool results as concise, human-readable Markdown.
 """  # noqa: E501
 
 mcp = FastMCP(
@@ -121,7 +133,7 @@ async def create_job(
     routing_rules: list[RoutingRule] | None = None,
 ):
     """
-    Publishes a new handoff job to the ForkFlux coordination bus for delegation.
+    Publishes a new handoff job to the ForkFlux collaboration bus for delegation.
 
     CRITICAL:
         1. The Target Agent operates in complete isolation. They cannot see your
@@ -177,17 +189,22 @@ async def list_jobs(
     my_roles_only: bool = True,
 ):
     """
-    Fetches a list of jobs from the ForkFlux Coordination Bus.
-    Target Agents should use this tool to poll the Coordination Bus for available jobs to claim.
+    Lists jobs from the ForkFlux shared job pool.
+
+    Target agents should use the default filters to find published jobs addressed
+    to one of their assigned roles. The API applies role authorization and returns
+    a compact list; claim a selected job separately with `forkflux_claim_job`, or
+    use `forkflux_claim_next_job` when the user wants the highest-priority job for
+    a specific role.
 
     CRITICAL: Parse the response and present it as a clean, human-readable summary table or list.
     DO NOT output the raw JSON to the user, as context payloads are too large.
 
     Args:
         limit: The maximum number of jobs to return (min 1, max 200). Default is 50.
-        status: Filter by job lifecycle status. Defaults to 'published' (jobs ready to be claimed).
-        target_role_key: Filter jobs explicitly intended for a specific agent role.
-        my_roles_only: If True (default), filters the pool to return only jobs matching the agent's roles.
+        status: Optional lifecycle-status filter. Defaults to 'published', the claimable queue.
+        target_role_key: Optional role filter. The value must be a role key exposed by the API.
+        my_roles_only: If True (default), return only jobs targeting roles assigned to the authenticated agent.
     """
     return await _api_request(
         "GET",
@@ -204,10 +221,14 @@ async def list_jobs(
 @mcp.tool("forkflux_job_details")
 async def job_details(job_id: Annotated[int, Field(description="The unique ID of the job.")]):
     """
-    Fetches full details of a job by ID, including context payload, constrains, and artifacts.
+    Retrieves the complete job record without changing ownership or lifecycle state.
+
+    Use this when you need to inspect a job's summary, status, roles, actors,
+    context payload, constraints, artifacts, dependencies, or routing metadata.
+    This tool does not claim the job; use `forkflux_claim_job` to establish ownership.
 
     Args:
-        job_id: The ID of the job to retrieve.
+        job_id: The unique ID of the job to retrieve.
     """
     return await _api_request("GET", f"/jobs/{job_id}")
 
@@ -215,14 +236,14 @@ async def job_details(job_id: Annotated[int, Field(description="The unique ID of
 @mcp.tool("forkflux_claim_job")
 async def claim_job(job_id: Annotated[int, Field(description="The unique ID of the job to claim.")]):
     """
-    Atomically claims a published job from the ForkFlux coordination bus and returns its FULL context.
+    Atomically claims a published job for the authenticated agent and returns its full context.
 
-    Target Agents MUST call this tool immediately after deciding to take a job.
-    Claiming transitions the job status to 'in_progress' and locks it for you.
+    Claiming is the ownership boundary: it transitions the job to `in_progress`,
+    assigns it to the current agent, and prevents another agent from claiming it.
+    Read the returned constraints, context payload, and artifacts before executing.
 
-    If the claim fails (e.g., returns an HTTP 409 Conflict error), it means
-    another agent has already claimed this job. Do not proceed with the work;
-    instead, fetch the list of jobs again to find a new one.
+    If the claim fails with HTTP 409, another agent won the race. Do not execute
+    the job or report success; refresh the board and select another published job.
 
     Args:
         job_id: The ID of the job you want to lock and claim for yourself.
@@ -235,13 +256,14 @@ async def claim_next_job(
     target_role_key: TargetMyRoleEnum,  # type: ignore[valid-type]
 ):
     """
-    Atomically claims the next available published job for a given target role
-    from the ForkFlux coordination bus and returns its FULL context (Fat Claim).
+    Atomically claims the next available published job for a given role and returns
+    its full context (fat claim).
 
-    The API selects the highest-priority, oldest published job
-    matching the given target_role_key and assigns it to the calling agent.
+    The API selects the highest-priority, oldest published job matching the role
+    and assigns it to the authenticated agent. The role must be one of the
+    current agent's assigned roles.
 
-    If no published jobs are available for the role, the API returns a 404.
+    If no matching published jobs are available, the API returns a not-found result.
 
     Args:
         target_role_key: The role specialization to claim a job for.
@@ -271,15 +293,15 @@ async def change_job_status(
     ] = None,
 ):
     """
-    Updates the execution lifecycle status of a job you have claimed.
+    Updates the lifecycle status of a job owned by the authenticated agent.
 
-    Claiming a job automatically transitions it to 'in_progress'.
-    Target Agents should use this tool for manual transitions only:
-    1. 'completed': Set this ONLY when you have successfully finished the job and met ALL constraints.
-    2. 'failed': Set this if an unrecoverable error occurs. You MUST populate `failure_reason`.
-    3. 'cancelled': Set this if the user explicitly asks you to abort.
-    4. 'blocked': Set this if the job is temporarily blocked by an external dependency or environment issue.
-        You MUST populate `blocked_reason`. Use 'in_progress' to unblock once the blocker is resolved.
+    Claiming already transitions a job to `in_progress`, so do not use this tool
+    for normal claiming. Use it for manual lifecycle updates:
+    - `completed`: all constraints and verification requirements are satisfied.
+    - `failed`: an unrecoverable error or unmet constraint prevents completion; provide `failure_reason`.
+    - `blocked`: progress is temporarily paused by an external dependency; provide `blocked_reason`.
+    - `cancelled`: the user explicitly aborts the work.
+    - `in_progress`: resume a job after the blocker or retry condition is resolved.
     """
     return await _api_request(
         "POST",
@@ -308,17 +330,18 @@ async def update_job(
     ] = None,
 ):
     """
-    Updates the mutable fields of a job on the ForkFlux coordination bus.
+    Updates the mutable fields of an existing ForkFlux job.
 
-    Use this tool to revise a job's context_payload and/or constraints after it has been
-    published (e.g., to add missing context, correct a constraint, or refine instructions
-    for the target agent). At least one of `context_payload` or `constraints` MUST be
-    provided; the API will reject the request with a 422 if both are omitted.
+    Use this tool to revise a published job's `context_payload` and/or `constraints`
+    when context is missing, a constraint is incorrect, or instructions need
+    clarification. At least one field must be provided; the API rejects an empty
+    update. This tool does not change the target role, summary, priority, ownership,
+    dependencies, or lifecycle state.
 
     Args:
         job_id: The ID of the job to update.
-        context_payload: (Optional) A structured JSON dictionary replacing the existing context_payload.
-        constraints: (Optional) A list of constraints replacing the existing constraints.
+        context_payload: Optional structured JSON dictionary replacing the existing context payload.
+        constraints: Optional list of constraints replacing the existing constraints.
     """
     return await _api_request(
         "PATCH",
@@ -340,20 +363,20 @@ async def reject_job(
     ],
 ):
     """
-    Rejects the output of a completed job and creates a reopen iteration for the original work.
+    Rejects completed work and creates a linked retry iteration for the original job.
 
-    This tool creates a new job that is a reopen of the target job, with retry_count incremented by 1.
-    The new job inherits the target role, constraints, and context from the original job, with the
-    rejection reason added to the context payload. A REOPEN_OF dependency edge links the new job
-    to the original.
+    The new job inherits the original target role, constraints, and context, adds
+    the rejection reason, increments `retry_count`, and records a `REOPEN_OF`
+    dependency edge. The new retry job must be claimed and executed separately.
 
-    Use this when a reviewer or downstream agent determines that a completed job's output does not
-    meet the required standards and the work needs to be redone.
+    Use this when a reviewer or downstream agent determines that completed output
+    does not meet the required standards. Do not use it for temporary blockers or
+    ordinary execution failures.
 
     Args:
-        job_id: The ID of the job performing the rejection (e.g., a QA/review job that found issues).
-        target_job_id: The ID of the original job whose work is being rejected and needs to be redone.
-        reason: A detailed explanation of why the work is being rejected and what needs to change.
+        job_id: The ID of the reviewing job that is performing the rejection.
+        target_job_id: The ID of the completed original job whose work must be redone.
+        reason: Specific explanation of why the work was rejected and what must change.
     """
     return await _api_request(
         "POST",
@@ -367,21 +390,18 @@ async def get_reopen_context(
     job_id: Annotated[int, Field(description="The unique ID of the reopened job (a retry iteration).")],
 ):
     """
-    Fetches the focused reopen context for a job that was created as a retry iteration.
+    Retrieves focused retry context for a job created as a reopen iteration.
 
-    Returns ONLY the diff/rejection metadata — the rejection reason, original job ID,
-    retry count, max_retries, summary, and constraints — NOT the full original
-    context_payload. This is designed for CLI agents with limited context windows
-    who need to understand what changed since the last attempt without parsing
-    the entire original context blob.
+    Returns only rejection metadata, including the rejection reason, original job
+    ID, retry counters, summary, and constraints. It intentionally omits the full
+    original `context_payload`, which is useful for agents with limited context
+    windows that need to understand why the previous attempt was reopened.
 
-    Use this tool when:
-    - You have claimed (or are about to claim) a job that is a retry iteration.
-    - You need to understand why the previous attempt was rejected.
-    - You want focused context instead of the full context_payload.
+    Use this after claiming a retry job when you need the focused rejection context
+    before execution.
 
     Args:
-        job_id: The ID of the reopened job (the retry iteration, not the original).
+        job_id: The ID of the retry iteration, not the original completed job.
     """
     return await _api_request("GET", f"/jobs/{job_id}/reopen-context")
 
@@ -389,24 +409,24 @@ async def get_reopen_context(
 @mcp.prompt("board")
 def board_prompt() -> str:
     """
-    Fetch available published jobs strictly for the agent's current role from the ForkFlux shared pool.
-    Use this prompt when the user wants to see the dashboard/board of ready-to-claim tasks.
+    List published jobs authorized for the current agent and guide the user through selecting one to claim.
+    Use this prompt when the user wants to inspect the ForkFlux work pool.
     """
     return """
-    You are an AI Agent operating within the ForkFlux Coordination Bus protocol.
-    Your current goal is to fetch and display the board of available tasks waiting for your specific role.
+    You are an AI agent operating within the ForkFlux collaboration and audit layer.
+    Your goal is to fetch and display published jobs that the authenticated agent is authorized to claim.
 
     Follow these instruction steps carefully:
 
     1. Call the `forkflux_list_jobs` MCP tool.
 
-    Before calling `forkflux_list_jobs`, analyze your current overarching task and examine the list of available roles provided in the `target_role_key` tool parameter annotation. Determine the arguments based on the following logic:
+    Before calling `forkflux_list_jobs`, use the exact role key exposed by the tool schema when the user's request clearly identifies one. Keep role authorization enabled in every case:
 
-    **1.1. Explicit Role Match (Preferred)**
-    If you can confidently match your current task to one of the specific roles listed in the annotation, call the tool with:
+    **1.1. Explicit Role Match**
+    If you can confidently match the request to a role key exposed in the tool schema, call the tool with:
     - `status`: `"published"`
     - `target_role_key`: `"<matched_role_key>"`
-    - `my_roles_only`: `false`
+    - `my_roles_only`: `true`
 
     **1.2. Unclear Role (Fallback)**
     If you cannot confidently determine your role, or if no clear annotation is provided, fall back to the default routing:
@@ -414,11 +434,11 @@ def board_prompt() -> str:
     - `target_role_key`: `null`
     - `my_roles_only`: `true`
 
-    2. CRITICAL: Do not modify, omit, or guess these parameters. They are strictly required by the protocol to isolate work meant for your role.
+    2. CRITICAL: Do not guess role keys or disable authorization filtering. `my_roles_only` MUST remain `true` so the board contains only work the authenticated agent may claim.
 
     3. Error Handling: If the tool call fails, returns a connection error, or an API alert, output the exact error message to the user and STOP. Do not hallucinate, imagine, or mock any jobs.
 
-    4. Empty State: If the returned list from the tool is empty, kindly inform the user that there are currently no published tasks available for your role in the ForkFlux shared pool.
+    4. Empty State: If the returned list is empty, inform the user that no authorized published tasks are currently available.
 
     5. Output Formatting (STRICT RULE):
        - NEVER dump raw JSON payloads directly to the user.
@@ -436,19 +456,19 @@ def board_prompt() -> str:
     7. Execution Trigger: Wait for the user's response.
        - If the user confirms to take the first task (e.g., says "yes", "go ahead", etc.), automatically extract its `job_id` and call the `forkflux_claim_job` tool.
        - If the user specifies a different task from the list, extract that specific `job_id` and call the `forkflux_claim_job` tool.
+       - If claiming returns `409 Conflict`, do not report success; refresh the board and let the user select another published job.
     """  # noqa: E501
 
 
 @mcp.prompt("claim")
 def claim_prompt() -> str:
     """
-    Atomically claim a specific job from the ForkFlux coordination bus,
-    retrieve its full context payload (Fat Claim), and prepare for execution.
-    Use this prompt when the user passes a specific job ID to claim and start working on.
+    Atomically claim a specific published job, retrieve its full context payload, and begin execution.
+    Use this prompt when the user provides a job ID to claim.
     """
     return """
-    You are an AI Agent operating within the ForkFlux Coordination Bus protocol.
-    Your current goal is to atomically claim a task, lock it to prevent race conditions, and unpack its full context.
+    You are an AI agent operating within the ForkFlux collaboration and audit layer.
+    Your goal is to atomically claim a published job, prevent duplicate ownership, and unpack its full context.
 
     Follow these execution steps carefully:
 
@@ -460,7 +480,7 @@ def claim_prompt() -> str:
     3. RACE CONDITION HANDLING (409 Conflict):
        - CRITICAL: If the tool returns a `409 Conflict` error, it means another agent on a different machine has already snatched this task.
        - DO NOT hallucinate a successful state.
-       - Inform the user politely but clearly that the job is already claimed by someone else, and suggest running the `ff_board` prompt to select a new one.
+        - Inform the user clearly that the job is already claimed by another agent, and suggest running the `board` prompt to select a new one.
 
     4. ERROR HANDLING: If the tool call fails for any other connection or API reason, output the exact error message and STOP.
 
@@ -470,7 +490,7 @@ def claim_prompt() -> str:
 
     6. TOOL CHAINING & NEXT STEP:
        - You are now the official owner of this task. Briefly summarize the core objective of the task based on the unpacked payload.
-       - Proceed to ask the user for confirmation to begin execution.
+        - Begin executing the task automatically unless the user explicitly requested confirmation before execution.
 
     7. OUTPUT FORMATTING (STRICT RULE):
        - NEVER dump raw JSON response payloads directly to the user.
@@ -486,14 +506,13 @@ def claim_prompt() -> str:
 @mcp.prompt("close")
 def close_prompt() -> str:
     """
-    Update a specific ForkFlux job lifecycle status, including temporary blocking,
-    resuming blocked work, or terminal closure.
+    Update a job lifecycle status, including temporary blocking, resuming work, or terminal closure.
     """
     return """
-    You are an AI Agent operating within the ForkFlux Coordination Bus protocol.
-    Your current goal is to update a specific job lifecycle state, broadcasting this update to the decentralized bus.
+    You are an AI agent operating within the ForkFlux collaboration and audit layer.
+    Your goal is to record a validated lifecycle update for a job owned by the authenticated agent.
 
-    CRITICAL INFRASTRUCTURE RULE: NEVER attempt to use bash, curl, or terminal commands to execute this state transition. You MUST use the provided `forkflux_change_job_status` MCP tool.
+    CRITICAL INFRASTRUCTURE RULE: Never use bash, curl, terminal commands, or direct HTTP for this transition. You MUST use `forkflux_change_job_status`.
 
     Follow these execution steps carefully:
 
@@ -521,7 +540,7 @@ def close_prompt() -> str:
 
     6. TOOL CALL: Execute the `forkflux_change_job_status` MCP tool with the exact validated parameters.
 
-    7. TRANSACTION FAILURE HANDLING: If the tool call fails or returns a state-machine transition error from the Coordination Bus, output the exact error message and STOP. Do not hallucinate or assume a successful update.
+    7. TRANSACTION FAILURE HANDLING: If the tool call fails or returns a state-machine error, output the exact error and STOP. Do not assume success.
 
     8. OUTPUT FORMATTING (STRICT RULE):
        - NEVER dump raw JSON response payloads from the tool directly to the user.
@@ -540,26 +559,30 @@ def close_prompt() -> str:
 @mcp.prompt("push")
 def push_prompt() -> str:
     """
-    Create and publish a new handoff job into the ForkFlux Coordination Bus.
-    Use this prompt when the current agent finishes its task and wants to route the work to another agent/role.
+    Create and publish a structured handoff job through ForkFlux.
+    Use this prompt when work should be routed to another authorized agent role.
     """
     return """
-    You are an AI Agent operating as a Source Agent within the ForkFlux Coordination Bus protocol.
+    You are an AI agent operating as a Source within the ForkFlux collaboration and audit layer.
     Your goal is to package the current execution context, artifacts, and strict constraints, and publish them as a new handoff job.
 
     CRITICAL INFRASTRUCTURE RULE: NEVER attempt to use bash, curl, or terminal commands to issue this API call. You MUST exclusively use the provided ForkFlux MCP tools.
 
     Follow these execution steps carefully:
 
-    1. TOOL CHAINING (Role Discovery):
-       - Analyze available target role keys, match the correct one based on the user's workflow intent, and proceed. Never guess or hallucinate a role key.
+    1. ROLE VALIDATION:
+       - Use the exact `target_role_key` exposed by the `forkflux_create_job` schema or explicitly supplied by the user.
+       - Never invent a role key and do not imply that a separate role-listing tool is available.
 
     2. PARAMETER PREPARATION (Validate before calling `forkflux_create_job`):
-       - `target_role_key`: (String) The exact valid key found via tool chaining.
+       - `target_role_key`: (String) The exact valid key exposed by the tool schema or supplied by the user.
        - `constraints`: (list[str] / Array of Strings) Explicit constraint entries. Pass multiple constraints as an array of strings; each array item should clearly state what the next agent must achieve to consider this job complete.
        - `context_payload`: (JSON/Dictionary) A highly detailed, structured JSON object. Pack the context of the work you just finished, specific code paths, environment nuances, and any implicit bugs/problems you tried to bypass. CRITICAL: Do NOT pass a simple flat string or raw text block here. It must be a valid structured JSON map.
        - `priority`: (Integer) Must be exactly one of the allowed protocol enums: 10, 20, 30, or 40.
        - `artifacts`: (Array of Objects) List of generated files, diffs, or logs. Only include real, verified files from the current directory. Do not hallucinate hashes, checksums, or non-existent URIs.
+       - `parent_job_id`: (Integer, optional) The source job when this is a child handoff.
+       - `blocked_by`: (Array of Integers, optional) Upstream jobs that must complete before this job is published.
+       - `routing_rules`: (Array of Objects, optional) Conditional follow-on routing rules with valid role keys and conditions.
 
     3. TOOL CALL: Execute the `forkflux_create_job` MCP tool with the prepared payload.
 
@@ -574,6 +597,65 @@ def push_prompt() -> str:
        ✅ **Constraints**: [Provide a brief 1-2 sentence human-readable summary of the constraints passed to the next agent]
        📦 **Context Packed**: [Briefly summarize what metadata and technical logs you embedded into the `context_payload`]
     """  # noqa: E501
+
+
+@mcp.prompt("update")
+def update_prompt() -> str:
+    """
+    Correct the mutable context or constraints of a published ForkFlux job.
+    """
+    return """
+    Update a published ForkFlux job using `forkflux_update_job`.
+
+    Require a valid `job_id` and at least one non-empty update: `context_payload` and/or `constraints`.
+    Keep `context_payload` a structured JSON object and `constraints` a list of strings.
+    Change only mutable handoff details; do not attempt to change the summary, target role, priority,
+    ownership, dependencies, or lifecycle state.
+
+    Call the tool once. If it fails, report the exact error and stop. Never use shell commands, curl,
+    direct HTTP, or mocked data. Do not dump raw JSON; return a concise Markdown summary of the job,
+    fields changed, and whether the published handoff is ready to claim.
+    """
+
+
+@mcp.prompt("reject")
+def reject_prompt() -> str:
+    """
+    Reject completed work during review and create a linked retry iteration.
+    """
+    return """
+    Reject a completed ForkFlux job during review using `forkflux_reject_job`.
+
+    Require the reviewing `job_id`, the original completed `original_job_id`, and a specific,
+    actionable `rejection_reason`. Use this flow only when review requires changes; do not use it
+    for ordinary execution failures or temporary blockers.
+
+    The API creates a linked retry iteration, inherits the original context and constraints, appends
+    the rejection reason, and increments the retry count. Do not mark the original job as failed merely
+    because review rejected it.
+
+    Call the tool once. If it fails, report the exact error and stop. Never use shell commands, curl,
+    direct HTTP, or mocked data. Do not dump raw JSON; summarize the original job, retry job, rejection
+    reason, and next action in concise Markdown.
+    """
+
+
+@mcp.prompt("reopen-context")
+def reopen_context_prompt() -> str:
+    """
+    Retrieve focused rejection metadata for a claimed retry iteration.
+    """
+    return """
+    Retrieve retry-specific review context using `forkflux_get_reopen_context`.
+
+    Require the `job_id` of the retry iteration, not the original completed job. Use this after claiming
+    the retry job and before execution. The response contains focused rejection metadata; it does not
+    replace the retry job's full Fat Claim context.
+
+    Call the tool once. If it fails, report the exact error and stop. Never use shell commands, curl,
+    direct HTTP, or mocked data. Never dump raw JSON. Present a concise Markdown summary of the original
+    job, rejection reason, retry count, and required changes, then proceed with the retry job's constraints.
+    """
 
 
 def main() -> None:

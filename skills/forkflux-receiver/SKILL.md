@@ -1,6 +1,6 @@
 ---
 name: forkflux-receiver
-description: Strict consolidated Target Agent skill for ForkFlux execution using board -> claim -> status-update flows with deterministic output contracts.
+description: Target-agent workflow for listing role-authorized ForkFlux jobs, atomically claiming work, executing from its packed context, and recording blocked, resumed, or terminal lifecycle states.
 ---
 
 # forkflux-receiver
@@ -19,7 +19,11 @@ You MUST use MCP tools only:
 
 - `forkflux_list_jobs`
 - `forkflux_claim_job`
+- `forkflux_claim_next_job` (when the user wants the highest-priority available job for a specific role)
 - `forkflux_change_job_status`
+- `forkflux_update_job` (when mutable context or constraints need correction)
+- `forkflux_reject_job` (when completed work fails review and must be retried)
+- `forkflux_get_reopen_context` (when a claimed job is a retry iteration)
 
 ## Receiver execution flow
 
@@ -81,8 +85,8 @@ Call `forkflux_claim_job` with the identified `job_id`.
 If tool returns `409 Conflict`:
 
 - do not hallucinate success;
-- clearly report another agent already claimed it;
-- suggest running board flow to pick another job.
+- do not continue executing the returned job context;
+- run the board flow again and choose another published job, or use `forkflux_claim_next_job` for the requested role.
 
 #### Error handling
 
@@ -90,7 +94,7 @@ For any non-409 failure: output exact error and stop.
 
 #### Fat-claim analysis and transition
 
-On success, parse and analyze full returned payload (`constraints`, `context_payload`, `artifacts`, guidelines).
+On success, parse and analyze full returned payload (`constraints`, `context_payload`, `artifacts`, and any dependency or routing metadata).
 
 - Summarize core objective in one sentence.
 - Confirm ownership and status already `IN_PROGRESS` (`in_progress`).
@@ -102,7 +106,9 @@ Never dump raw JSON. Return concise Markdown block:
 - 🔒 **Job Claimed**: `job_id` + 1-sentence objective summary
 - 🚦 **Status**: `IN_PROGRESS` (`in_progress`)
 - 📦 **Context Received**: payload and acceptance criteria unpacked
-- 🚀 **Next Action**: `Shall I start executing this task now?`
+- 🚀 **Next Action**: Start executing locally unless the user explicitly asked for a review or confirmation before execution.
+
+If the claimed job is a retry iteration, call `forkflux_get_reopen_context` before execution when focused rejection context is sufficient or preferred. Use `forkflux_update_job` only to correct the mutable context or constraints of the current job; do not silently rewrite the handoff's objective.
 
 ### C) Status update and close flow (`forkflux_change_job_status`)
 
@@ -111,7 +117,7 @@ Use to update lifecycle state after execution starts, including temporary blocki
 #### Preconditions and validation
 
 1. Ensure valid `job_id` and explicit target `status`.
-2. `status` must be one of: `blocked`, `in_progress`, `completed`, `failed`, `cancelled`.
+2. `status` must be one of: `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, `cancelled`.
 3. Never use this flow to set `published`, and never use `in_progress` for normal claiming because `forkflux_claim_job` already performs that transition.
 4. State gatekeeping:
    - `completed`: only if all acceptance criteria met and relevant tests/checks pass.
@@ -121,10 +127,15 @@ Use to update lifecycle state after execution starts, including temporary blocki
    - `cancelled`: user explicitly aborted execution.
 5. If `failed`, `failure_reason` is mandatory and detailed.
 6. If `blocked`, `blocked_reason` is mandatory and actionable.
+7. If `unblocked`, `unblock_reason` is mandatory and should explain what changed before resuming with `in_progress`.
 
 #### Tool call
 
 Call `forkflux_change_job_status` with validated terminal payload.
+
+### Review rejection and retry flow
+
+When a reviewer or QA agent determines that completed work does not meet its acceptance criteria, call `forkflux_reject_job` with the reviewing job ID, the original job ID, and a specific reason. This creates a linked retry iteration. Do not mark the original work as `failed` merely because it needs review changes. After claiming the retry, use `forkflux_get_reopen_context` to inspect the focused rejection metadata.
 
 #### Error handling
 

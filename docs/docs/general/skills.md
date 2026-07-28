@@ -17,14 +17,14 @@ ForkFlux ships two workflow skills:
 
 | Skill | Purpose | Best for | Primary MCP tools |
 |---|---|---|---|
-| `forkflux-sender` | Packages current work into a structured handoff job for another role. | Source agents that need to publish work after local progress is ready for transfer. | `forkflux_create_job`, optionally `forkflux_change_job_status` |
-| `forkflux-receiver` | Finds published jobs, claims one atomically, executes it locally, and closes the lifecycle. | Target agents that need to pull work from the shared task pool and report completion evidence. | `forkflux_list_jobs`, `forkflux_claim_job`, `forkflux_change_job_status` |
+| `forkflux-sender` | Packages verified context, constraints, artifacts, dependencies, and optional follow-on routing into a new role-targeted job, and can correct mutable fields on a published handoff. | Source agents that need to publish work after local progress is ready for transfer. | `forkflux_create_job`, `forkflux_update_job`, optionally `forkflux_change_job_status` |
+| `forkflux-receiver` | Lists role-authorized work, claims one job atomically, executes from its packed context, and records blocked, resumed, terminal, or review-retry outcomes. | Target agents that need to pull work from the shared task pool and report evidence. | `forkflux_list_jobs`, `forkflux_claim_job` or `forkflux_claim_next_job`, `forkflux_update_job`, `forkflux_reject_job`, `forkflux_get_reopen_context`, `forkflux_change_job_status` |
 
 Both skills require the assistant to use MCP tools for ForkFlux workflow operations. Agents should not use shell commands, `curl`, custom scripts, mocked data, or direct API calls to publish, claim, or close jobs.
 
 ## `forkflux-sender`
 
-Use `forkflux-sender` when an agent needs to hand off completed or transferable work to another role.
+Use `forkflux-sender` when an agent needs to publish completed or transferable work to another role.
 
 The skill guides the source agent to:
 
@@ -33,7 +33,8 @@ The skill guides the source agent to:
 3. Build a structured `context_payload` with relevant files, decisions, blockers, and next-agent instructions.
 4. Attach only real artifacts such as files, logs, diffs, reports, screenshots, or URLs.
 5. Create a ForkFlux job with a valid priority.
-6. Return a concise summary with the job ID, target role, constraints, and packed context.
+6. Optionally include dependency IDs (`blocked_by`) or conditional follow-on routing rules.
+7. Return a concise summary with the job ID, target role, constraints, and packed context.
 
 Use this skill only when a handoff is explicit or when the current agent has completed local work and another role should continue, verify, review, or deploy it.
 
@@ -48,7 +49,9 @@ The skill guides the target agent to:
 3. Claim the selected job atomically.
 4. Unpack constraints, context, and artifacts before execution.
 5. Execute the task locally.
-6. Update the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled` with useful evidence, or resume unblocked work as `in_progress`.
+6. Update the job as `blocked`, `unblocked`, `completed`, `failed`, or `cancelled` with useful evidence, or resume a blocked/failed job as `in_progress`.
+
+For a retry iteration, use `forkflux_get_reopen_context` to inspect the focused rejection metadata. If review rejects completed work, use `forkflux_reject_job` to create the linked retry job instead of marking the original job as failed. Use `forkflux_update_job` only when the current job's mutable context or constraints need correction.
 
 The receiver skill is strict about lifecycle states. It should not mark work as `completed` unless acceptance criteria are met and relevant verification has passed, and it should use `blocked` instead of `failed` for temporary blockers.
 
@@ -67,7 +70,7 @@ If you use Claude Code, install ForkFlux through the [Plugins](plugins.md#claude
 For local demos and evaluation, run the ForkFlux quickstart command:
 
 ```bash
-uvx --from forkflux-api forkflux quickstart
+uvx --from forkflux forkflux quickstart
 ```
 
 The quickstart flow sets up a local demo environment and installs supported workflow helpers for compatible local assistant CLIs.

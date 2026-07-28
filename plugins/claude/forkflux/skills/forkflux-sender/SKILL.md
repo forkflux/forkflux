@@ -1,6 +1,6 @@
 ---
 name: forkflux-sender
-description: Strict consolidated Source Agent skill for ForkFlux handoff routing using forkflux_list_roles and forkflux_create_job, with optional terminal closure via forkflux_change_job_status.
+description: Source-agent workflow for packaging verified context and publishing a role-targeted ForkFlux job with forkflux_create_job, plus optional terminal closure for an existing job.
 ---
 
 # forkflux-sender
@@ -28,15 +28,16 @@ NEVER attempt to use bash, curl, terminal commands, Python scripts, or any code 
 
 You MUST exclusively invoke the native MCP tools provided to you by the environment:
 - `forkflux_create_job`
+- `forkflux_update_job` (when a published handoff needs corrected context or constraints)
 - `forkflux_change_job_status` (only for terminal closure guidance)
 
-## Primary sender flow (roles -> push)
+## Primary sender flow (role selection -> publish)
 
 ### 1) Tool chaining: role discovery
 
-Before creating a job, verify you have a valid `target_role_key`.
+Before creating a job, verify that you have a valid `target_role_key` from the MCP tool schema or the user's explicit instruction.
 
-Analyze available target role keys, match the correct one based on the user's workflow intent, and proceed. Never guess or hallucinate a role key.
+Match the correct role based on the user's workflow intent. Never guess or hallucinate a role key. This skill does not call a role-listing tool; if the available role keys are not visible, stop and report that the MCP schema or API configuration must expose them.
 
 ### 2) Parameter preparation for job creation
 
@@ -49,10 +50,15 @@ Prepare and validate the `forkflux_create_job` payload:
   - Must be valid structured JSON.
 - `priority` (Integer): one of `10`, `20`, `30`, `40`.
 - `artifacts` (Array of objects): only real, existing files/logs/diffs; do not hallucinate URIs/checksums.
+- `parent_job_id` (Integer, optional): the job that spawned this handoff.
+- `blocked_by` (Array of integers, optional): upstream jobs that must complete before this job becomes published.
+- `routing_rules` (Array of objects, optional): conditional follow-on jobs created when this job completes.
 
 ### 3) Tool call
 
 Call `forkflux_create_job` with the validated payload.
+
+If the job was published with incomplete or incorrect mutable fields, use `forkflux_update_job` to replace its `context_payload` and/or `constraints`. Do not use an update as a substitute for creating a new job when the requested work or target role has changed.
 
 ### 4) Error handling
 

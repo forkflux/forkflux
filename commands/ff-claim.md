@@ -1,5 +1,5 @@
 ---
-description: Atomically claim a job from the ForkFlux coordination bus, retrieve its full context, and prepare for execution.
+description: Atomically claim a published ForkFlux job, retrieve its full context, and begin receiver execution.
 ---
 
 # ff-claim
@@ -14,13 +14,13 @@ Atomically claims a specific ForkFlux job, locking it for the current Target Age
 
 ## Agent instructions
 
-1. Before calling the tool, verify that the user has provided a valid `job_id`. If it is missing, ask the user for it or suggest running `/ff-list-available-jobs`.
+1. Before calling the tool, verify that the user has provided a valid `job_id`. If it is missing, ask the user for it or suggest running `/ff-board`.
 2. Call the `forkflux_claim_job` tool using the provided `job_id`.
-3. **Handle Race Conditions (409 Conflict):** If the tool returns a 409 Conflict error, it means another agent on a different machine has already claimed this job. Do NOT hallucinate a success. Kindly inform the user that the job was snatched by someone else, and suggest running `/ff-list-available-jobs` to pick a new one.
+3. **Handle Race Conditions (409 Conflict):** If the tool returns a 409 Conflict error, another agent has already claimed this job. Do NOT hallucinate success or execute it. Report the conflict and suggest running `/ff-board` to select another published job.
 4. If the tool call fails for any other reason, output the exact error message and stop.
 5. **Analyze Context (Fat Claim):** If successful, the tool response will contain the full context of the job (constraints, payload artifacts, instructions). Read and analyze this payload thoroughly.
 6. **Next Logical Step (Tool Chaining):** You are now the official owner of this job. Briefly summarize the core objective based on the payload you just received.
-7. Ask the user for confirmation to begin executing the work. **Crucial rule:** Remind yourself (and the user) that claiming already set the job to `IN_PROGRESS` (API payload value: `in_progress`), so proceed directly with execution.
+7. Begin executing locally after the successful claim unless the user explicitly requested confirmation before execution. Claiming already set the job to `IN_PROGRESS` (API payload value: `in_progress`).
 
 ## Output
 
@@ -29,6 +29,6 @@ Provide a brief, energetic confirmation to the user in Markdown format:
 * 🔒 **Job Claimed**: Mention the `job_id` and a 1-sentence summary of the objective.
 * 🚦 **Status**: Confirmed as `IN_PROGRESS` (API payload value: `in_progress`).
 * 📦 **Context Received**: Confirm that you have successfully unpacked the task payload.
-* 🚀 **Next Action**: Ask the user: *"Shall I start executing this task now?"*
+* 🚀 **Next Action**: Begin local execution, or state that execution is waiting only when the user explicitly requested confirmation.
 
 **Strict Rule:** Do not dump raw JSON. Focus on the workflow transition and human-readable summary.

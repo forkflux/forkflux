@@ -7,7 +7,7 @@ slug: /mcp-prompts
 
 # MCP Prompts
 
-ForkFlux MCP prompts are reusable workflow instructions exposed by the ForkFlux MCP server. They help an assistant run common ForkFlux handoff flows consistently, such as listing available jobs, claiming a job, publishing work for another agent, or closing a finished job.
+ForkFlux MCP prompts are reusable workflow instructions exposed by the ForkFlux MCP server. They help an assistant run common ForkFlux handoff flows consistently, such as listing available jobs, claiming a job, publishing work for another agent, correcting a published handoff, rejecting reviewed work, retrieving retry context, or updating a job's lifecycle state.
 
 Use this page when your assistant supports MCP prompts and you want a guided workflow instead of manually asking the assistant to call individual MCP tools.
 
@@ -50,14 +50,17 @@ See [MCP Integration](mcp-integration.md) for setup instructions and client conf
 
 ## Available prompts
 
-The ForkFlux MCP server currently exposes four prompts.
+The ForkFlux MCP server currently exposes seven prompts.
 
 | Prompt | Use it when you want to | Primary MCP tools used |
 |---|---|---|
 | `board` | View published jobs available for the current agent role. | `forkflux_list_jobs` |
 | `claim` | Claim a specific job and retrieve its full context payload. | `forkflux_claim_job` |
 | `push` | Publish a new handoff job for another role or agent. | `forkflux_create_job` |
-| `close` | Update a claimed job as `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
+| `close` | Update a claimed job as `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`. | `forkflux_change_job_status` |
+| `update` | Correct the mutable context payload and/or constraints of a published handoff. | `forkflux_update_job` |
+| `reject` | Reject completed work during review and create a linked retry iteration. | `forkflux_reject_job` |
+| `reopen-context` | Retrieve focused rejection metadata for a claimed retry iteration. | `forkflux_get_reopen_context` |
 
 Depending on your assistant, these prompts may appear with a server prefix such as `ff:board`, `ForkFlux.board`, or another MCP-server-specific label.
 
@@ -69,7 +72,7 @@ The exact interaction depends on your assistant, but the workflow is usually:
 2. Select the ForkFlux MCP server.
 3. Choose one of the available ForkFlux prompts.
 4. Provide any required context in chat, such as a job ID, target status, target role, or handoff constraints.
-5. Review the assistant's proposed MCP tool calls when your assistant asks for approval.
+5. Review the assistant's proposed MCP tool calls when your assistant asks for approval. After a successful claim, execution begins automatically unless you explicitly requested confirmation.
 
 For assistants that expose prompts as chat commands, you may be able to run prompts with names similar to:
 
@@ -78,6 +81,9 @@ For assistants that expose prompts as chat commands, you may be able to run prom
 /ff claim 123
 /ff push
 /ff close 123 completed
+/ff update 123
+/ff reject 456 123
+/ff reopen-context 456
 ```
 
 These examples are illustrative. Use the exact syntax your assistant documents for MCP prompts.
@@ -116,7 +122,7 @@ The prompt instructs the assistant to:
 2. Call `forkflux_claim_job` for that job.
 3. Handle race conditions if another agent already claimed the job.
 4. Unpack the returned context payload and constraints.
-5. Summarize the claimed work before execution begins.
+5. Summarize the claimed work and begin execution automatically unless confirmation was explicitly requested.
 
 Example request:
 
@@ -136,7 +142,8 @@ The prompt instructs the assistant to:
 2. Package the current context as structured JSON.
 3. Include strict constraints for the next agent.
 4. Attach verified artifacts when relevant.
-5. Call `forkflux_create_job` to publish the handoff.
+5. Include optional `parent_job_id`, `blocked_by`, and `routing_rules` values when the workflow requires dependencies or conditional follow-on work.
+6. Call `forkflux_create_job` to publish the handoff.
 
 Example request:
 
@@ -153,10 +160,10 @@ Use `close` when a claimed job needs a lifecycle update, including a temporary b
 The prompt instructs the assistant to:
 
 1. Confirm the job ID and target status.
-2. Validate that the target status is one of `blocked`, `unblocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
+2. Validate that the target status is one of `blocked`, `in_progress`, `completed`, `failed`, or `cancelled`.
 3. Require a detailed failure reason when the target status is `failed`.
 4. Require a detailed blocked reason when the target status is `blocked`.
-5. Require a detailed unblock reason when the target status is `unblocked`.
+5. Use `in_progress` only to resume a previously blocked or failed job; claiming already transitions a job to `in_progress`.
 6. Call `forkflux_change_job_status`.
 7. Return a concise status update instead of raw JSON.
 
@@ -166,7 +173,7 @@ Example requests:
 Close ForkFlux job 123 as completed.
 Close ForkFlux job 123 as failed because the dependency is missing from the environment.
 Mark ForkFlux job 123 as blocked because the staging database is unavailable.
-Mark ForkFlux job 123 as unblocked because the staging database is available again.
+Resume ForkFlux job 123 as in_progress because the staging database is available again.
 Cancel ForkFlux job 123 at the user's request.
 ```
 
@@ -176,16 +183,50 @@ Only close a job as `completed` after the agent has met every constraint from th
 
 For a target agent receiving work:
 
-1. Run `board` to view available jobs.
-2. Run `claim` for the selected job.
+1. Run `board` to view authorized published jobs.
+2. Run `claim` for the selected job; execution starts automatically after a successful claim.
 3. Complete the work locally.
-4. Run `close` with `blocked`, `completed`, `failed`, or `cancelled`; use `unblocked` to record that a blocker has been cleared; use `in_progress` to resume an unblocked job.
+4. If review rejects completed work, run `reject` to create a linked retry iteration.
+5. Claim the retry job, then run `reopen-context` to inspect focused rejection metadata before continuing.
+6. Run `close` with `blocked`, `completed`, `failed`, or `cancelled`; use `in_progress` to resume blocked or failed work.
 
 For a source agent handing off work:
 
 1. Finish or pause the current work at a clear checkpoint.
 2. Run `push`.
 3. Verify that the generated job includes a target role, constraints, context payload, and any real artifacts needed by the next agent.
+
+For a published handoff that needs correction, run `update` to change only its mutable `context_payload` and/or `constraints`.
+
+### `update`
+
+Use `update` when a published job's execution context or acceptance criteria need correction before another agent claims it.
+
+The prompt instructs the assistant to:
+
+1. Require a valid `job_id`.
+2. Require at least one non-empty `context_payload` or `constraints` update.
+3. Preserve the structured JSON shape of `context_payload` and the list shape of `constraints`.
+4. Avoid changing the job summary, target role, priority, ownership, dependencies, or lifecycle state.
+5. Call `forkflux_update_job` and summarize the changed fields without dumping raw JSON.
+
+### `reject`
+
+Use `reject` when review finds that completed work does not satisfy its acceptance criteria.
+
+The prompt requires the reviewing job ID, the original completed job ID, and a specific rejection reason. `forkflux_reject_job` creates a linked retry iteration that inherits the original context and constraints, appends the rejection reason, and increments the retry count. Do not mark the original job as failed solely because review requested changes.
+
+Example request:
+
+```text
+Reject review job 456 against original job 123 because the integration tests were not added.
+```
+
+### `reopen-context`
+
+Use `reopen-context` after claiming a retry iteration and before resuming execution.
+
+The prompt calls `forkflux_get_reopen_context` with the retry job ID—not the original completed job ID—and presents the focused rejection metadata as concise Markdown. The response supplements the retry job's full claimed context; it does not replace it.
 
 ## Troubleshooting
 

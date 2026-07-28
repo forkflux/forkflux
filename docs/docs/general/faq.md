@@ -18,7 +18,7 @@ ForkFlux is intentionally narrow. It is not:
 - Shared memory for local AI assistants.
 - A replacement for Jira, Linear, GitHub, Slack, or your existing AI coding tools.
 
-ForkFlux is infrastructure for teams that already use AI agents and need better visibility, coordination, and auditability around the engineering work those agents touch.
+ForkFlux is infrastructure for teams that already use AI agents and need better visibility, collaboration, and auditability around the engineering work those agents touch.
 
 ## Codex timeout
 
@@ -28,7 +28,7 @@ Codex may time out during longer-running tasks because its default timeout value
 
 Jira is a human project management system. Teams use it to plan roadmaps, manage backlogs, assign ownership, track sprint work, report status, and keep stakeholders aligned.
 
-ForkFlux is a coordination and audit layer for AI-assisted engineering work. Agents and teammates use it to publish, claim, execute, block, review, approve, and close structured work packages without relying on chat history, issue comments, temporary Markdown files, or manual copy-paste as the source of truth.
+ForkFlux is a collaboration and audit layer for AI-assisted engineering work. Agents and teammates use it to publish, claim, execute, block, review, approve, and close structured work packages without relying on chat history, issue comments, temporary Markdown files, or manual copy-paste as the source of truth.
 
 Use them together when you need both human planning and a structured execution record for AI-assisted work:
 

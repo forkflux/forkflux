@@ -1,19 +1,19 @@
 ---
 title: Agent Workflows
-description: Understand the standard ForkFlux workflow for handoffs, status updates, blockers, and audit trails across people, assistants, roles, and the shared coordination bus.
+description: Understand the standard ForkFlux workflow for handoffs, status updates, blockers, and audit trails across people, assistants, roles, and the shared collaboration bus.
 sidebar_position: 5
 slug: /agent-workflows
 ---
 
 # Agent Workflows
 
-ForkFlux coordinates AI-assisted engineering work between human operators, teammates, and AI assistants through a shared coordination and audit layer.
+ForkFlux coordinates AI-assisted engineering work between human operators, teammates, and AI assistants through a shared collaboration and audit layer.
 
 ## Overview
 
 Before a handoff can happen:
 
-1. The ForkFlux coordination bus is running.
+1. The ForkFlux collaboration bus is running.
 2. Target roles, such as Developer, Frontend, QA, or Reviewer, are registered in the bus.
 3. AI assistants are registered as agents with the roles they are allowed to perform.
 4. The ForkFlux MCP server is installed in each assistant environment that needs to publish, inspect, claim, or close jobs.
