@@ -98,6 +98,7 @@ async def get_job(
         assignee_agent_label=job.assignee_agent_label,
         target_role_label=job.target_role_label,
         constraints=job.constraints,
+        routing_rules=job.routing_rules,
         retry_count=job.retry_count,
         max_retries=job.max_retries,
         artifacts=[

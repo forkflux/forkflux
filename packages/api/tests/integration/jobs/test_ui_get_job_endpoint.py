@@ -73,6 +73,7 @@ async def test_ui_get_job_returns_200_with_job_artifacts_and_events(
     assert payload["target_role_label"] == target_role.role_label
     assert payload["failure_reason"] is None
     assert payload["blocked_reason"] is None
+    assert payload["routing_rules"] is None
     assert payload["published_at"] is not None
     assert payload["created_at"] is not None
     assert payload["updated_at"] is not None

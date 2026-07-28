@@ -9,7 +9,7 @@ import {
   formatDate,
   getTimeline,
 } from '../../lib/jobs/jobs'
-import type { JobDetail } from '../../types/job'
+import type { JobDetail, JsonValue } from '../../types/job'
 import './JobDetailPage.scss'
 
 export function JobDetailPage() {
@@ -21,6 +21,7 @@ export function JobDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [contextOpen, setContextOpen] = useState(false)
   const [openArtifacts, setOpenArtifacts] = useState<Set<number>>(new Set())
+  const [openRoutingRules, setOpenRoutingRules] = useState<Set<number>>(new Set())
 
   // Unblock form state
   const [unblockOpen, setUnblockOpen] = useState(false)
@@ -30,6 +31,18 @@ export function JobDetailPage() {
 
   const toggleArtifact = (index: number) => {
     setOpenArtifacts((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const toggleRoutingRule = (index: number) => {
+    setOpenRoutingRules((prev) => {
       const next = new Set(prev)
       if (next.has(index)) {
         next.delete(index)
@@ -256,6 +269,63 @@ export function JobDetailPage() {
               <span className="ff-detail__constraint">{c}</span>
             </p>
           ))}
+        </section>
+      )}
+
+      {/* Routing Rules */}
+      {detail.routing_rules && detail.routing_rules.length > 0 && (
+        <section className="ff-detail__section">
+          <h2>Routing Rules</h2>
+          <div className="ff-detail__routing-rules">
+            {detail.routing_rules.map((rule, i) => {
+              const rr = rule as Record<string, JsonValue>
+              const rrConstraints = Array.isArray(rr.constraints)
+                ? (rr.constraints as string[])
+                : []
+              const rrContext = typeof rr.context_payload === 'object' && rr.context_payload !== null
+                ? (rr.context_payload as Record<string, JsonValue>)
+                : {}
+              return (
+                <div key={i} className="ff-detail__routing-rule">
+                  <div className="ff-detail__routing-rule-header">
+                    <span className="ff-detail__routing-rule-role">
+                      {String(rr.target_role_key ?? '')}
+                    </span>
+                    <span className="ff-detail__routing-rule-summary">
+                      {String(rr.summary ?? '')}
+                    </span>
+                    <span className="ff-detail__routing-rule-priority">
+                      P{String(rr.priority ?? '—')}
+                    </span>
+                  </div>
+                  {rrConstraints.length > 0 && (
+                    <div className="ff-detail__routing-rule-constraints">
+                      {rrConstraints.map((c) => (
+                        <span key={c} className="ff-detail__constraint">{c}</span>
+                      ))}
+                    </div>
+                  )}
+                  {Object.keys(rrContext).length > 0 && (
+                    <div className="ff-detail__routing-rule-context">
+                      <button
+                        type="button"
+                        className="ff-detail__routing-rule-context-toggle"
+                        aria-expanded={openRoutingRules.has(i)}
+                        onClick={() => toggleRoutingRule(i)}
+                      >
+                        Context{' '}
+                        <span
+                          className="ff-detail__artifact-chevron"
+                          aria-hidden="true"
+                        />
+                      </button>
+                      {openRoutingRules.has(i) && <JsonGrid data={rrContext} />}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </section>
       )}
 
