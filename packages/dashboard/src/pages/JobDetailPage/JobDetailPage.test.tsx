@@ -155,6 +155,62 @@ describe('JobDetailPage', () => {
         expect(screen.getByText('#42')).toBeInTheDocument()
       })
     })
+
+    it('renders upstream and downstream dependencies with links and metadata', async () => {
+      setDetailResponse(
+        createMockJobDetail({
+          id: 42,
+          upstream_dependencies: [
+            {
+              job_id: 7,
+              summary: 'Upstream task',
+              status: 'completed',
+              target_role_label: 'Backend Engineer',
+              dependency_type: 'blocks',
+            },
+          ],
+          downstream_dependencies: [
+            {
+              job_id: 8,
+              summary: 'Downstream task',
+              status: 'pending',
+              target_role_label: 'QA Engineer',
+              dependency_type: 'reopen_of',
+            },
+          ],
+        }),
+      )
+      renderDetailPage('/jobs/42')
+
+      await waitFor(() => {
+        expect(screen.getByText('Upstream dependencies')).toBeInTheDocument()
+        expect(screen.getByText('Downstream dependencies')).toBeInTheDocument()
+      })
+      expect(screen.getByRole('link', { name: /#7 Upstream task/ })).toHaveAttribute(
+        'href',
+        '/jobs/7',
+      )
+      expect(screen.getByRole('link', { name: /#8 Downstream task/ })).toHaveAttribute(
+        'href',
+        '/jobs/8',
+      )
+      // Status badges render as separate elements, so check for the
+      // human-readable dependency-type labels and status badge text
+      // using regex matchers since the text is split across elements.
+      expect(screen.getByText(/Blocks/)).toBeInTheDocument()
+      expect(screen.getByText(/Reopen of/)).toBeInTheDocument()
+      expect(screen.getByText(/Completed/)).toBeInTheDocument()
+      expect(screen.getByText(/Pending/)).toBeInTheDocument()
+    })
+
+    it('renders an empty dependency state when no dependencies exist', async () => {
+      setDetailResponse(createMockJobDetail({ id: 42 }))
+      renderDetailPage('/jobs/42')
+
+      await waitFor(() => {
+        expect(screen.getByText('No related dependencies.')).toBeInTheDocument()
+      })
+    })
   })
 
   describe('failure / blocked reasons', () => {

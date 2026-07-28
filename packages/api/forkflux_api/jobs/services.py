@@ -312,9 +312,22 @@ class HandoffJobService:
         job = await self._handoff_job_repo.ui_get(job_id)
         artifacts = await self._job_artifact_repo.list(job_id=job_id)
         events = await self._job_event_repo.ui_list(job_id=job_id)
+        upstream_dependencies, downstream_dependencies = await self._job_dependency_repo.ui_list_for_job(job_id)
 
-        log.info("operation_completed", artifact_count=len(artifacts), event_count=len(events))
-        return {"job": job, "artifacts": artifacts, "events": events}
+        log.info(
+            "operation_completed",
+            artifact_count=len(artifacts),
+            event_count=len(events),
+            upstream_dependency_count=len(upstream_dependencies),
+            downstream_dependency_count=len(downstream_dependencies),
+        )
+        return {
+            "job": job,
+            "artifacts": artifacts,
+            "events": events,
+            "upstream_dependencies": upstream_dependencies,
+            "downstream_dependencies": downstream_dependencies,
+        }
 
     async def list_jobs(self, filter_params: HandoffJobFilterParams) -> list[HandoffJobItem]:
         log = self._logger.bind(

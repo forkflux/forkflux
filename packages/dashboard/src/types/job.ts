@@ -8,6 +8,7 @@
 
 /** All possible job lifecycle statuses. */
 export type JobStatus =
+  | 'pending'
   | 'published'
   | 'claimed'
   | 'in_progress'
@@ -41,6 +42,15 @@ export interface JobArtifact {
   metadata_json: JsonValue;
 }
 
+/** A related job connected to a detail job by a dependency edge. */
+export interface JobDependency {
+  job_id: number;
+  summary: string;
+  status: JobStatus;
+  target_role_label: string;
+  dependency_type: 'blocks' | 'reopen_of';
+}
+
 /**
  * A job list item — the lightweight shape returned by the jobs list endpoint.
  */
@@ -69,6 +79,8 @@ export interface JobDetail extends Job {
   constraints: string[];
   routing_rules: JsonValue[] | null;
   artifacts: JobArtifact[];
+  upstream_dependencies: JobDependency[];
+  downstream_dependencies: JobDependency[];
   failure_reason: string | null;
   blocked_reason: string | null;
   unblock_reason: string | null;

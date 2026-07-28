@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
+from forkflux_api.jobs.constants import DependencyTypeEnum, JobStatusEnum
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.factories import (
     AgentIdentityFactory,
     HandoffJobFactory,
     JobArtifactFactory,
+    JobDependencyFactory,
     JobEventFactory,
     TargetRoleFactory,
 )
@@ -190,6 +192,76 @@ async def test_ui_get_job_returns_parent_job_summary(
     assert payload["parent_job_summary"] == "Parent job for UI detail"
 
 
+async def test_ui_get_job_returns_upstream_and_downstream_dependencies(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    target_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ui-get-dependency-role",
+        role_label="UI Get Dependency Role",
+    )
+    source_agent = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="ui-get-dependency-source",
+    )
+    upstream_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Upstream dependency job",
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.COMPLETED,
+    )
+    job = await HandoffJobFactory.create(
+        db_session,
+        summary="Selected dependency job",
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+    )
+    downstream_job = await HandoffJobFactory.create(
+        db_session,
+        summary="Downstream dependency job",
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        status=JobStatusEnum.PENDING,
+    )
+    await JobDependencyFactory.create(
+        db_session,
+        upstream_job_id=upstream_job.id,
+        downstream_job_id=job.id,
+        dep_type=DependencyTypeEnum.BLOCKS,
+    )
+    await JobDependencyFactory.create(
+        db_session,
+        upstream_job_id=job.id,
+        downstream_job_id=downstream_job.id,
+        dep_type=DependencyTypeEnum.REOPEN_OF,
+    )
+
+    response = await client.get(f"/api/v1/ui/jobs/{job.id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["upstream_dependencies"] == [
+        {
+            "job_id": upstream_job.id,
+            "summary": "Upstream dependency job",
+            "status": "completed",
+            "target_role_label": target_role.role_label,
+            "dependency_type": "blocks",
+        }
+    ]
+    assert payload["downstream_dependencies"] == [
+        {
+            "job_id": downstream_job.id,
+            "summary": "Downstream dependency job",
+            "status": "pending",
+            "target_role_label": target_role.role_label,
+            "dependency_type": "reopen_of",
+        }
+    ]
+
+
 async def test_ui_get_job_returns_empty_artifacts_and_events_when_none_exist(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -216,3 +288,5 @@ async def test_ui_get_job_returns_empty_artifacts_and_events_when_none_exist(
 
     assert payload["artifacts"] == []
     assert payload["events"] == []
+    assert payload["upstream_dependencies"] == []
+    assert payload["downstream_dependencies"] == []
