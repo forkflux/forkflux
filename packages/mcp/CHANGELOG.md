@@ -1,3 +1,23 @@
+## [0.5.0] - 2026-07-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Change api base url
+
+### 🏗️ Build System
+
+- Update dependencies
+
+### 📚 Documentation
+
+- Refactoring
+
+### 🚀 Features
+
+- Add option to unblock job
+- Add reopen job tools
+- Add `update_job` mcp tool
+
 ## [0.4.0] - 2026-07-17
 
 ### 🐛 Bug Fixes
