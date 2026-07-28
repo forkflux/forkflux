@@ -4,7 +4,7 @@ import { Paginator } from '../../components/Paginator/Paginator'
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import { useJobListParams } from '../../hooks/useJobListParams/useJobListParams'
 import { formatAssignee, formatDate } from '../../lib/jobs/jobs'
-import { jobService } from '../../services/jobService'
+import { jobService } from '@job-service'
 import type { Job, JobListMeta, JobSortField, StatusCount } from '../../types/job'
 import './JobListPage.scss'
 

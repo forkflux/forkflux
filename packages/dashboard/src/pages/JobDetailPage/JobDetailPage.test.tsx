@@ -15,7 +15,7 @@ const { mockService } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('../../services/jobService', () => ({
+vi.mock('@job-service', () => ({
   jobService: mockService,
 }))
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { formatDate, slugifyRoleKey } from '../../lib/jobs/jobs'
-import { jobService } from '../../services/jobService'
+import { jobService } from '@job-service'
 import type { Role } from '../../types/job'
 import './RolesPage.scss'
 

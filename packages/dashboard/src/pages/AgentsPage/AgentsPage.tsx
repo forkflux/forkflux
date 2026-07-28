@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { formatDate } from '../../lib/jobs/jobs'
-import { jobService } from '../../services/jobService'
+import { jobService } from '@job-service'
 import type {
   Agent,
   CreateAgentResponse,
