@@ -259,58 +259,68 @@
     margin-bottom: 8px;
   }
 
-  // Timeline
-  &__timeline {
+  // Events
+  &__events {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    padding-left: 4px;
+    gap: 8px;
   }
 
-  &__timeline-item {
-    display: flex;
-    gap: 12px;
-    padding-bottom: 20px;
-    position: relative;
+  &__event {
+    background: var(--ff-card-bg);
+    border: 1px solid var(--ff-page-border);
+    border-radius: var(--ff-radius);
+  }
 
-    &:not(:last-child)::before {
-      content: '';
-      position: absolute;
-      left: 5px;
-      top: 14px;
-      bottom: 0;
-      width: 2px;
-      background: var(--ff-page-border);
+  &__event-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+
+    &:hover {
+      .ff-detail__artifact-chevron {
+        border-left-color: var(--ff-color-primary-hover);
+      }
     }
   }
 
-  &__timeline-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--ff-color-primary);
-    border: 2px solid var(--ff-card-bg);
-    box-shadow: 0 0 0 2px var(--ff-color-primary);
-    flex-shrink: 0;
-    margin-top: 3px;
-    z-index: 1;
+  &__event-header[aria-expanded='true'] &__artifact-chevron {
+    transform: rotate(90deg);
   }
 
-  &__timeline-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  &__timeline-label {
-    font-size: 0.875rem;
+  &__event-type {
+    font-size: 0.8125rem;
     font-weight: 600;
     color: var(--ff-page-text);
+    text-transform: capitalize;
+    min-width: 80px;
   }
 
-  &__timeline-time {
+  &__event-actor {
     font-size: 0.8125rem;
+    font-family: var(--ff-mono);
     color: var(--ff-page-text-muted);
+  }
+
+  &__event-time {
+    font-size: 0.75rem;
+    color: var(--ff-page-text-muted);
+    margin-left: auto;
+  }
+
+  &__event-payload {
+    padding: 0 16px 12px;
+    border-top: 1px solid var(--ff-page-border);
+    padding-top: 12px;
   }
 
   // Unblock button (header, visible only on blocked jobs)

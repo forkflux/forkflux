@@ -12,7 +12,6 @@
 
 import type {
   Job,
-  JobDetail,
   JobFilters,
   JobSortField,
   JobStatus,
@@ -194,6 +193,17 @@ export function formatAssignee(label: string | null): string {
 }
 
 /**
+ * Format an event type string (e.g. "task_published") into a human-readable
+ * label (e.g. "Published").
+ */
+export function formatEventType(eventType: string): string {
+  return eventType
+    .replace(/^task_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
  * Format a byte size into a human-readable string (e.g. "1.2 MB").
  */
 export function formatBytes(bytes: number): string {
@@ -202,38 +212,6 @@ export function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-// ---------------------------------------------------------------------------
-// Timeline
-// ---------------------------------------------------------------------------
-
-export interface TimelineEvent {
-  label: string;
-  timestamp: string | null;
-}
-
-/**
- * Build a timeline of lifecycle events from a job detail, preserving
- * chronological order. Only non-null timestamps are included.
- */
-export function getTimeline(detail: JobDetail): TimelineEvent[] {
-  const entries: TimelineEvent[] = [
-    { label: 'Created', timestamp: detail.created_at },
-    { label: 'Published', timestamp: detail.published_at },
-    { label: 'Claimed', timestamp: detail.claimed_at },
-    { label: 'Started', timestamp: detail.started_at },
-    { label: 'Completed', timestamp: detail.completed_at },
-    { label: 'Failed', timestamp: detail.failed_at },
-    { label: 'Blocked', timestamp: detail.blocked_at },
-    { label: 'Unblocked', timestamp: detail.unblocked_at },
-    { label: 'Cancelled', timestamp: detail.cancelled_at },
-    { label: 'Expires', timestamp: detail.expires_at },
-  ];
-
-  return entries
-    .filter((e) => e.timestamp)
-    .sort((a, b) => (a.timestamp ?? '').localeCompare(b.timestamp ?? ''));
 }
 
 // ---------------------------------------------------------------------------

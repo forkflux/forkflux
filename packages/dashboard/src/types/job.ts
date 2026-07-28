@@ -34,6 +34,15 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+/** A single event in a job's lifecycle audit trail. */
+export interface JobEvent {
+  event_type: string;
+  current_status: JobStatus;
+  actor_agent_label: string | null;
+  payload_json: JsonValue;
+  created_at: string;
+}
+
 /** A single artifact produced by a job. */
 export interface JobArtifact {
   type: string;
@@ -79,6 +88,7 @@ export interface JobDetail extends Job {
   constraints: string[];
   routing_rules: JsonValue[] | null;
   artifacts: JobArtifact[];
+  events: JobEvent[];
   upstream_dependencies: JobDependency[];
   downstream_dependencies: JobDependency[];
   failure_reason: string | null;
