@@ -8,6 +8,7 @@ from forkflux_api.jobs.exceptions import HandoffJobConflictError, HandoffJobNotF
 from forkflux_api.jobs.services import HandoffJobService
 from forkflux_api.jobs.ui_schemas import (
     JobArtifactUiItem,
+    JobDependencyUiItem,
     JobEventUiItem,
     JobStatusCountsResponse,
     JobUiDetailItem,
@@ -82,6 +83,8 @@ async def get_job(
     job = entity["job"]
     artifacts = entity["artifacts"]
     events = entity["events"]
+    upstream_dependencies = entity["upstream_dependencies"]
+    downstream_dependencies = entity["downstream_dependencies"]
 
     return JobUiDetailItem(
         id=job.id,
@@ -121,6 +124,26 @@ async def get_job(
         failure_reason=job.failure_reason,
         blocked_reason=job.blocked_reason,
         unblock_reason=job.unblock_reason,
+        upstream_dependencies=[
+            JobDependencyUiItem(
+                job_id=dependency.job_id,
+                summary=dependency.summary,
+                status=dependency.status,
+                target_role_label=dependency.target_role_label,
+                dependency_type=dependency.dependency_type,
+            )
+            for dependency in upstream_dependencies
+        ],
+        downstream_dependencies=[
+            JobDependencyUiItem(
+                job_id=dependency.job_id,
+                summary=dependency.summary,
+                status=dependency.status,
+                target_role_label=dependency.target_role_label,
+                dependency_type=dependency.dependency_type,
+            )
+            for dependency in downstream_dependencies
+        ],
         published_at=job.published_at,
         claimed_at=job.claimed_at,
         started_at=job.started_at,

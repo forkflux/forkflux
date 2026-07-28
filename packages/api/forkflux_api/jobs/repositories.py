@@ -19,6 +19,7 @@ from forkflux_api.jobs.dto import (
     HandoffJobUpdate,
     JobArtifactCreate,
     JobDependencyCreate,
+    JobDependencyUiItem,
     JobEventCreate,
     JobEventUiItem,
     RoutingRuleCreate,
@@ -781,6 +782,52 @@ class JobDependencyRepository:
             raise JobDependencyConflictError from err
 
         return dependencies
+
+    async def ui_list_for_job(self, job_id: int) -> tuple[list[JobDependencyUiItem], list[JobDependencyUiItem]]:
+        log = self._logger.bind(method="ui_list_for_job", job_id=job_id)
+        log.info("operation_started")
+
+        upstream_job = aliased(HandoffJob, name="ui_dependency_upstream_job")
+        upstream_stmt = (
+            select(
+                upstream_job.id.label("job_id"),
+                upstream_job.summary.label("summary"),
+                upstream_job.status.label("status"),
+                TARGET_ROLE_TABLE.c.role_label.label("target_role_label"),
+                JobDependency.dep_type.label("dependency_type"),
+            )
+            .join(upstream_job, JobDependency.upstream_job_id == upstream_job.id)
+            .join(TARGET_ROLE_TABLE, upstream_job.target_role_id == TARGET_ROLE_TABLE.c.id)
+            .where(JobDependency.downstream_job_id == job_id)
+            .order_by(JobDependency.id.asc())
+        )
+
+        downstream_job = aliased(HandoffJob, name="ui_dependency_downstream_job")
+        downstream_stmt = (
+            select(
+                downstream_job.id.label("job_id"),
+                downstream_job.summary.label("summary"),
+                downstream_job.status.label("status"),
+                TARGET_ROLE_TABLE.c.role_label.label("target_role_label"),
+                JobDependency.dep_type.label("dependency_type"),
+            )
+            .join(downstream_job, JobDependency.downstream_job_id == downstream_job.id)
+            .join(TARGET_ROLE_TABLE, downstream_job.target_role_id == TARGET_ROLE_TABLE.c.id)
+            .where(JobDependency.upstream_job_id == job_id)
+            .order_by(JobDependency.id.asc())
+        )
+
+        upstream_result = await self._session.execute(upstream_stmt)
+        downstream_result = await self._session.execute(downstream_stmt)
+        upstream = [JobDependencyUiItem(**row._mapping) for row in upstream_result]
+        downstream = [JobDependencyUiItem(**row._mapping) for row in downstream_result]
+
+        log.info(
+            "operation_completed",
+            upstream_dependency_count=len(upstream),
+            downstream_dependency_count=len(downstream),
+        )
+        return upstream, downstream
 
     async def find_downstream_pending_job_ids(self, upstream_job_id: int) -> list[int]:
         """Find PENDING downstream job IDs that have a BLOCKS edge from the given upstream job."""

@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from forkflux_api.jobs.constants import JobPriorityEnum, JobStatusEnum
+from forkflux_api.jobs.constants import DependencyTypeEnum, JobPriorityEnum, JobStatusEnum
 
 
 class JobUiListItem(BaseModel):
@@ -59,6 +59,16 @@ class JobEventUiItem(BaseModel):
     created_at: datetime
 
 
+class JobDependencyUiItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: int
+    summary: str
+    status: JobStatusEnum
+    target_role_label: str
+    dependency_type: DependencyTypeEnum
+
+
 class JobUiDetailItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,6 +92,8 @@ class JobUiDetailItem(BaseModel):
     failure_reason: str | None
     blocked_reason: str | None
     unblock_reason: str | None
+    upstream_dependencies: list[JobDependencyUiItem]
+    downstream_dependencies: list[JobDependencyUiItem]
 
     published_at: datetime | None
     claimed_at: datetime | None

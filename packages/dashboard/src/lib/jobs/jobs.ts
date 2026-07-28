@@ -59,6 +59,7 @@ export function getStatusCounts(jobs: Job[]): StatusCount[] {
  * so a stale list degrades gracefully rather than hiding statuses.
  */
 export const JOB_STATUS_ORDER: readonly JobStatus[] = [
+  'pending',
   'published',
   'claimed',
   'in_progress',

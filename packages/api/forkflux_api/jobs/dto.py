@@ -117,6 +117,8 @@ class HandoffJobWithArtifactsAndEvents(TypedDict):
     job: HandoffJobUiDetailItem
     artifacts: list[JobArtifact]
     events: list[JobEventUiItem]
+    upstream_dependencies: list[JobDependencyUiItem]
+    downstream_dependencies: list[JobDependencyUiItem]
 
 
 @dataclass(slots=True)
@@ -199,6 +201,15 @@ class JobEventUiItem:
 
 
 @dataclass(slots=True)
+class JobDependencyUiItem:
+    job_id: int
+    summary: str
+    status: JobStatusEnum
+    target_role_label: str
+    dependency_type: DependencyTypeEnum
+
+
+@dataclass(slots=True)
 class HandoffJobUiDetailItem:
     id: int
     parent_job_id: int | None
@@ -228,3 +239,5 @@ class HandoffJobUiDetailItem:
     expires_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    upstream_dependencies: list[JobDependencyUiItem] = field(default_factory=list)
+    downstream_dependencies: list[JobDependencyUiItem] = field(default_factory=list)

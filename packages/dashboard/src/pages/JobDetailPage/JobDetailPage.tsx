@@ -259,6 +259,30 @@ export function JobDetailPage() {
         </section>
       )}
 
+      {/* Dependencies */}
+      <section className="ff-detail__section" aria-labelledby="dependencies-heading">
+        <h2 id="dependencies-heading">Dependencies</h2>
+        {detail.upstream_dependencies.length === 0 &&
+        detail.downstream_dependencies.length === 0 ? (
+          <p className="ff-detail__empty">No related dependencies.</p>
+        ) : (
+          <div className="ff-detail__dependencies">
+            {detail.upstream_dependencies.length > 0 && (
+              <div>
+                <h3 className="ff-detail__subheading">Upstream dependencies</h3>
+                <DependencyList dependencies={detail.upstream_dependencies} />
+              </div>
+            )}
+            {detail.downstream_dependencies.length > 0 && (
+              <div>
+                <h3 className="ff-detail__subheading">Downstream dependencies</h3>
+                <DependencyList dependencies={detail.downstream_dependencies} />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Artifacts */}
       {detail.artifacts.length > 0 && (
         <section className="ff-detail__section">
@@ -369,5 +393,35 @@ export function JobDetailPage() {
         </form>
       </Drawer>
     </div>
+  )
+}
+
+function DependencyList({
+  dependencies,
+}: {
+  dependencies: JobDetail['upstream_dependencies']
+}) {
+  const TYPE_LABEL: Record<string, string> = {
+    blocks: 'Blocks',
+    reopen_of: 'Reopen of',
+  }
+
+  return (
+    <ul className="ff-detail__dependency-list">
+      {dependencies.map((dependency) => (
+        <li key={`${dependency.job_id}-${dependency.dependency_type}`} className="ff-detail__dependency">
+          <Link to={`/jobs/${dependency.job_id}`} className="ff-detail__dependency-link">
+            #{dependency.job_id} {dependency.summary}
+          </Link>
+          <span className="ff-detail__dependency-meta">
+            <StatusBadge status={dependency.status} />
+            {' · '}
+            {dependency.target_role_label}
+            {' · '}
+            {TYPE_LABEL[dependency.dependency_type] ?? dependency.dependency_type}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

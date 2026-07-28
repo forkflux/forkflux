@@ -91,8 +91,12 @@ function applyOverlayToJob(job: Job): Job {
  */
 function applyOverlayToDetail(detail: JobDetail): JobDetail {
   const overlay = jobOverlay.get(detail.id);
-  if (!overlay) return detail;
-  return { ...detail, ...overlay };
+  return {
+    ...detail,
+    upstream_dependencies: detail.upstream_dependencies ?? [],
+    downstream_dependencies: detail.downstream_dependencies ?? [],
+    ...overlay,
+  };
 }
 
 /**
@@ -159,7 +163,7 @@ export const mockDataSource: JobDataSource = {
 
   /**
    * Global job counts per status over the full mock dataset. Mirrors the
-   * backend `count_by_status` contract: all 7 statuses are present,
+   * backend `count_by_status` contract: all 9 statuses are present,
    * initialized to 0 when there are no jobs in that state.
    *
    * Applies the in-memory overlay so counts reflect mutations (e.g. a job
