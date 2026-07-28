@@ -8,12 +8,11 @@ import {
   formatDate,
   getDistinctStatuses,
   getStatusCounts,
-  getTimeline,
   slugifyRoleKey,
   sortJobs,
   toStatusCounts,
 } from './jobs'
-import type { Job, JobDetail } from '../../types/job'
+import type { Job } from '../../types/job'
 
 // ---------------------------------------------------------------------------
 // Helpers — build minimal Job objects for tests
@@ -33,30 +32,6 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     retry_count: 0,
     max_retries: 3,
     created_at: '2026-01-01T00:00:00Z',
-    ...overrides,
-  }
-}
-
-function makeDetail(overrides: Partial<JobDetail> = {}): JobDetail {
-  return {
-    ...makeJob(overrides),
-    context_payload: {},
-    constraints: [],
-    routing_rules: null,
-    artifacts: [],
-    failure_reason: null,
-    blocked_reason: null,
-    unblock_reason: null,
-    published_at: null,
-    claimed_at: null,
-    started_at: null,
-    completed_at: null,
-    failed_at: null,
-    blocked_at: null,
-    unblocked_at: null,
-    cancelled_at: null,
-    expires_at: null,
-    updated_at: '2026-01-01T00:00:00Z',
     ...overrides,
   }
 }
@@ -381,77 +356,6 @@ describe('formatBytes', () => {
 
   it('uses 0 decimal places for values >= 100', () => {
     expect(formatBytes(100 * 1024)).toBe('100 KB')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// getTimeline
-// ---------------------------------------------------------------------------
-
-describe('getTimeline', () => {
-  it('includes only non-null timestamps', () => {
-    const detail = makeDetail({
-      created_at: '2026-01-01T00:00:00Z',
-      published_at: '2026-01-02T00:00:00Z',
-      claimed_at: null,
-      started_at: '2026-01-03T00:00:00Z',
-      completed_at: null,
-      failed_at: null,
-      blocked_at: null,
-      cancelled_at: null,
-      expires_at: null,
-    })
-    const timeline = getTimeline(detail)
-    const labels = timeline.map((e) => e.label)
-    expect(labels).toEqual(['Created', 'Published', 'Started'])
-  })
-
-  it('sorts events chronologically by timestamp', () => {
-    const detail = makeDetail({
-      created_at: '2026-03-01T00:00:00Z',
-      published_at: '2026-01-01T00:00:00Z',
-      started_at: '2026-02-01T00:00:00Z',
-    })
-    const timeline = getTimeline(detail)
-    expect(timeline.map((e) => e.label)).toEqual([
-      'Published',
-      'Started',
-      'Created',
-    ])
-  })
-
-  it('returns empty array when all timestamps are null', () => {
-    const detail = makeDetail({
-      created_at: '2026-01-01T00:00:00Z',
-      published_at: null,
-      claimed_at: null,
-      started_at: null,
-      completed_at: null,
-      failed_at: null,
-      blocked_at: null,
-      cancelled_at: null,
-      expires_at: null,
-    })
-    // created_at is always non-null in Job, so it will be included
-    const timeline = getTimeline(detail)
-    expect(timeline).toHaveLength(1)
-    expect(timeline[0].label).toBe('Created')
-  })
-
-  it('includes all events when all timestamps are set', () => {
-    const detail = makeDetail({
-      created_at: '2026-01-01T00:00:00Z',
-      published_at: '2026-01-02T00:00:00Z',
-      claimed_at: '2026-01-03T00:00:00Z',
-      started_at: '2026-01-04T00:00:00Z',
-      completed_at: '2026-01-05T00:00:00Z',
-      failed_at: '2026-01-06T00:00:00Z',
-      blocked_at: '2026-01-07T00:00:00Z',
-      cancelled_at: '2026-01-08T00:00:00Z',
-      expires_at: '2026-01-09T00:00:00Z',
-    })
-    const timeline = getTimeline(detail)
-    expect(timeline).toHaveLength(9)
   })
 })
 

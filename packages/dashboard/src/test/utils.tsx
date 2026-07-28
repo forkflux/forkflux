@@ -165,6 +165,7 @@ export function createMockJobDetail(overrides: Partial<JobDetail> = {}): JobDeta
     constraints: ['Constraint one', 'Constraint two'],
     routing_rules: null,
     artifacts: [],
+    events: [],
     upstream_dependencies: [],
     downstream_dependencies: [],
     failure_reason: null,

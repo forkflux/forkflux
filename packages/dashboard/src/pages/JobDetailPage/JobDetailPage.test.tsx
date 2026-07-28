@@ -262,7 +262,7 @@ describe('JobDetailPage', () => {
       setDetailResponse(detail)
       renderDetailPage('/jobs/1')
       await waitFor(() => {
-        expect(screen.getByText('Timeline')).toBeInTheDocument()
+        expect(screen.getByText('Events')).toBeInTheDocument()
       })
       expect(screen.queryByText('Constraints')).not.toBeInTheDocument()
     })
@@ -320,21 +320,75 @@ describe('JobDetailPage', () => {
     })
   })
 
-  describe('timeline', () => {
-    it('renders timeline section with events', async () => {
+  describe('events', () => {
+    it('renders events section with event cards', async () => {
       const detail = createMockJobDetail({
         id: 1,
-        created_at: '2026-01-01T00:00:00Z',
-        published_at: '2026-01-02T00:00:00Z',
-        started_at: '2026-01-03T00:00:00Z',
+        events: [
+          {
+            event_type: 'task_published',
+            current_status: 'published',
+            actor_agent_label: 'claude-code',
+            payload_json: { priority: 20 },
+            created_at: '2026-01-01T00:00:00Z',
+          },
+          {
+            event_type: 'task_started',
+            current_status: 'in_progress',
+            actor_agent_label: 'codex-cli',
+            payload_json: { timestamp: '2026-01-02T00:00:00Z' },
+            created_at: '2026-01-02T00:00:00Z',
+          },
+        ],
       })
       setDetailResponse(detail)
       renderDetailPage('/jobs/1')
       await waitFor(() => {
-        expect(screen.getAllByText('Timeline').length).toBeGreaterThan(0)
-        expect(screen.getAllByText('Created').length).toBeGreaterThan(0)
+        expect(screen.getByText('Events')).toBeInTheDocument()
+        expect(screen.getAllByText('Published').length).toBeGreaterThan(0)
         expect(screen.getAllByText('Started').length).toBeGreaterThan(0)
       })
+    })
+
+    it('shows empty state when no events exist', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        events: [],
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+      await waitFor(() => {
+        expect(screen.getByText('No events recorded.')).toBeInTheDocument()
+      })
+    })
+
+    it('toggles event payload visibility on click', async () => {
+      const detail = createMockJobDetail({
+        id: 1,
+        events: [
+          {
+            event_type: 'task_published',
+            current_status: 'published',
+            actor_agent_label: 'claude-code',
+            payload_json: { priority: 20, target_role_id: 1 },
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      })
+      setDetailResponse(detail)
+      renderDetailPage('/jobs/1')
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Published').length).toBeGreaterThan(0)
+      })
+
+      // The event-type span is inside the button; find it by its class
+      const eventTypeSpan = document.querySelector('.ff-detail__event-type')!
+      const eventButton = eventTypeSpan.closest('button')!
+      expect(eventButton).toHaveAttribute('aria-expanded', 'false')
+
+      fireEvent.click(eventButton)
+      expect(eventButton).toHaveAttribute('aria-expanded', 'true')
     })
   })
 
@@ -383,7 +437,7 @@ describe('JobDetailPage', () => {
       setDetailResponse(detail)
       renderDetailPage('/jobs/1')
       await waitFor(() => {
-        expect(screen.getByText('Timeline')).toBeInTheDocument()
+        expect(screen.getByText('Events')).toBeInTheDocument()
       })
       expect(screen.queryByText('Parent Job')).not.toBeInTheDocument()
     })
@@ -613,7 +667,7 @@ describe('JobDetailPage', () => {
       })
     })
 
-    it('renders Unblocked in the timeline when unblocked_at is set', async () => {
+    it('renders Unblocked status badge when status is unblocked', async () => {
       const detail = createMockJobDetail({
         id: 1,
         status: 'unblocked',
@@ -625,7 +679,6 @@ describe('JobDetailPage', () => {
       renderDetailPage('/jobs/1')
 
       await waitFor(() => {
-        // Timeline label "Unblocked" should appear
         const allUnblocked = screen.getAllByText('Unblocked')
         expect(allUnblocked.length).toBeGreaterThanOrEqual(1)
       })

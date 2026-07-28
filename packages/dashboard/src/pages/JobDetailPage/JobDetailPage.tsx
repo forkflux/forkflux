@@ -4,11 +4,7 @@ import { StatusBadge } from '../../components/StatusBadge/StatusBadge'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { JsonGrid } from '../../components/JsonGrid/JsonGrid'
 import { jobService } from '@job-service'
-import {
-  formatAssignee,
-  formatDate,
-  getTimeline,
-} from '../../lib/jobs/jobs'
+import { formatAssignee, formatDate, formatEventType } from '../../lib/jobs/jobs'
 import type { JobDetail, JsonValue } from '../../types/job'
 import './JobDetailPage.scss'
 
@@ -21,6 +17,7 @@ export function JobDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [contextOpen, setContextOpen] = useState(false)
   const [openArtifacts, setOpenArtifacts] = useState<Set<number>>(new Set())
+  const [openEvents, setOpenEvents] = useState<Set<number>>(new Set())
   const [openRoutingRules, setOpenRoutingRules] = useState<Set<number>>(new Set())
 
   // Unblock form state
@@ -31,6 +28,18 @@ export function JobDetailPage() {
 
   const toggleArtifact = (index: number) => {
     setOpenArtifacts((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const toggleEvent = (index: number) => {
+    setOpenEvents((prev) => {
       const next = new Set(prev)
       if (next.has(index)) {
         next.delete(index)
@@ -143,8 +152,6 @@ export function JobDetailPage() {
       </div>
     )
   }
-
-  const timeline = getTimeline(detail)
 
   return (
     <div className="ff-detail">
@@ -385,24 +392,45 @@ export function JobDetailPage() {
         </section>
       )}
 
-      {/* Timeline */}
+      {/* Events */}
       <section className="ff-detail__section">
-        <h2>Timeline</h2>
-        <div className="ff-detail__timeline">
-          {timeline.map((event, i) => (
-            <div key={i} className="ff-detail__timeline-item">
-              <div className="ff-detail__timeline-dot" />
-              <div className="ff-detail__timeline-content">
-                <span className="ff-detail__timeline-label">
-                  {event.label}
-                </span>
-                <span className="ff-detail__timeline-time">
-                  {formatDate(event.timestamp)}
-                </span>
+        <h2>Events</h2>
+        {detail.events.length === 0 ? (
+          <p className="ff-detail__empty">No events recorded.</p>
+        ) : (
+          <div className="ff-detail__events">
+            {detail.events.map((event, i) => (
+              <div key={i} className="ff-detail__event">
+                <button
+                  type="button"
+                  className="ff-detail__event-header"
+                  aria-expanded={openEvents.has(i)}
+                  onClick={() => toggleEvent(i)}
+                >
+                  <span className="ff-detail__event-type">
+                    {formatEventType(event.event_type)}
+                  </span>
+                  <StatusBadge status={event.current_status} />
+                  <span className="ff-detail__event-actor">
+                    {event.actor_agent_label ?? '—'}
+                  </span>
+                  <span className="ff-detail__event-time">
+                    {formatDate(event.created_at)}
+                  </span>
+                  <span
+                    className="ff-detail__artifact-chevron"
+                    aria-hidden="true"
+                  />
+                </button>
+                {openEvents.has(i) && (
+                  <div className="ff-detail__event-payload">
+                    <JsonGrid data={event.payload_json} />
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Context payload drawer */}
