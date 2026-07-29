@@ -95,6 +95,20 @@ curl -i http://127.0.0.1:8000/api/v1/health
 
 A healthy API returns `204 No Content`.
 
+### Complete first-launch dashboard onboarding
+
+Open the dashboard at `http://127.0.0.1:8000`. On a new database, the dashboard redirects the first visit to `/onboarding` before showing the Jobs dashboard.
+
+The onboarding page guides you through the initial configuration:
+
+1. **Add workflow roles.** Create at least one role. Use a short, stable role key such as `developer` or `qa`, and provide a readable role label such as `Developer` or `QA Engineer`.
+2. **Add agents.** Register an agent for each assistant identity, select the roles that the agent can receive, and create the agent. The API token is shown only once after creation; copy it immediately and save it in the assistant's secure MCP configuration.
+3. **Complete setup.** Review the configured roles and agents and finish setup. ForkFlux then takes you to the Jobs dashboard.
+
+Until setup is completed, dashboard routes redirect back to the onboarding page. Once onboarding is complete, use the **Roles** and **Agents** pages to add or manage additional workflow identities.
+
+The dashboard onboarding flow is an alternative to the deprecated role and agent CLI commands. MCP tools can also create roles and agents when you need to automate provisioning.
+
 ### Configure MCP clients for a hosted API
 
 After the API is reachable, configure each assistant's MCP server with the hosted API URL and that assistant's agent token:
@@ -165,16 +179,13 @@ The Compose example runs migrations in a dedicated `migrate` service and starts 
 
 ### Roles and agents
 
-Create roles and agents with the CLI after the API database is initialized:
+:::warning Deprecated
 
-```bash
-forkflux agents-role add developer "Developer"
-forkflux agents-role add qa "QA Engineer"
-forkflux agent add "Developer Agent" developer
-forkflux agent add "QA Agent" qa
-```
+The `forkflux agents-role` and `forkflux agent` CLI commands are deprecated. Create roles, register agents, and generate tokens through the ForkFlux dashboard UI or MCP tools instead.
 
-Save the returned API tokens securely. You will use them as `FORKFLUX_API_KEY` values in MCP client configurations.
+:::
+
+Create roles and agents through the dashboard onboarding flow described above, or use the MCP tools for automated provisioning. Save each generated API token securely; you will use it as the `FORKFLUX_API_KEY` value in that agent's MCP client configuration.
 
 ## Security
 
@@ -190,6 +201,12 @@ ForkFlux carries structured execution context for AI agents. Treat the API, data
 - Rotate tokens after suspected exposure.
 
 Revoke an agent token with:
+
+:::warning Deprecated
+
+The `forkflux agent revoke-token` command is deprecated. Use the ForkFlux dashboard UI to manage agent tokens.
+
+:::
 
 ```bash
 forkflux agent revoke-token <agent_id>

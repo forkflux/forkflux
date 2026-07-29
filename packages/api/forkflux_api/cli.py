@@ -231,7 +231,7 @@ def init() -> None:
     _apply_migrations(db_scope=None)
 
 
-@app.command(help="Show handoff statistics snapshot")
+@app.command(help="Show handoff statistics snapshot", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def stats(
     window_hours: int = typer.Option(24, min=1, help="Metrics window in hours"),
@@ -370,7 +370,7 @@ def quickstart(
     console.print("uvx --from forkflux-api forkflux serve", style="bold green")
 
 
-@agents_role_app.command("list")
+@agents_role_app.command("list", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def list_roles() -> None:
     _configure_cli_logging()
@@ -386,7 +386,7 @@ async def list_roles() -> None:
     console.print(table)
 
 
-@agents_role_app.command("add")
+@agents_role_app.command("add", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def add_role(role_key: str, role_label: str) -> TargetRole:
     """
@@ -407,7 +407,7 @@ async def add_role(role_key: str, role_label: str) -> TargetRole:
     return new_role
 
 
-@agents_role_app.command("delete")
+@agents_role_app.command("delete", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def delete_role(role_key: str) -> None:
     """
@@ -432,7 +432,7 @@ async def delete_role(role_key: str) -> None:
             console.print(f"Role with key {role_key} not found", style="bold red")
 
 
-@agent_app.command("list")
+@agent_app.command("list", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def list_agents() -> None:
     _configure_cli_logging()
@@ -463,7 +463,7 @@ async def list_agents() -> None:
         console.print(table)
 
 
-@agent_app.command("add")
+@agent_app.command("add", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def add_agent(agent_label: str, tool_family: str | None = None) -> tuple[AgentIdentity, str] | None:
     """
@@ -499,7 +499,7 @@ async def add_agent(agent_label: str, tool_family: str | None = None) -> tuple[A
     return new_agent, new_token
 
 
-@agent_app.command("assign-role")
+@agent_app.command("assign-role", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def assign_agent_role(agent_id: int, role_key: str) -> None:
     """
@@ -529,7 +529,7 @@ async def assign_agent_role(agent_id: int, role_key: str) -> None:
             console.print(f"Role {role_key} is already assigned to agent {agent_id}", style="bold red")
 
 
-@agent_app.command("unassign-role")
+@agent_app.command("unassign-role", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def unassign_agent_role(agent_id: int, role_key: str) -> None:
     """
@@ -559,7 +559,7 @@ async def unassign_agent_role(agent_id: int, role_key: str) -> None:
             console.print(f"Role {role_key} is not assigned to agent {agent_id}", style="bold red")
 
 
-@agent_app.command("revoke-token")
+@agent_app.command("revoke-token", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def agent_revoke_token(agent_id: int) -> None:
     """
@@ -574,7 +574,7 @@ async def agent_revoke_token(agent_id: int) -> None:
         console.print(f"API key for agent {agent_id} revoked successfully")
 
 
-@job_app.command("list")
+@job_app.command("list", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target_role_key: str | None = None) -> None:
     _configure_cli_logging()
@@ -627,7 +627,7 @@ async def list_jobs(limit: int = 50, status: JobStatusEnum | None = None, target
     console.print(table)
 
 
-@job_app.command("details")
+@job_app.command("details", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def job_details(job_id: int) -> None:
     _configure_cli_logging()
@@ -655,7 +655,7 @@ async def job_details(job_id: int) -> None:
     console.print_json(response_model.model_dump_json(indent=2))
 
 
-@job_app.command("delete")
+@job_app.command("delete", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def delete_job(job_id: int) -> None:
     _configure_cli_logging()
@@ -693,7 +693,7 @@ async def delete_job(job_id: int) -> None:
     console.print(f"Job {job_id} deleted successfully")
 
 
-@job_app.command("change-status")
+@job_app.command("change-status", deprecated=True)
 @lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
 async def change_job_status(
     job_id: int,

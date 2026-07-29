@@ -12,7 +12,13 @@ import TabItem from '@theme/TabItem';
 
 Manual setup gives you full control over the ForkFlux collaboration bus: database initialization, role names, agent identities, API tokens, MCP client configuration, and workflow helper installation.
 
-Use this page when you want more control than the zero-config flow in [Quickstart](quickstart.md), when your assistant is not detected by `forkflux quickstart`, or when you are preparing a shared environment.
+Use this page when you want more control than the zero-config flow in [Quickstart](quickstart.md), when your assistant is not detected by `forkflux quickstart`, or when you are preparing a shared environment. After the API starts, you can create roles and agents either in the dashboard's first-launch onboarding flow or with the MCP tools.
+
+:::warning Deprecated CLI commands
+
+The role, agent, and job management CLI commands used throughout this guide (`forkflux agents-role *`, `forkflux agent *`, `forkflux job *`) are deprecated. Use the ForkFlux dashboard or MCP tools to create roles, register agents, generate tokens, and manage jobs instead. The `forkflux init` and `forkflux serve` commands remain supported.
+
+:::
 
 ## Prerequisites
 
@@ -62,7 +68,23 @@ This applies the database migrations required by the API.
 
 If you prefer a containerized setup, run the API and PostgreSQL through Docker Compose instead. The Compose path runs migrations in a dedicated service before starting the API. See [Self-Hosting](self-hosting.md) for the full Docker Compose example and production configuration notes.
 
-## 2. Add workflow roles
+## 2. Choose a provisioning path
+
+The current setup path is the dashboard's first-launch onboarding flow. The legacy CLI examples in the next sections are retained for reference and automation that still depends on them.
+
+To use the dashboard, skip the legacy role and agent sections below, continue to [Run the collaboration bus server](#5-run-the-collaboration-bus-server), and then open `http://127.0.0.1:8000`. On the first launch, ForkFlux redirects you to the onboarding page before you can use the Jobs dashboard.
+
+The onboarding flow has three steps:
+
+1. **Add workflow roles.** Create at least one role. A role key is the stable identifier used by jobs, while the role label is the human-readable name shown in the dashboard.
+2. **Add agents.** Register each assistant identity that will connect through MCP, select one or more target roles, and create the agent. The generated API token is displayed only once, so copy it immediately and store it securely.
+3. **Complete setup.** Review the number of configured roles and agents, then finish setup to go to the Jobs dashboard.
+
+The onboarding page also shows the roles and agents already created in the database. If you leave onboarding before completing it, opening another dashboard page redirects you back to `/onboarding` until setup is finished.
+
+After onboarding, use the [MCP Integration](mcp-integration.md) guide to configure each assistant with its agent token. You can manage additional roles and agents later from the dashboard's Roles and Agents pages.
+
+## 3. (Legacy) Add workflow roles with the CLI
 
 Roles define which agents can receive which jobs. Add every role that exists in your handoff workflow, such as Developer, QA, Reviewer, Frontend, Backend, or DevOps.
 
@@ -85,7 +107,7 @@ Example:
 
 Use stable role keys such as `developer` and `qa` in prompts and handoff jobs. Use display names such as `Developer` or `QA Engineer` for readability.
 
-## 3. Register agents, assign roles, and save their API tokens
+## 4. (Legacy) Register agents, assign roles, and save their API tokens
 
 Register one ForkFlux agent for each assistant identity that will connect through MCP. Agent creation generates the API token; role assignment determines which role-targeted jobs the agent can list and claim.
 
@@ -161,7 +183,7 @@ Use one token per assistant identity. Separate tokens keep role filtering, claim
 
 :::
 
-## 4. Run the collaboration bus server
+## 5. Run the collaboration bus server
 
 Start the ForkFlux API server in a terminal you keep open:
 
@@ -186,13 +208,13 @@ http://127.0.0.1:8000/api/v1
 
 If you are using Docker Compose, start the stack instead of running `forkflux serve` directly. See [Self-Hosting](self-hosting.md) for the Compose command, service layout, environment variables, and health check.
 
-## 5. Add the MCP server to your assistant
+## 6. Add the MCP server to your assistant
 
 Configure each assistant to start the ForkFlux MCP server with that assistant's agent token. See [MCP Integration](mcp-integration.md) for client-specific configuration instructions for Claude Code, Cursor, VS Code, Cline, Codex, and other MCP-compatible clients.
 
 Use the token printed when you registered the assistant's ForkFlux agent as `FORKFLUX_API_KEY`.
 
-## 6. Add ForkFlux skills
+## 7. Add ForkFlux skills
 
 Install the ForkFlux skill bundle so compatible assistants can run the sender and receiver workflows consistently:
 
@@ -204,7 +226,7 @@ Reload or restart your assistant after installation so it can discover the skill
 
 For manual installation options and the difference between `forkflux-sender` and `forkflux-receiver`, see [Workflow Helpers](workflow-helpers.md#skills).
 
-## 7. Run your first handoff
+## 8. Run your first handoff
 
 After the API is running, agents are registered, MCP is configured, and skills are installed, you can run your first handoff. See the [Workflow Helpers](workflow-helpers.md) page for guided sender and receiver workflows using skills, commands, or MCP prompts.
 
