@@ -410,7 +410,9 @@ export function JobDetailPage() {
                   <span className="ff-detail__event-type">
                     {formatEventType(event.event_type)}
                   </span>
-                  <StatusBadge status={event.current_status} />
+                  <span>
+                    <StatusBadge status={event.current_status} />
+                  </span>
                   <span className="ff-detail__event-actor">
                     {event.actor_agent_label ?? '—'}
                   </span>

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { Drawer } from './Drawer'
 import { renderWithRouter } from '../../test/utils'
+import '@testing-library/jest-dom/vitest'
 
 describe('Drawer', () => {
   describe('rendering', () => {

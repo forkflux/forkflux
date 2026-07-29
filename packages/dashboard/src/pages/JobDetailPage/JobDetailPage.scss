@@ -273,10 +273,10 @@
   }
 
   &__event-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
     padding: 10px 16px;
     width: 100%;
     background: none;
@@ -291,6 +291,18 @@
         border-left-color: var(--ff-color-primary-hover);
       }
     }
+
+    /* Narrow screens: collapse the 5 equal tracks into a 2-column flow so
+       long actor labels / timestamps do not overflow. The chevron spans the
+       full width and pins to the end of its row. */
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr 1fr;
+
+      .ff-detail__artifact-chevron {
+        grid-column: 1 / -1;
+        justify-self: end;
+      }
+    }
   }
 
   &__event-header[aria-expanded='true'] &__artifact-chevron {
@@ -302,19 +314,29 @@
     font-weight: 600;
     color: var(--ff-page-text);
     text-transform: capitalize;
-    min-width: 80px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__event-actor {
     font-size: 0.8125rem;
     font-family: var(--ff-mono);
     color: var(--ff-page-text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__event-time {
     font-size: 0.75rem;
     color: var(--ff-page-text-muted);
-    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__event-payload {
