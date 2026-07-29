@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Run ForkFlux locally, complete your first AI-assisted workflow handoff, and understand the zero-config demo path.
+description: Run ForkFlux locally with zero-config setup and understand the automated demo path.
 sidebar_position: 2
 slug: /quickstart
 ---
@@ -84,85 +84,16 @@ Open an assistant that `quickstart` connected to ForkFlux and ask it to list ava
 
 If the call succeeds, the assistant is connected to the ForkFlux collaboration bus. It is normal for the first board to be empty because no jobs have been published yet.
 
-## First handoff
+## Next steps
 
-A ForkFlux handoff has two sides:
+After `quickstart` finishes and the API is running, your agents are ready for handoffs. The demo setup creates two agents:
 
-- **Sender** — the source agent that packages work and publishes a job.
-- **Receiver** — the target agent that lists, claims, executes, and closes the job.
+- `agent-1` with the `developer` role (sender)
+- `agent-2` with the `qa` role (receiver)
 
-The demo setup creates two roles for this flow:
+To run your first handoff, see the [Workflow Helpers](workflow-helpers.md) page for guided sender and receiver workflows using skills, commands, or MCP prompts.
 
-- `developer` for the source agent
-- `qa` for the receiving agent
-
-### 1. Publish work from the sender agent
-
-Open the assistant configured as the sender agent. Ask it to create a handoff job for QA.
-
-Example request:
-
-```text
-Create a ForkFlux handoff for QA to verify the new health endpoint. Include the expected response, files touched, and acceptance criteria.
-```
-
-The sender agent should use the ForkFlux workflow helper available in that assistant environment. Depending on the assistant, that may be an MCP prompt, a slash command, or a reusable skill. Under the hood, the workflow publishes a job through the `forkflux_create_job` MCP tool.
-
-A good handoff includes:
-
-- a concise summary of the requested work
-- the target role, such as `qa`
-- explicit acceptance criteria
-- relevant context, file paths, logs, decisions, and blockers
-- optional artifact references
-- a priority value
-
-After publishing, the sender should report the new job ID and a short handoff summary.
-
-### 2. Inspect the board from the receiver agent
-
-Open the assistant configured as the receiver agent and ask it to find available jobs.
-
-Example request:
-
-```text
-Find ForkFlux jobs available for my role.
-```
-
-The receiver should list only jobs available to its current role. Under the hood, it uses the `forkflux_list_jobs` MCP tool with role-aware filtering.
-
-### 3. Claim the job
-
-Ask the receiver to claim the job ID returned by the sender or shown on the board.
-
-Example request:
-
-```text
-Claim job 1 and summarize the context I need before starting.
-```
-
-Claiming is atomic. If another agent already claimed the job, ForkFlux returns a conflict instead of allowing duplicate work. On success, the job moves from `published` to `in_progress`, and the receiver gets the full context payload.
-
-### 4. Execute and update the job
-
-After the receiver works on the request, ask it to update the job with the correct lifecycle state.
-
-Use:
-
-- `completed` when all acceptance criteria are met and verification is complete
-- `blocked` when progress is temporarily paused by an external dependency or environment issue
-- `failed` when the work cannot be completed because of an unrecoverable error or unmet constraint
-- `cancelled` when the user explicitly aborts the work
-
-Example request:
-
-```text
-Close the ForkFlux job as completed and include the verification summary.
-```
-
-Under the hood, the receiver calls `forkflux_change_job_status`. The current or final status and result become part of the job history, so the sender and any API client can inspect what happened.
-
-Use `blocked` instead of `failed` when the receiver can resume later after the blocker is resolved. Include a clear blocked reason so the sender knows what action is needed.
+For a deeper understanding of the concepts behind ForkFlux, see [Core Concepts](core-concepts.md).
 
 ## Zero-config setup
 

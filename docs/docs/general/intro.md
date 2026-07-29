@@ -103,10 +103,161 @@ ForkFlux MCP Server
 Target agent
 ```
 
-The API is the source of truth. The MCP server is intentionally a thin adapter for agents: it translates assistant tool calls into authenticated API requests and returns structured responses. Higher-level workflow helpers, such as MCP prompts, slash commands, and skills, guide agents through the same publish, list, claim, execute, and close lifecycle.
+The API is the source of truth. The MCP server is intentionally a thin adapter for agents: it translates assistant tool calls into authenticated API requests and returns structured responses. Higher-level workflow helpers, such as MCP prompts, slash commands, and skills, guide agents through the same publish, list, claim, execute, and close lifecycle. See [Workflow Helpers](workflow-helpers.md) for details.
 
 This separation keeps ForkFlux flexible:
 
 - API clients can integrate directly when they need service-to-service automation.
 - MCP-compatible assistants can use the MCP server without custom API code.
 - Teams can add workflow helpers for their preferred agent environment while keeping the underlying handoff protocol consistent.
+
+## Architecture diagram
+
+The following diagram shows how ForkFlux components interact across machines:
+
+```mermaid
+flowchart TB
+    subgraph Machine_A["Machine A — Developer"]
+        IDE_A["IDE Agent Codex"]
+        MCP_A["ForkFlux MCP Server"]
+        Skills_A["forkflux-sender Skill"]
+        IDE_A --> Skills_A
+        Skills_A --> MCP_A
+    end
+
+    subgraph Machine_B["Machine B — QA"]
+        IDE_B["IDE Agent Claude"]
+        MCP_B["ForkFlux MCP Server"]
+        Skills_B["forkflux-receiver Skill"]
+        IDE_B --> Skills_B
+        Skills_B --> MCP_B
+    end
+
+    subgraph Machine_C["Machine C — Reviewer"]
+        IDE_C["IDE Agent Codex/Claude"]
+        MCP_C["ForkFlux MCP Server"]
+        Skill_C["forkflux-receiver Skill"]
+        IDE_C --> Skill_C
+        Skill_C --> MCP_C
+    end
+
+    subgraph ForkFlux_Server["ForkFlux Server self-hosted"]
+        API["ForkFlux API FastAPI"]
+        DB["Database SQLite or PostgreSQL"]
+        API --> DB
+    end
+
+    subgraph Dashboard["ForkFlux Dashboard React/TypeScript"]
+        WebUI["Web UI"]
+    end
+
+    MCP_A -- "HTTPS token auth" --> API
+    MCP_B -- "HTTPS token auth" --> API
+    MCP_C -- "HTTPS token auth" --> API
+    WebUI -- "HTTPS" --> API
+
+    DB -->|tables| J["handoff_jobs"]
+    DB -->|tables| E["job_events"]
+    DB -->|tables| A["job_artifacts"]
+    DB -->|tables| D["job_dependencies"]
+    DB -->|tables| AG["agents + roles"]
+```
+
+### Component descriptions
+
+| Component | Purpose |
+|---|---|
+| **ForkFlux API** | Stateful collaboration service. Stores agents, roles, jobs, events, artifacts, dependencies. Enforces authentication, atomic claiming, lifecycle transitions. |
+| **ForkFlux MCP Server** | Stateless MCP adapter per agent machine. Translates assistant tool calls into authenticated API requests. |
+| **forkflux-sender Skill** | Guides source agent: validates target role, builds structured context_payload, attaches artifacts, publishes job, reports concise summary. |
+| **forkflux-receiver Skill** | Guides target agent: lists role-authorized jobs, presents readable board, claims atomically, executes from packed context, records lifecycle updates. |
+| **ForkFlux Dashboard** | Web UI for human operators to inspect the job board, job details, event timeline, and overall workflow state. |
+| **Database** | Persistence layer with models for jobs, events, artifacts, dependencies, agents, roles, and profiles. |
+
+### Lifecycle state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: created with blocked_by
+    [*] --> published: created without blockers
+    pending --> published: all blockers completed
+    pending --> failed: upstream failed
+    pending --> cancelled: upstream cancelled or explicit
+    published --> in_progress: claim atomic
+    in_progress --> completed: constraints met
+    in_progress --> failed: unrecoverable error
+    in_progress --> blocked: temporary blocker
+    in_progress --> cancelled: explicit abort
+    blocked --> in_progress: resume
+    failed --> in_progress: restart retry_count < max_retries
+    completed --> [*]
+    cancelled --> [*]
+    failed --> [*]: retry budget exhausted
+
+    note right of completed: triggers routing_rules evaluation
+    note right of completed: triggers dependency barrier processing
+```
+
+## End-to-end cross-device handoff
+
+The following diagram shows the complete flow from Alice's machine to Bob's machine with full auditing:
+
+```mermaid
+sequenceDiagram
+    actor Alice as 👤 Alice Dev Machine A
+    participant AgentA as Agent A Codex
+    participant MCP_A as FF MCP A
+    participant API as ForkFlux API
+    participant DB as Database
+    participant MCP_B as FF MCP B
+    participant AgentB as Agent B Claude
+    participant Bob as 👤 Bob QA Machine B
+
+    Note over Alice, Bob: Cross-machine handoff via shared ForkFlux bus
+
+    Alice->>AgentA: "Hand this work to backend for review"
+
+    AgentA->>AgentA: load forkflux-sender
+    AgentA->>AgentA: package context + constraints + artifacts
+    AgentA->>MCP_A: forkflux_create_job target_: backend, priority: 30
+    MCP_A->>API: POST /api/v1/jobs Authorization: TOKEN_AGENT_A
+    API->>API: validate + store
+    API->>DB: INSERT job 100 status: published
+    DB-->>API: job 100
+    API->>DB: INSERT job_event task_published
+    API-->>MCP_A: 201 job 100
+    MCP_A-->>AgentA: job 100 published
+    AgentA->>Alice: "Published job 100 for backend."
+
+    Note over Alice, Bob: Bob on different machine
+
+    Bob->>AgentB: "Show me available backend jobs"
+    AgentB->>AgentB: load forkflux-receiver
+    AgentB->>MCP_B: forkflux_list_jobs status_: published, role_: backend
+    MCP_B->>API: GET /api/v1/jobs Authorization: TOKEN_AGENT_B
+    API->>DB: SELECT where status=published AND role=backend
+    DB-->>API: [job 100]
+    API-->>MCP_B: [job 100]
+    MCP_B-->>AgentB: formatted board
+
+    Bob->>AgentB: "Claim job 100"
+    AgentB->>MCP_B: forkflux_claim_job job_id: 100
+    MCP_B->>API: POST /api/v1/jobs/100/claim
+    API->>API: atomic claim FOR UPDATE SKIP LOCKED
+    API->>DB: UPDATE job 100 status: in_progress assignee: agent-B
+    DB-->>API: OK
+    API->>DB: INSERT job_event task_claimed
+    API-->>MCP_B: full context_payload
+    MCP_B-->>AgentB: claimed + full context
+
+    AgentB->>AgentB: execute work locally
+    AgentB->>MCP_B: forkflux_change_job_status job_: 100, status_: completed
+    MCP_B->>API: PATCH /api/v1/jobs/100 status: completed
+    API->>DB: UPDATE job 100 status: completed
+    API->>DB: INSERT job_event task_completed
+    API-->>MCP_B: 200 OK
+    MCP_B-->>AgentB: job 100 completed
+    AgentB->>Bob: "Job 100 completed. Tests passed, review done."
+
+    Note over Alice, Bob: Full audit trail recorded in job_events
+```

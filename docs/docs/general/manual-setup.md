@@ -188,30 +188,45 @@ If you are using Docker Compose, start the stack instead of running `forkflux se
 
 ## 5. Add the MCP server to your assistant
 
-Configure each assistant to start the ForkFlux MCP server with that assistant's agent token.
+Configure each assistant to start the ForkFlux MCP server with that assistant's agent token. See [MCP Integration](mcp-integration.md) for client-specific configuration instructions for Claude Code, Cursor, VS Code, Cline, Codex, and other MCP-compatible clients.
 
-Most MCP clients use this shape:
+Use the token printed when you registered the assistant's ForkFlux agent as `FORKFLUX_API_KEY`.
 
-```json
-{
-  "mcpServers": {
-    "ff": {
-      "command": "uvx",
-      "args": [
-        "forkflux-mcp"
-      ],
-      "env": {
-        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
-        "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
-      }
-    }
-  }
-}
+## Environment setup sequence
+
+The following diagram shows the full environment setup and agent registration flow:
+
+```mermaid
+sequenceDiagram
+    actor Admin as 👤 Admin / DevOps
+    participant CLI as ForkFlux CLI
+    participant API as ForkFlux API
+    participant DB as Database SQLite/PostgreSQL
+    participant MCP as ForkFlux MCP Server
+    participant Agent as AI Agent IDE
+
+    Note over Admin, Agent: Phase 1 — One-time environment setup
+
+    Admin->>CLI: forkflux quickstart
+    CLI->>API: POST /api/v1/roles create role: developer
+    CLI->>API: POST /api/v1/roles create role: qa
+    CLI->>API: POST /api/v1/roles create role: reviewer
+    API->>DB: INSERT target_roles developer, qa, reviewer
+    DB-->>API: OK
+
+    CLI->>API: POST /api/v1/agents register agent-1 roles: developer
+    API-->>CLI: agent-1 + API token TOKEN_A1
+    CLI->>API: POST /api/v1/agents register agent-2 roles: qa, reviewer
+    API-->>CLI: agent-2 + API token TOKEN_A2
+
+    Note over CLI, Agent: Phase 2 — MCP server configuration per agent machine
+
+    CLI->>Agent: install ForkFlux MCP server + skills
+    Agent->>MCP: configure MCP client with FORKFLUX_API_KEY=TOKEN_A1
+    Agent->>MCP: configure MCP client with FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1
+
+    Note over Admin, Agent: Ready for handoffs
 ```
-
-Replace `<AGENT_API_TOKEN>` with the token printed when you registered that assistant's ForkFlux agent.
-
-Some assistants use CLI commands or store MCP configuration in tool-specific files. See [Client-specific notes](mcp-integration.md#client-specific-notes) in [MCP Integration](mcp-integration.md) for instructions for Claude Code, Cursor, VS Code, Cline, Codex, and other MCP-compatible clients.
 
 ## 6. Add ForkFlux skills
 
@@ -223,67 +238,11 @@ npx skills add forkflux/forkflux
 
 Reload or restart your assistant after installation so it can discover the skills.
 
-For manual installation options and the difference between `forkflux-sender` and `forkflux-receiver`, see [Skills](skills.md).
+For manual installation options and the difference between `forkflux-sender` and `forkflux-receiver`, see [Workflow Helpers](workflow-helpers.md#skills).
 
-## 7. Start the handoff
+## 7. Run your first handoff
 
-After the API is running, agents are registered, MCP is configured, and skills are installed, you can start a ForkFlux handoff.
-
-A handoff has two sides:
-
-- **Sender** — the source assistant that packages work and publishes a job for a target role.
-- **Receiver** — the target assistant that lists, claims, executes, and closes the job.
-
-### Publish work from the sender
-
-Open the assistant configured with the sender agent token, such as `alice-codex`, and ask it to create a ForkFlux handoff.
-
-Example request:
-
-```text
-Create a ForkFlux handoff for QA to verify the new checkout validation changes. Include the files touched, expected behavior, test command, known constraints, and acceptance criteria.
-```
-
-The sender should use the `forkflux-sender` skill when available. Under the hood, it creates a job through the ForkFlux MCP server. After publishing, the assistant should return the job ID, target role, priority, and a concise handoff summary.
-
-A good handoff includes:
-
-- the target role key, such as `qa`
-- a clear summary of the requested work
-- concrete acceptance criteria
-- relevant file paths, decisions, logs, or constraints
-- verification steps the receiver should run
-- optional artifact references
-
-### Find and claim the job from the receiver
-
-Open the assistant configured with the receiver agent token, such as `bob-claude`, and ask it to inspect the ForkFlux board.
-
-Example request:
-
-```text
-Find ForkFlux jobs available for my role and show them as a table.
-```
-
-Then claim the job ID returned by the sender or shown on the board:
-
-```text
-Claim job 1 and summarize the context, constraints, and acceptance criteria before starting.
-```
-
-Claiming is atomic. If another agent already claimed the job, ForkFlux returns a conflict instead of allowing duplicate work.
-
-### Complete and close the job
-
-After the receiver finishes the work, ask it to close the job with evidence.
-
-Example request:
-
-```text
-Close the ForkFlux job as completed and include the verification summary, files reviewed, and any follow-up notes.
-```
-
-Use `completed` when all acceptance criteria are met, `failed` when the receiver cannot complete the work, and `cancelled` when the work is intentionally abandoned.
+After the API is running, agents are registered, MCP is configured, and skills are installed, you can run your first handoff. See the [Workflow Helpers](workflow-helpers.md) page for guided sender and receiver workflows using skills, commands, or MCP prompts.
 
 ## Manual setup checklist
 
