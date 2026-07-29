@@ -69,6 +69,7 @@ const config: Config = {
   ],
 
   plugins: [
+    ['@r74tech/docusaurus-plugin-panzoom', {} /* options */],
     [
       'docusaurus-plugin-openapi-docs',
       {
@@ -88,7 +89,11 @@ const config: Config = {
     ]
   ],
 
-  themes: ["docusaurus-theme-openapi-docs"],
+  themes: ["docusaurus-theme-openapi-docs", "@docusaurus/theme-mermaid"],
+
+  markdown: {
+    mermaid: true,
+  },
 
   themeConfig: {
     // Replace with your project's social card
@@ -166,6 +171,9 @@ const config: Config = {
       apiKey: '0f89879687452cc869902f79cd4fbb51',
       indexName: 'docs',
       contextualSearch: false,
+    },
+    zoom: {
+      selectors: ['div.docusaurus-mermaid-container'],
     },
   } satisfies Preset.ThemeConfig,
 };
