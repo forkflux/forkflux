@@ -94,33 +94,3 @@ After `quickstart` finishes and the API is running, your agents are ready for ha
 To run your first handoff, see the [Workflow Helpers](workflow-helpers.md) page for guided sender and receiver workflows using skills, commands, or MCP prompts.
 
 For a deeper understanding of the concepts behind ForkFlux, see [Core Concepts](core-concepts.md).
-
-## Zero-config setup
-
-Zero-config setup is the local demo path powered by `forkflux quickstart`. It is designed to remove the manual setup steps that usually slow down a first evaluation.
-
-Instead of asking you to create roles, register agents, copy tokens, and write MCP client configuration by hand, the quickstart flow does the following automatically:
-
-| Setup task | What `quickstart` does |
-|---|---|
-| Database setup | Applies migrations for the local demo database. |
-| Role setup | Creates example `developer` and `qa` roles. |
-| Agent setup | Creates `agent-1` and `agent-2` with API tokens. |
-| MCP setup | Registers the ForkFlux MCP server with two detected supported CLIs. |
-| Workflow helpers | Installs sender and receiver skills when supported by the detected assistant. |
-
-Use zero-config setup when:
-
-- you are evaluating ForkFlux locally
-- you have two supported local assistant CLIs available
-- you want to see the full publish, claim, and close lifecycle quickly
-- you do not need custom roles, production credentials, or deployment hardening yet
-
-Use manual setup instead when:
-
-- you need to control agent labels, role keys, or token storage
-- your assistant is not detected by `quickstart`
-- you want to configure MCP JSON yourself
-- you are preparing a shared, persistent, or production-like environment
-
-The zero-config flow gives you a working demo; the underlying architecture is the same as a manual setup. Agents still authenticate through API tokens, MCP tools still call the ForkFlux API, and jobs still move through the same lifecycle.
