@@ -92,7 +92,7 @@ jobs:
       - name: Build dashboard
         working-directory: packages/dashboard
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
           FE_API_BASE_URL=/api/v1 npm run build
 
       - name: Copy dashboard dist into API package

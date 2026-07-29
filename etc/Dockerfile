@@ -4,7 +4,7 @@ FROM node:22-slim AS dashboard-builder
 WORKDIR /app
 
 COPY packages/dashboard/package.json packages/dashboard/package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY packages/dashboard/ ./
 # Build with same-origin API URL so the bundled dashboard works out-of-the-box.
