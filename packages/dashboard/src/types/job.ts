@@ -44,10 +44,12 @@ export interface JobEvent {
 
 /** A single artifact produced by a job. */
 export interface JobArtifact {
-  type: string;
-  uri: string;
-  checksum: string | null;
+  id: number;
+  artifact_type: string;
+  artifact_uri: string;
+  artifact_checksum: string | null;
   metadata_json: JsonValue;
+  created_at: string;
 }
 
 /** A related job connected to a detail job by a dependency edge. */

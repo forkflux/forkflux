@@ -243,7 +243,70 @@ export function JobDetailPage() {
             {formatDate(detail.updated_at)}
           </span>
         </div>
+        <div className="ff-detail__field">
+          <span className="ff-detail__label">Retries</span>
+          <span className="ff-detail__value">
+            {detail.retry_count} / {detail.max_retries}
+          </span>
+        </div>
       </div>
+
+      {/* Timeline */}
+      {(detail.published_at ||
+        detail.started_at ||
+        detail.completed_at ||
+        detail.failed_at ||
+        detail.blocked_at ||
+        detail.cancelled_at ||
+        detail.expires_at) && (
+        <section className="ff-detail__section">
+          <h2>Timeline</h2>
+          <div className="ff-detail__grid">
+            {detail.published_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Published</span>
+                <span className="ff-detail__value">{formatDate(detail.published_at)}</span>
+              </div>
+            )}
+            {detail.started_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Started</span>
+                <span className="ff-detail__value">{formatDate(detail.started_at)}</span>
+              </div>
+            )}
+            {detail.completed_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Completed</span>
+                <span className="ff-detail__value">{formatDate(detail.completed_at)}</span>
+              </div>
+            )}
+            {detail.failed_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Failed</span>
+                <span className="ff-detail__value">{formatDate(detail.failed_at)}</span>
+              </div>
+            )}
+            {detail.blocked_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Blocked</span>
+                <span className="ff-detail__value">{formatDate(detail.blocked_at)}</span>
+              </div>
+            )}
+            {detail.cancelled_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Cancelled</span>
+                <span className="ff-detail__value">{formatDate(detail.cancelled_at)}</span>
+              </div>
+            )}
+            {detail.expires_at && (
+              <div className="ff-detail__field">
+                <span className="ff-detail__label">Expires</span>
+                <span className="ff-detail__value">{formatDate(detail.expires_at)}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Failure / blocked / unblocked reason callouts */}
       {detail.failure_reason && (
@@ -373,16 +436,16 @@ export function JobDetailPage() {
                   aria-expanded={openArtifacts.has(i)}
                   onClick={() => toggleArtifact(i)}
                 >
-                  <span className="ff-detail__value--mono">{a.type}</span>
-                  <span className="ff-detail__value--mono">{a.uri}</span>
+                  <span className="ff-detail__value--mono">{a.artifact_type}</span>
+                  <span className="ff-detail__value--mono">{a.artifact_uri}</span>
                   <span
                     className="ff-detail__artifact-chevron"
                     aria-hidden="true"
                   />
                 </button>
-                {a.checksum && (
+                {a.artifact_checksum && (
                   <div className="ff-detail__artifact-checksum ff-detail__value--mono">
-                    {a.checksum}
+                    {a.artifact_checksum}
                   </div>
                 )}
                 {openArtifacts.has(i) && <JsonGrid data={a.metadata_json} />}

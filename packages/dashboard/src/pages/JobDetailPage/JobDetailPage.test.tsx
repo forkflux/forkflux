@@ -274,10 +274,12 @@ describe('JobDetailPage', () => {
         id: 1,
         artifacts: [
           {
-            type: 'patch',
-            uri: 's3://bucket/file.bin',
-            checksum: 'sha256:abc123',
+            id: 1,
+            artifact_type: 'patch',
+            artifact_uri: 's3://bucket/file.bin',
+            artifact_checksum: 'sha256:abc123',
             metadata_json: { key: 'value' },
+            created_at: '2026-01-01T00:00:00Z',
           },
         ],
       })
@@ -296,10 +298,12 @@ describe('JobDetailPage', () => {
         id: 1,
         artifacts: [
           {
-            type: 'patch',
-            uri: 's3://bucket/file.bin',
-            checksum: null,
+            id: 1,
+            artifact_type: 'patch',
+            artifact_uri: 's3://bucket/file.bin',
+            artifact_checksum: null,
             metadata_json: { key: 'value' },
+            created_at: '2026-01-01T00:00:00Z',
           },
         ],
       })
