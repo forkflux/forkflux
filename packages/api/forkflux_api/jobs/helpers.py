@@ -34,7 +34,6 @@ def handoff_job_to_response_model(entity: HandoffJobWithArtifacts) -> HandoffJob
         blocked_reason=job.job_details.blocked_reason,
         unblock_reason=job.job_details.unblock_reason,
         published_at=job.job_details.published_at,
-        claimed_at=job.job_details.claimed_at,
         started_at=job.job_details.started_at,
         completed_at=job.job_details.completed_at,
         failed_at=job.job_details.failed_at,

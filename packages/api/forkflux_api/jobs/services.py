@@ -97,7 +97,6 @@ class HandoffJobService:
         all_time_status_counts = {status: raw_stats.all_time_status_counts.get(status, 0) for status in JobStatusEnum}
         queue_status_counts = {
             JobStatusEnum.PUBLISHED: status_counts[JobStatusEnum.PUBLISHED],
-            JobStatusEnum.CLAIMED: status_counts[JobStatusEnum.CLAIMED],
             JobStatusEnum.IN_PROGRESS: status_counts[JobStatusEnum.IN_PROGRESS],
             JobStatusEnum.BLOCKED: status_counts[JobStatusEnum.BLOCKED],
             JobStatusEnum.UNBLOCKED: status_counts[JobStatusEnum.UNBLOCKED],
@@ -117,11 +116,6 @@ class HandoffJobService:
         failure_rate = (failed_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
         blocked_rate = (blocked_jobs / raw_stats.total_jobs) if raw_stats.total_jobs > 0 else 0.0
 
-        time_to_claim_minutes = [
-            self._duration_minutes(published_at, claimed_at)
-            for published_at, claimed_at in raw_stats.published_to_claimed_pairs
-            if published_at is not None and claimed_at is not None and claimed_at >= published_at
-        ]
         time_to_resolution_minutes = [
             self._duration_minutes(published_at, resolved_at)
             for published_at, resolved_at in raw_stats.published_to_resolution_pairs
@@ -138,7 +132,6 @@ class HandoffJobService:
             stuck_jobs=raw_stats.stuck_jobs,
             total_handoffs=total_handoffs,
             estimated_time_saved_minutes=estimated_time_saved_minutes,
-            time_to_claim_samples=len(time_to_claim_minutes),
             time_to_resolution_samples=len(time_to_resolution_minutes),
         )
 
@@ -157,8 +150,6 @@ class HandoffJobService:
             total_handoffs=total_handoffs,
             estimated_time_saved_minutes=estimated_time_saved_minutes,
             waiting_jobs_by_role=raw_stats.waiting_jobs_by_role,
-            p50_time_to_claim_minutes=self._median_or_none(time_to_claim_minutes),
-            p90_time_to_claim_minutes=self._percentile_or_none(time_to_claim_minutes, 0.9),
             p50_time_to_resolution_minutes=self._median_or_none(time_to_resolution_minutes),
             p90_time_to_resolution_minutes=self._percentile_or_none(time_to_resolution_minutes, 0.9),
         )
@@ -417,7 +408,6 @@ class HandoffJobService:
 
         job.status = JobStatusEnum.IN_PROGRESS
         job.assignee_agent_id = agent_id
-        job.claimed_at = timestamp
         job.started_at = timestamp
 
         await self._handoff_job_repo.save(job=job)
@@ -442,11 +432,9 @@ class HandoffJobService:
 
         allowed_transitions = {
             (JobStatusEnum.PENDING, JobStatusEnum.CANCELLED),
-            (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED),
             (JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED),
-            (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED),
             (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS),
             (JobStatusEnum.BLOCKED, JobStatusEnum.UNBLOCKED),
             (JobStatusEnum.BLOCKED, JobStatusEnum.FAILED),
@@ -455,7 +443,6 @@ class HandoffJobService:
             (JobStatusEnum.UNBLOCKED, JobStatusEnum.FAILED),
             (JobStatusEnum.UNBLOCKED, JobStatusEnum.CANCELLED),
             (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED),
-            (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED),
         }
 
         if (current_status, status) not in allowed_transitions:
@@ -474,16 +461,6 @@ class HandoffJobService:
                     "operation_failed",
                     reason="source_agent_mismatch",
                     source_agent_id=job.source_agent_id,
-                )
-                raise HandoffJobConflictError
-        elif current_status == JobStatusEnum.CLAIMED and status == JobStatusEnum.CANCELLED:
-            allowed_agent_ids = {job.source_agent_id, job.assignee_agent_id}
-            if agent_id not in allowed_agent_ids:
-                log.warning(
-                    "operation_failed",
-                    reason="agent_not_allowed_to_cancel_claimed_job",
-                    source_agent_id=job.source_agent_id,
-                    assignee_agent_id=job.assignee_agent_id,
                 )
                 raise HandoffJobConflictError
         elif job.assignee_agent_id != agent_id:
@@ -1008,7 +985,6 @@ class HandoffJobService:
         timestamp = datetime.now(timezone.utc)
         reviewing_job.status = JobStatusEnum.PENDING
         reviewing_job.assignee_agent_id = None
-        reviewing_job.claimed_at = None
         reviewing_job.started_at = None
         reviewing_job.updated_at = timestamp
         await self._handoff_job_repo.save(job=reviewing_job)

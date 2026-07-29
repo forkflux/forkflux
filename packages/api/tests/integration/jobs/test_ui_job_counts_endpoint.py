@@ -12,7 +12,6 @@ async def test_ui_job_counts_returns_200_with_zeroed_counts_for_empty_database(
     payload = response.json()
     counts = payload["counts"]
     assert counts["published"] == 0
-    assert counts["claimed"] == 0
     assert counts["in_progress"] == 0
     assert counts["blocked"] == 0
     assert counts["completed"] == 0
@@ -83,7 +82,6 @@ async def test_ui_job_counts_returns_200_with_correct_counts_for_mixed_statuses(
     payload = response.json()
     counts = payload["counts"]
     assert counts["published"] == 2
-    assert counts["claimed"] == 0
     assert counts["in_progress"] == 1
     assert counts["blocked"] == 0
     assert counts["completed"] == 2

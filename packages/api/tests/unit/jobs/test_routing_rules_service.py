@@ -50,7 +50,6 @@ def _make_completed_job(
     job.unblocked_at = None
     job.unblock_reason = None
     job.published_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    job.claimed_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     job.started_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     job.completed_at = None
     job.expires_at = None

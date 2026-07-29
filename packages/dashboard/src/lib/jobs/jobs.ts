@@ -60,7 +60,6 @@ export function getStatusCounts(jobs: Job[]): StatusCount[] {
 export const JOB_STATUS_ORDER: readonly JobStatus[] = [
   'pending',
   'published',
-  'claimed',
   'in_progress',
   'blocked',
   'unblocked',
@@ -186,7 +185,7 @@ export function formatDate(iso: string | null): string {
 
 /**
  * Format an assignee agent label for display. Returns an em-dash when the
- * value is null (i.e. the job has not been claimed by an agent yet).
+ * value is null (i.e. the job has not been picked up by an agent yet).
  */
 export function formatAssignee(label: string | null): string {
   return label ?? '—';

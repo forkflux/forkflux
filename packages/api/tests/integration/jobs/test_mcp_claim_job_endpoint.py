@@ -76,7 +76,6 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
         target_role_id=claimant_role_id,
         status=JobStatusEnum.PUBLISHED,
         assignee_agent_id=None,
-        claimed_at=None,
         created_at=old_timestamp,
         updated_at=old_timestamp,
         published_at=old_timestamp,
@@ -102,7 +101,6 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
     assert body["artifacts"] == []
     assert body["failure_reason"] is None
     assert body["published_at"] == job.published_at.isoformat().replace("+00:00", "Z")
-    assert body["claimed_at"] is not None
     assert body["started_at"] is not None
     assert body["completed_at"] is None
     assert body["failed_at"] is None
@@ -115,8 +113,6 @@ async def test_claim_job_returns_201_and_job_with_artifacts_response_and_persist
     assert claimed_job is not None
     assert claimed_job.status == JobStatusEnum.IN_PROGRESS
     assert claimed_job.assignee_agent_id == claimant_id
-    assert claimed_job.claimed_at is not None
-    assert claimed_job.claimed_at >= old_timestamp
     assert claimed_job.started_at is not None
     assert claimed_job.started_at >= old_timestamp
     assert claimed_job.updated_at > old_timestamp
@@ -213,7 +209,7 @@ async def test_claim_job_returns_422_when_job_status_is_not_published(
         db_session,
         source_agent_id=source_agent.id,
         target_role_id=claimant_role_id,
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=None,
         updated_at=unchanged_updated_at,
         created_at=unchanged_updated_at,
@@ -240,7 +236,7 @@ async def test_claim_job_returns_422_when_job_status_is_not_published(
 
     persisted_job = await db_session.get(HandoffJob, job.id)
     assert persisted_job is not None
-    assert persisted_job.status == JobStatusEnum.CLAIMED
+    assert persisted_job.status == JobStatusEnum.IN_PROGRESS
     assert persisted_job.assignee_agent_id is None
     assert persisted_job.updated_at == unchanged_updated_at
 

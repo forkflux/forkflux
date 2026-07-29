@@ -97,7 +97,6 @@ class JobUiDetailItem(BaseModel):
     downstream_dependencies: list[JobDependencyUiItem]
 
     published_at: datetime | None
-    claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     failed_at: datetime | None

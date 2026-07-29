@@ -146,7 +146,6 @@ async def get_job(
             for dependency in downstream_dependencies
         ],
         published_at=job.published_at,
-        claimed_at=job.claimed_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
         failed_at=job.failed_at,

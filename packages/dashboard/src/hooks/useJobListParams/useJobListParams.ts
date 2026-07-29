@@ -43,7 +43,6 @@ const SORT_DIRS: readonly SortDirection[] = ['asc', 'desc'];
 const JOB_STATUSES: readonly (JobStatus | 'all')[] = [
   'all',
   'published',
-  'claimed',
   'in_progress',
   'completed',
   'blocked',

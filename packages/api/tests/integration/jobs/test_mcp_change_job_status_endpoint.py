@@ -71,7 +71,7 @@ async def test_change_job_status_returns_401_for_invalid_bearer_token(
     assert response.headers["www-authenticate"] == "Bearer"
 
 
-async def test_change_job_status_returns_200_and_sets_started_at_for_assignee(
+async def test_change_job_status_returns_422_for_in_progress_to_in_progress_transition(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
@@ -94,9 +94,8 @@ async def test_change_job_status_returns_200_and_sets_started_at_for_assignee(
         db_session,
         source_agent_id=source_agent.id,
         target_role_id=assignee_role_id,
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=assignee_id,
-        claimed_at=old_timestamp,
         started_at=None,
         created_at=old_timestamp,
         updated_at=old_timestamp,
@@ -109,21 +108,13 @@ async def test_change_job_status_returns_200_and_sets_started_at_for_assignee(
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "job_id": job.id,
-        "previous_status": JobStatusEnum.CLAIMED.value,
-        "new_status": JobStatusEnum.IN_PROGRESS.value,
-    }
+    assert response.status_code == 422
 
     await db_session.refresh(job)
     persisted_job = await db_session.get(HandoffJob, job.id)
     assert persisted_job is not None
     assert persisted_job.status == JobStatusEnum.IN_PROGRESS
-    assert persisted_job.assignee_agent_id == assignee_id
-    assert persisted_job.started_at is not None
-    assert persisted_job.started_at >= old_timestamp
-    assert persisted_job.updated_at > old_timestamp
+    assert persisted_job.started_at is None
 
 
 async def test_change_job_status_returns_200_and_sets_completed_at_for_assignee(
@@ -156,7 +147,6 @@ async def test_change_job_status_returns_200_and_sets_completed_at_for_assignee(
         created_at=old_timestamp,
         updated_at=old_timestamp,
         published_at=old_timestamp,
-        claimed_at=old_timestamp,
     )
 
     response = await client.post(
@@ -356,9 +346,8 @@ async def test_change_job_status_returns_422_when_assignee_mismatches_and_keeps_
         db_session,
         source_agent_id=source_agent.id,
         target_role_id=assignee_role.id,
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=real_assignee.id,
-        claimed_at=unchanged_updated_at,
         created_at=unchanged_updated_at,
         updated_at=unchanged_updated_at,
         published_at=unchanged_updated_at,
@@ -385,7 +374,7 @@ async def test_change_job_status_returns_422_when_assignee_mismatches_and_keeps_
 
     persisted_job = await db_session.get(HandoffJob, job.id)
     assert persisted_job is not None
-    assert persisted_job.status == JobStatusEnum.CLAIMED
+    assert persisted_job.status == JobStatusEnum.IN_PROGRESS
     assert persisted_job.assignee_agent_id == real_assignee.id
     assert persisted_job.started_at is None
     assert persisted_job.updated_at == unchanged_updated_at
@@ -425,7 +414,6 @@ async def test_change_job_status_returns_200_and_restarts_from_failed_for_assign
         created_at=old_timestamp,
         updated_at=old_timestamp,
         published_at=old_timestamp,
-        claimed_at=old_timestamp,
     )
 
     response = await client.post(
@@ -487,7 +475,6 @@ async def test_change_job_status_returns_200_and_sets_blocked_at_and_blocked_rea
         status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=assignee_id,
         started_at=old_timestamp,
-        claimed_at=old_timestamp,
         created_at=old_timestamp,
         updated_at=old_timestamp,
         published_at=old_timestamp,
@@ -552,7 +539,6 @@ async def test_change_job_status_returns_422_when_resuming_directly_from_blocked
         status=JobStatusEnum.BLOCKED,
         assignee_agent_id=assignee_id,
         started_at=old_timestamp,
-        claimed_at=old_timestamp,
         blocked_at=old_timestamp,
         blocked_reason="waiting on upstream dependency",
         created_at=old_timestamp,
@@ -605,7 +591,6 @@ async def test_change_job_status_returns_200_and_sets_unblocked_at_and_unblock_r
         status=JobStatusEnum.BLOCKED,
         assignee_agent_id=assignee_id,
         started_at=old_timestamp,
-        claimed_at=old_timestamp,
         blocked_at=old_timestamp,
         blocked_reason="waiting on upstream dependency",
         created_at=old_timestamp,
@@ -674,7 +659,6 @@ async def test_change_job_status_returns_200_and_resumes_from_unblocked_for_assi
         status=JobStatusEnum.UNBLOCKED,
         assignee_agent_id=assignee_id,
         started_at=old_timestamp,
-        claimed_at=old_timestamp,
         unblocked_at=old_timestamp,
         unblock_reason="dependency resolved",
         created_at=old_timestamp,
@@ -740,7 +724,6 @@ async def test_change_job_status_returns_422_when_unblock_reason_missing(
         status=JobStatusEnum.BLOCKED,
         assignee_agent_id=assignee_id,
         started_at=old_timestamp,
-        claimed_at=old_timestamp,
         blocked_at=old_timestamp,
         blocked_reason="waiting on upstream dependency",
         created_at=old_timestamp,

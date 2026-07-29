@@ -274,11 +274,6 @@ async def stats(
 
     latency_table = Table("[ Latency (p50 / p90) ]", "Value")
     latency_table.add_row(
-        "Time to claim",
-        f"{_format_duration(stats_data.p50_time_to_claim_minutes)} / "
-        f"{_format_duration(stats_data.p90_time_to_claim_minutes)}",
-    )
-    latency_table.add_row(
         "Time to resolution",
         f"{_format_duration(stats_data.p50_time_to_resolution_minutes)} / "
         f"{_format_duration(stats_data.p90_time_to_resolution_minutes)}",
@@ -296,7 +291,6 @@ async def stats(
         "Published (waiting)",
         f"{stats_data.queue_status_counts[JobStatusEnum.PUBLISHED]}{bottleneck_suffix}",
     )
-    queue_snapshot_table.add_row("Claimed", str(stats_data.queue_status_counts[JobStatusEnum.CLAIMED]))
     queue_snapshot_table.add_row("In Progress", str(stats_data.queue_status_counts[JobStatusEnum.IN_PROGRESS]))
     queue_snapshot_table.add_row("Blocked", str(stats_data.queue_status_counts[JobStatusEnum.BLOCKED]))
     queue_snapshot_table.add_row(

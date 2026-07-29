@@ -129,8 +129,6 @@ Completed jobs may also evaluate routing rules, and completed or failed/cancelle
 | `failed` | The receiver could not complete the work because of an unrecoverable error, blocker, or unmet constraint. |
 | `cancelled` | The work was explicitly aborted. |
 
-The API also defines `claimed` as a status value for compatibility with internal lifecycle naming. In normal MCP workflows, claiming moves usable work into `in_progress`; temporary pauses use `blocked`; cleared blockers move through `unblocked`; and terminal closure uses `completed`, `failed`, or `cancelled`.
-
 ### Lifecycle rules
 
 Use these rules when you design agent prompts, commands, or custom clients:
@@ -149,7 +147,7 @@ Use these rules when you design agent prompts, commands, or custom clients:
 
 ### Events and timestamps
 
-ForkFlux records lifecycle metadata so handoffs can be audited later. Jobs track timestamps such as when they were published, claimed, blocked, unblocked, completed, failed, or cancelled. [`JobEvent`](https://github.com/forkflux/forkflux/blob/main/packages/api/forkflux_api/jobs/models.py:126) records the resulting `current_status`, event type, actor, and a payload for details such as `blocked_reason`, `unblock_reason`, `failure_reason`, retry counts, dependency activation, or routed job IDs. Events do not include a `previous_status` field; infer the transition from event order and the current status.
+ForkFlux records lifecycle metadata so handoffs can be audited later. Jobs track timestamps such as when they were published, started, blocked, unblocked, completed, failed, or cancelled. [`JobEvent`](https://github.com/forkflux/forkflux/blob/main/packages/api/forkflux_api/jobs/models.py:126) records the resulting `current_status`, event type, actor, and a payload for details such as `blocked_reason`, `unblock_reason`, `failure_reason`, retry counts, dependency activation, or routed job IDs. Events do not include a `previous_status` field; infer the transition from event order and the current status.
 
 This history is useful when you need to answer questions like:
 

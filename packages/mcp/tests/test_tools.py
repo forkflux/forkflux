@@ -201,7 +201,7 @@ async def test_claim_job_calls_api_request_with_expected_contract_and_returns_pa
 ) -> None:
     expected_payload = {
         "success": True,
-        "details": {"id": 77, "status": "claimed"},
+        "details": {"id": 77, "status": "in_progress"},
     }
 
     with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:

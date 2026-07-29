@@ -61,7 +61,6 @@ async def test_handoff_job_repository_create_persists_and_applies_defaults(db_se
     assert created_job.assignee_agent_id is None
     assert created_job.constraints == dto.constraints
     assert created_job.failure_reason is None
-    assert created_job.claimed_at is None
     assert created_job.started_at is None
     assert created_job.completed_at is None
     assert created_job.failed_at is None
@@ -218,7 +217,7 @@ async def test_handoff_job_repository_save_persists_updated_job_and_returns_upda
     original_updated_at = handoff_job.updated_at
 
     handoff_job.summary = "After save"
-    handoff_job.status = JobStatusEnum.CLAIMED
+    handoff_job.status = JobStatusEnum.IN_PROGRESS
     handoff_job.failure_reason = "waiting for assignee"
     saved_job = await repository.save(job=handoff_job)
 
@@ -227,13 +226,13 @@ async def test_handoff_job_repository_save_persists_updated_job_and_returns_upda
     assert isinstance(saved_job, HandoffJob)
     assert saved_job.id == handoff_job.id
     assert saved_job.summary == "After save"
-    assert saved_job.status == JobStatusEnum.CLAIMED
+    assert saved_job.status == JobStatusEnum.IN_PROGRESS
     assert saved_job.failure_reason == "waiting for assignee"
     assert saved_job.updated_at > original_updated_at
 
     assert fetched_job is not None
     assert fetched_job.summary == "After save"
-    assert fetched_job.status == JobStatusEnum.CLAIMED
+    assert fetched_job.status == JobStatusEnum.IN_PROGRESS
     assert fetched_job.failure_reason == "waiting for assignee"
     assert fetched_job.updated_at == saved_job.updated_at
 
@@ -348,7 +347,7 @@ async def test_handoff_job_repository_list_returns_items_with_target_role_key_an
     _middle_job = await HandoffJobFactory.create(
         db_session,
         summary="Middle",
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=operator_role.id,
         created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
@@ -420,7 +419,7 @@ async def test_handoff_job_repository_list_filters_by_status_and_target_role_key
     await HandoffJobFactory.create(
         db_session,
         summary="Non matching status",
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=reviewer_role.id,
     )
@@ -585,16 +584,13 @@ async def test_handoff_job_repository_stats_returns_zeroed_metrics_for_empty_dat
     assert result.stuck_jobs == 0
     assert result.total_handoffs == 0
     assert result.waiting_jobs_by_role == []
-    assert result.published_to_claimed_pairs == []
     assert result.published_to_resolution_pairs == []
     assert result.status_counts[JobStatusEnum.PUBLISHED] == 0
-    assert result.status_counts[JobStatusEnum.CLAIMED] == 0
     assert result.status_counts[JobStatusEnum.IN_PROGRESS] == 0
     assert result.status_counts[JobStatusEnum.COMPLETED] == 0
     assert result.status_counts[JobStatusEnum.FAILED] == 0
     assert result.status_counts[JobStatusEnum.CANCELLED] == 0
     assert result.all_time_status_counts[JobStatusEnum.PUBLISHED] == 0
-    assert result.all_time_status_counts[JobStatusEnum.CLAIMED] == 0
     assert result.all_time_status_counts[JobStatusEnum.IN_PROGRESS] == 0
     assert result.all_time_status_counts[JobStatusEnum.COMPLETED] == 0
     assert result.all_time_status_counts[JobStatusEnum.FAILED] == 0
@@ -649,17 +645,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=None,
         status=JobStatusEnum.PUBLISHED,
         published_at=base,
-        claimed_at=None,
-        completed_at=None,
-    )
-    await HandoffJobFactory.create(
-        db_session,
-        source_agent_id=source_agent.id,
-        target_role_id=target_role.id,
-        assignee_agent_id=assignee_agent.id,
-        status=JobStatusEnum.CLAIMED,
-        published_at=base,
-        claimed_at=base + timedelta(minutes=15),
         completed_at=None,
     )
     await HandoffJobFactory.create(
@@ -669,7 +654,15 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=assignee_agent.id,
         status=JobStatusEnum.IN_PROGRESS,
         published_at=base,
-        claimed_at=base + timedelta(minutes=12),
+        completed_at=None,
+    )
+    await HandoffJobFactory.create(
+        db_session,
+        source_agent_id=source_agent.id,
+        target_role_id=target_role.id,
+        assignee_agent_id=assignee_agent.id,
+        status=JobStatusEnum.IN_PROGRESS,
+        published_at=base,
         started_at=base + timedelta(minutes=13),
         completed_at=None,
     )
@@ -680,7 +673,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=assignee_agent.id,
         status=JobStatusEnum.COMPLETED,
         published_at=base,
-        claimed_at=base + timedelta(minutes=10),
         completed_at=base + timedelta(minutes=40),
     )
     await HandoffJobFactory.create(
@@ -690,7 +682,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=assignee_agent.id,
         status=JobStatusEnum.COMPLETED,
         published_at=base,
-        claimed_at=base + timedelta(minutes=20),
         completed_at=base + timedelta(minutes=80),
     )
     await HandoffJobFactory.create(
@@ -700,7 +691,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=assignee_agent.id,
         status=JobStatusEnum.COMPLETED,
         published_at=base + timedelta(minutes=60),
-        claimed_at=base + timedelta(minutes=90),
         completed_at=base + timedelta(minutes=55),
     )
     await HandoffJobFactory.create(
@@ -710,7 +700,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=assignee_agent.id,
         status=JobStatusEnum.FAILED,
         published_at=base,
-        claimed_at=None,
         failed_at=base + timedelta(minutes=30),
     )
     await HandoffJobFactory.create(
@@ -720,7 +709,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=None,
         status=JobStatusEnum.CANCELLED,
         published_at=base,
-        claimed_at=None,
         cancelled_at=base + timedelta(minutes=5),
     )
 
@@ -732,7 +720,6 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
         assignee_agent_id=stale_assignee.id,
         status=JobStatusEnum.IN_PROGRESS,
         published_at=recent - timedelta(hours=30),
-        claimed_at=recent - timedelta(hours=29),
         started_at=recent - timedelta(hours=29),
         created_at=recent - timedelta(hours=30),
         updated_at=recent - timedelta(hours=2),
@@ -764,19 +751,16 @@ async def test_handoff_job_repository_stats_computes_status_distribution_rates_a
     assert result.stuck_minutes == 60
     assert result.total_jobs == 10
     assert result.status_counts[JobStatusEnum.PUBLISHED] == 3
-    assert result.status_counts[JobStatusEnum.CLAIMED] == 1
-    assert result.status_counts[JobStatusEnum.IN_PROGRESS] == 1
+    assert result.status_counts[JobStatusEnum.IN_PROGRESS] == 2
     assert result.status_counts[JobStatusEnum.COMPLETED] == 3
     assert result.status_counts[JobStatusEnum.FAILED] == 1
     assert result.status_counts[JobStatusEnum.CANCELLED] == 1
-    assert result.all_time_status_counts[JobStatusEnum.IN_PROGRESS] == 2
+    assert result.all_time_status_counts[JobStatusEnum.IN_PROGRESS] == 3
     assert result.active_agents == 2
     assert result.stuck_jobs == 1
     assert result.total_handoffs == 3
     assert result.waiting_jobs_by_role[0] == (target_role.role_key, 3)
-    assert len(result.published_to_claimed_pairs) == 5
     assert len(result.published_to_resolution_pairs) == 5
-    assert (base, base + timedelta(minutes=15)) in result.published_to_claimed_pairs
     assert (base + timedelta(minutes=60), base + timedelta(minutes=55)) in result.published_to_resolution_pairs
 
 
@@ -810,15 +794,12 @@ async def test_handoff_job_repository_stats_limits_duration_samples_to_bounded_s
             assignee_agent_id=assignee_agent.id,
             status=JobStatusEnum.COMPLETED,
             published_at=published_at,
-            claimed_at=published_at + timedelta(minutes=1),
             completed_at=published_at + timedelta(minutes=5),
         )
 
     result = await repository.stats(window_hours=24, stuck_minutes=60)
 
-    assert len(result.published_to_claimed_pairs) == MAX_STATS_DURATION_SAMPLES
     assert len(result.published_to_resolution_pairs) == MAX_STATS_DURATION_SAMPLES
-    assert (base, base + timedelta(minutes=1)) not in result.published_to_claimed_pairs
     assert (base, base + timedelta(minutes=5)) not in result.published_to_resolution_pairs
 
 
@@ -1220,7 +1201,6 @@ async def test_handoff_job_repository_count_by_status_returns_zeroed_counts_for_
     status_counts = await repository.count_by_status()
 
     assert status_counts[JobStatusEnum.PUBLISHED] == 0
-    assert status_counts[JobStatusEnum.CLAIMED] == 0
     assert status_counts[JobStatusEnum.IN_PROGRESS] == 0
     assert status_counts[JobStatusEnum.BLOCKED] == 0
     assert status_counts[JobStatusEnum.COMPLETED] == 0
@@ -1294,7 +1274,6 @@ async def test_handoff_job_repository_count_by_status_returns_correct_counts_for
     status_counts = await repository.count_by_status()
 
     assert status_counts[JobStatusEnum.PUBLISHED] == 2
-    assert status_counts[JobStatusEnum.CLAIMED] == 0
     assert status_counts[JobStatusEnum.IN_PROGRESS] == 1
     assert status_counts[JobStatusEnum.BLOCKED] == 0
     assert status_counts[JobStatusEnum.COMPLETED] == 3

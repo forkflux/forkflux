@@ -4,7 +4,6 @@ import './StatusBadge.scss'
 const STATUS_VARIANT: Record<JobStatus, string> = {
   pending: 'ff-badge--warning',
   published: 'ff-badge--info',
-  claimed: 'ff-badge--info',
   in_progress: 'ff-badge--primary',
   completed: 'ff-badge--success',
   blocked: 'ff-badge--warning',
@@ -16,7 +15,6 @@ const STATUS_VARIANT: Record<JobStatus, string> = {
 const STATUS_LABEL: Record<JobStatus, string> = {
   pending: 'Pending',
   published: 'Published',
-  claimed: 'Claimed',
   in_progress: 'In Progress',
   completed: 'Completed',
   blocked: 'Blocked',

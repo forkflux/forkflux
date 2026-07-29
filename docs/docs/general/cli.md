@@ -284,7 +284,7 @@ The command prints rich tables with the following sections:
 | `Pipeline Health` | Total jobs in the window, completion rate, failure rate, blocked rate, and number of active agents. |
 | `Workflow Impact` | Total handoffs and estimated cumulative time saved. |
 | `Latency (p50 / p90)` | Median and tail latencies for time-to-claim and time-to-resolution. |
-| `Active Queue Snapshot` | Current counts for `published`, `claimed`, `in_progress`, and `blocked`, plus stuck-job count. |
+| `Active Queue Snapshot` | Current counts for `published`, `in_progress`, and `blocked`, plus stuck-job count. |
 | `Historical (All-time Status Counters)` | Added only with `--verbose`; total counters by job status across all time. |
 
 Operator notes:
@@ -641,7 +641,7 @@ Lists jobs in the collaboration bus.
 | Option | Type | Default | Description |
 |---|---:|---:|---|
 | `--limit` | `INTEGER` | `50` | Maximum number of jobs to show. |
-| `--status` | `CHOICE` | none | Filter by job status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
+| `--status` | `CHOICE` | none | Filter by job status. Accepted values: `published`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
 | `--target-role-key` | `TEXT` | none | Filter jobs by target role key. |
 
 Examples:
@@ -774,7 +774,7 @@ Changes a job's lifecycle status on behalf of an agent.
 | Argument | Type | Required | Description |
 |---|---|---:|---|
 | `JOB_ID` | `INTEGER` | Yes | Numeric job ID to update. |
-| `STATUS` | `CHOICE` | Yes | New status. Accepted values: `published`, `claimed`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
+| `STATUS` | `CHOICE` | Yes | New status. Accepted values: `published`, `in_progress`, `blocked`, `unblocked`, `completed`, `failed`, `cancelled`. |
 | `AGENT_ID` | `INTEGER` | Yes | Numeric ID of the agent performing the status change. |
 
 | Option | Type | Default | Description |

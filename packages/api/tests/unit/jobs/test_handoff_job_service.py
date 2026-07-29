@@ -102,7 +102,6 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
         blocked_reason=None,
         unblock_reason=None,
         published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        claimed_at=None,
         started_at=None,
         completed_at=None,
         failed_at=None,
@@ -132,6 +131,7 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
     repository.ui_get = AsyncMock(return_value=expected_job)
     job_artifact_repo.list = AsyncMock(return_value=expected_artifacts)
     job_event_repo.ui_list = AsyncMock(return_value=expected_events)
+    job_dependency_repo.ui_list_for_job = AsyncMock(return_value=([], []))
 
     service = HandoffJobService(
         handoff_job_repo=repository,
@@ -146,9 +146,12 @@ async def test_handoff_job_service_get_ui_job_with_artifacts_and_events_delegate
     repository.ui_get.assert_awaited_once_with(job_id)
     job_artifact_repo.list.assert_awaited_once_with(job_id=job_id)
     job_event_repo.ui_list.assert_awaited_once_with(job_id=job_id)
+    job_dependency_repo.ui_list_for_job.assert_awaited_once_with(job_id)
     assert result["job"] is expected_job
     assert result["artifacts"] == expected_artifacts
     assert result["events"] == expected_events
+    assert result["upstream_dependencies"] == []
+    assert result["downstream_dependencies"] == []
 
 
 async def test_handoff_job_service_list_jobs_delegates_and_returns_jobs() -> None:
@@ -247,8 +250,8 @@ async def test_handoff_job_service_list_ui_jobs_delegates_and_returns_page() -> 
 
 async def test_handoff_job_service_count_jobs_by_status_delegates_and_returns_counts() -> None:
     expected_counts = {
+        JobStatusEnum.PENDING: 0,
         JobStatusEnum.PUBLISHED: 5,
-        JobStatusEnum.CLAIMED: 0,
         JobStatusEnum.IN_PROGRESS: 2,
         JobStatusEnum.BLOCKED: 1,
         JobStatusEnum.UNBLOCKED: 0,
@@ -312,9 +315,9 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
             stuck_minutes=60,
             total_jobs=8,
             all_time_status_counts={
+                JobStatusEnum.PENDING: 0,
                 JobStatusEnum.PUBLISHED: 11,
-                JobStatusEnum.CLAIMED: 3,
-                JobStatusEnum.IN_PROGRESS: 2,
+                JobStatusEnum.IN_PROGRESS: 5,
                 JobStatusEnum.BLOCKED: 5,
                 JobStatusEnum.UNBLOCKED: 2,
                 JobStatusEnum.COMPLETED: 30,
@@ -322,9 +325,9 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
                 JobStatusEnum.CANCELLED: 1,
             },
             status_counts={
+                JobStatusEnum.PENDING: 0,
                 JobStatusEnum.PUBLISHED: 1,
-                JobStatusEnum.CLAIMED: 1,
-                JobStatusEnum.IN_PROGRESS: 1,
+                JobStatusEnum.IN_PROGRESS: 2,
                 JobStatusEnum.BLOCKED: 1,
                 JobStatusEnum.UNBLOCKED: 1,
                 JobStatusEnum.COMPLETED: 3,
@@ -335,12 +338,6 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
             stuck_jobs=2,
             total_handoffs=3,
             waiting_jobs_by_role=[("qa", 8), ("frontend", 2)],
-            published_to_claimed_pairs=[
-                (base, base + timedelta(minutes=15)),
-                (base, base + timedelta(minutes=10)),
-                (base + timedelta(minutes=30), base + timedelta(minutes=50)),
-                (base + timedelta(minutes=90), base + timedelta(minutes=70)),
-            ],
             published_to_resolution_pairs=[
                 (base, base + timedelta(minutes=40)),
                 (base, base + timedelta(minutes=80)),
@@ -365,8 +362,7 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
     assert result.stuck_minutes == 60
     assert result.total_jobs == 8
     assert result.queue_status_counts[JobStatusEnum.PUBLISHED] == 1
-    assert result.queue_status_counts[JobStatusEnum.CLAIMED] == 1
-    assert result.queue_status_counts[JobStatusEnum.IN_PROGRESS] == 1
+    assert result.queue_status_counts[JobStatusEnum.IN_PROGRESS] == 2
     assert result.queue_status_counts[JobStatusEnum.BLOCKED] == 1
     assert result.queue_status_counts[JobStatusEnum.UNBLOCKED] == 1
     assert result.terminal_status_counts[JobStatusEnum.COMPLETED] == 3
@@ -383,8 +379,6 @@ async def test_handoff_job_service_stats_computes_completion_rate_and_medians() 
     assert result.total_handoffs == 3
     assert result.estimated_time_saved_minutes == 24
     assert result.waiting_jobs_by_role == [("qa", 8), ("frontend", 2)]
-    assert result.p50_time_to_claim_minutes == pytest.approx(15.0)
-    assert result.p90_time_to_claim_minutes == pytest.approx(19.0)
     assert result.p50_time_to_resolution_minutes == pytest.approx(40.0)
     assert result.p90_time_to_resolution_minutes == pytest.approx(72.0)
 
@@ -406,7 +400,6 @@ async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data()
             stuck_jobs=0,
             total_handoffs=0,
             waiting_jobs_by_role=[],
-            published_to_claimed_pairs=[],
             published_to_resolution_pairs=[],
         )
     )
@@ -431,14 +424,12 @@ async def test_handoff_job_service_stats_returns_zeroed_metrics_for_empty_data()
     assert result.total_handoffs == 0
     assert result.estimated_time_saved_minutes == 0
     assert result.waiting_jobs_by_role == []
-    assert result.p50_time_to_claim_minutes is None
-    assert result.p90_time_to_claim_minutes is None
     assert result.p50_time_to_resolution_minutes is None
     assert result.p90_time_to_resolution_minutes is None
     for status in JobStatusEnum:
         if status in {
             JobStatusEnum.PUBLISHED,
-            JobStatusEnum.CLAIMED,
+            JobStatusEnum.IN_PROGRESS,
             JobStatusEnum.IN_PROGRESS,
             JobStatusEnum.BLOCKED,
             JobStatusEnum.UNBLOCKED,
@@ -571,7 +562,6 @@ async def test_handoff_job_service_claim_job_claims_and_persists_when_checks_pas
     repository.save.assert_awaited_once_with(job=job)
     assert job.status == JobStatusEnum.IN_PROGRESS
     assert job.assignee_agent_id == 10
-    assert isinstance(job.claimed_at, datetime)
     assert isinstance(job.started_at, datetime)
 
 
@@ -585,7 +575,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_status_is_not_
     job_dependency_repo = Mock()
 
     job = Mock()
-    job.status = JobStatusEnum.CLAIMED
+    job.status = JobStatusEnum.IN_PROGRESS
     job.target_role_id = 20
     job.assignee_agent_id = None
     repository.get_by_id_for_update.return_value = job
@@ -662,7 +652,7 @@ async def test_handoff_job_service_claim_job_raises_conflict_when_job_already_as
     repository.save.assert_not_called()
 
 
-async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_for_assignee() -> None:
+async def test_handoff_job_service_change_job_status_raises_conflict_for_in_progress_to_in_progress() -> None:
     repository = Mock()
     repository.get_by_id_for_update = AsyncMock()
     repository.save = AsyncMock()
@@ -670,10 +660,9 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
-    job_event_repo.create = AsyncMock()
 
     job = Mock()
-    job.status = JobStatusEnum.CLAIMED
+    job.status = JobStatusEnum.IN_PROGRESS
     job.assignee_agent_id = 10
     job.source_agent_id = 42
     repository.get_by_id_for_update.return_value = job
@@ -686,20 +675,10 @@ async def test_handoff_job_service_change_job_status_sets_started_at_and_saves_f
         trace_id="trace-123",
     )
 
-    await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.IN_PROGRESS, agent_id=10)
 
-    repository.get_by_id_for_update.assert_awaited_once_with(job_id=123)
-    repository.save.assert_awaited_once_with(job=job)
-    assert job.status == JobStatusEnum.IN_PROGRESS
-    assert isinstance(job.updated_at, datetime)
-    assert isinstance(job.started_at, datetime)
-    job_event_repo.create.assert_awaited_once()
-    event_dto = job_event_repo.create.await_args.kwargs["dto"]
-    assert event_dto.job_id == 123
-    assert event_dto.event_type == JobEventTypeEnum.TASK_STARTED
-    assert event_dto.current_status == JobStatusEnum.IN_PROGRESS
-    assert event_dto.actor_agent_id == 10
-    assert "timestamp" in event_dto.payload_json
+    repository.save.assert_not_called()
 
 
 async def test_handoff_job_service_change_job_status_sets_completed_at_for_assignee() -> None:
@@ -792,7 +771,7 @@ async def test_handoff_job_service_change_job_status_sets_failed_at_and_failure_
     assert "timestamp" in event_dto.payload_json
 
 
-async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_for_claimed() -> None:
+async def test_handoff_job_service_change_job_status_raises_conflict_for_source_agent_cancel_in_progress() -> None:
     repository = Mock()
     repository.get_by_id_for_update = AsyncMock()
     repository.save = AsyncMock()
@@ -800,11 +779,9 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
     job_artifact_repo = Mock()
     job_event_repo = Mock()
     job_dependency_repo = Mock()
-    job_dependency_repo.find_downstream_pending_job_ids = AsyncMock()
-    job_event_repo.create = AsyncMock()
 
     job = Mock()
-    job.status = JobStatusEnum.CLAIMED
+    job.status = JobStatusEnum.IN_PROGRESS
     job.assignee_agent_id = 10
     job.source_agent_id = 42
     repository.get_by_id_for_update.return_value = job
@@ -817,19 +794,10 @@ async def test_handoff_job_service_change_job_status_allows_source_agent_cancel_
         trace_id="trace-123",
     )
 
-    await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent_id=42)
+    with pytest.raises(HandoffJobConflictError):
+        await service.change_job_status(job_id=123, status=JobStatusEnum.CANCELLED, agent_id=42)
 
-    repository.save.assert_awaited_once_with(job=job)
-    assert job.status == JobStatusEnum.CANCELLED
-    assert isinstance(job.updated_at, datetime)
-    assert isinstance(job.cancelled_at, datetime)
-    job_event_repo.create.assert_awaited_once()
-    event_dto = job_event_repo.create.await_args.kwargs["dto"]
-    assert event_dto.job_id == 123
-    assert event_dto.event_type == JobEventTypeEnum.TASK_CANCELLED
-    assert event_dto.current_status == JobStatusEnum.CANCELLED
-    assert event_dto.actor_agent_id == 42
-    assert "timestamp" in event_dto.payload_json
+    repository.save.assert_not_called()
 
 
 async def test_handoff_job_service_change_job_status_raises_conflict_for_invalid_transition() -> None:
@@ -871,7 +839,7 @@ async def test_handoff_job_service_change_job_status_raises_conflict_when_assign
     job_dependency_repo = Mock()
 
     job = Mock()
-    job.status = JobStatusEnum.CLAIMED
+    job.status = JobStatusEnum.IN_PROGRESS
     job.assignee_agent_id = 10
     job.source_agent_id = 42
     repository.get_by_id_for_update.return_value = job

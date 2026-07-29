@@ -759,7 +759,6 @@ async def test_full_reject_retry_barrier_claim_lifecycle(
         target_role_id=target_role_id,
         status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=source_agent_id,
-        claimed_at=datetime.now(timezone.utc),
         started_at=datetime.now(timezone.utc),
     )
 
@@ -785,7 +784,6 @@ async def test_full_reject_retry_barrier_claim_lifecycle(
     await db_session.refresh(reviewing_job)
     assert reviewing_job.status == JobStatusEnum.PENDING
     assert reviewing_job.assignee_agent_id is None
-    assert reviewing_job.claimed_at is None
     assert reviewing_job.started_at is None
 
     # Step 2: Claim and complete the retry job.
@@ -796,7 +794,6 @@ async def test_full_reject_retry_barrier_claim_lifecycle(
     # Assign the retry to an agent and transition to IN_PROGRESS.
     retry_job.status = JobStatusEnum.IN_PROGRESS
     retry_job.assignee_agent_id = source_agent_id
-    retry_job.claimed_at = datetime.now(timezone.utc)
     retry_job.started_at = datetime.now(timezone.utc)
     await db_session.commit()
 

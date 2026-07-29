@@ -200,7 +200,6 @@ describe('apiDataSource', () => {
       const countsResponse = {
         counts: {
           published: 5,
-          claimed: 2,
           in_progress: 3,
           blocked: 1,
           completed: 10,
@@ -216,7 +215,7 @@ describe('apiDataSource', () => {
       expect(url).toBe(`${API_BASE}/ui/jobs/counts`)
 
       // First entry is "all" with the total
-      expect(result[0]).toEqual({ status: 'all', count: 21 })
+      expect(result[0]).toEqual({ status: 'all', count: 19 })
       // Known statuses present in lifecycle order
       expect(result.some((c) => c.status === 'published' && c.count === 5)).toBe(true)
       expect(result.some((c) => c.status === 'completed' && c.count === 10)).toBe(true)
