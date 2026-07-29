@@ -12,6 +12,7 @@ const { mockService } = vi.hoisted(() => ({
     fetchJobDetail: vi.fn().mockResolvedValue(null),
     fetchRoles: vi.fn().mockResolvedValue([]),
     fetchAgents: vi.fn().mockResolvedValue([]),
+    getProfile: vi.fn().mockResolvedValue(true),
   },
 }))
 
@@ -74,6 +75,24 @@ describe('App routing', () => {
       expect(
         screen.getByText(/Loading agents|No agents have been registered yet/),
       ).toBeInTheDocument()
+    })
+  })
+
+  it('redirects to /onboarding when profile returns is_onboarded=false', async () => {
+    vi.mocked(mockService.getProfile).mockResolvedValue(false)
+    renderAt('/jobs')
+    await waitFor(() => {
+      expect(
+        screen.getByText('Welcome to ForkFlux'),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('redirects from /onboarding to /jobs when already onboarded', async () => {
+    vi.mocked(mockService.getProfile).mockResolvedValue(true)
+    renderAt('/onboarding')
+    await waitFor(() => {
+      expect(screen.getByText('Jobs')).toBeInTheDocument()
     })
   })
 })

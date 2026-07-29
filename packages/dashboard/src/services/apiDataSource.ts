@@ -14,7 +14,9 @@ import type {
   Agent,
   CreateAgentRequest,
   CreateAgentResponse,
+  CreateProfileRequest,
   CreateRoleRequest,
+  GetProfileResponse,
   JobDetail,
   JobListMeta,
   JobListQuery,
@@ -381,5 +383,40 @@ export const apiDataSource: JobDataSource = {
     }
 
     return (await res.json()) as CreateAgentResponse;
+  },
+
+  /**
+   * Check whether the user has completed onboarding via
+   * `GET /api/v1/ui/profile`.
+   *
+   * Returns `true` if a profile row exists with `is_onboarded=true`,
+   * `false` otherwise (including when no profile row exists yet).
+   */
+  async getProfile(): Promise<boolean> {
+    const res = await fetchJson<GetProfileResponse>(
+      `${getBaseUrl()}/ui/profile`,
+    );
+    return res.is_onboarded;
+  },
+
+  /**
+   * Mark onboarding as complete (or reset it) via
+   * `POST /api/v1/ui/profile`.
+   *
+   * Sends `is_onboarded` as JSON body. On success (201) returns the
+   * confirmed value. Throws on 409 (profile already exists).
+   */
+  async createProfile(isOnboarded: boolean): Promise<boolean> {
+    const body: CreateProfileRequest = { is_onboarded: isOnboarded };
+    const res = await postJson(`${getBaseUrl()}/ui/profile`, body);
+
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    const data = (await res.json()) as { is_onboarded: boolean };
+    return data.is_onboarded;
   },
 };

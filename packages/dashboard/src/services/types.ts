@@ -97,4 +97,10 @@ export interface JobDataSource {
    * can display a user-friendly message.
    */
   unblockJob(id: number, unblockReason: string): Promise<UnblockJobResponse>;
+
+  /** Check whether the user has completed onboarding. */
+  getProfile(): Promise<boolean>;
+
+  /** Mark onboarding as complete (or reset it). */
+  createProfile(isOnboarded: boolean): Promise<boolean>;
 }
