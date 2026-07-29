@@ -224,6 +224,12 @@ The quickstart flow creates:
 
 ### `forkflux stats`
 
+:::warning Deprecated
+
+This command is deprecated. Use the ForkFlux dashboard or MCP tools instead.
+
+:::
+
 Shows a handoff metrics snapshot for a configurable time window.
 
 Use this command to quickly assess delivery health, queue pressure, and latency trends without querying the database directly.
@@ -293,6 +299,12 @@ Operator notes:
 - High stuck-job counts usually indicate assignment imbalance, blocked dependencies, or missing agent capacity.
 
 ## Role commands
+
+:::warning Deprecated
+
+All role management CLI commands (`forkflux agents-role *`) are deprecated. Use the ForkFlux dashboard or MCP tools instead.
+
+:::
 
 Role commands are grouped under `forkflux agents-role`. A role defines the type of work an agent can target or receive, such as `developer`, `qa`, `frontend`, or `reviewer`.
 
@@ -414,6 +426,12 @@ Example:
 The command asks for confirmation before deleting. ForkFlux refuses to delete a role while agents or other records still use it.
 
 ## Agent commands
+
+:::warning Deprecated
+
+All agent management CLI commands (`forkflux agent *`) are deprecated. Use the ForkFlux dashboard or MCP tools instead.
+
+:::
 
 Agent commands are grouped under `forkflux agent`. An agent represents an assistant identity that can authenticate to ForkFlux. Assign one or more roles to the agent before it receives role-targeted work.
 
@@ -618,6 +636,12 @@ Example:
 After revocation, the agent can no longer authenticate with the old token.
 
 ## Job commands
+
+:::warning Deprecated
+
+All job management CLI commands (`forkflux job *`) are deprecated. Use the ForkFlux dashboard or MCP tools instead.
+
+:::
 
 Job commands are grouped under `forkflux job`. A job is a structured handoff record with a lifecycle status, target role, context payload, and optional artifacts.
 
@@ -836,29 +860,25 @@ Use lifecycle statuses according to the intended outcome:
 
 ## Manual setup example
 
-This sequence initializes ForkFlux, creates a custom role, creates an agent, assigns the role to that agent, and starts the API server.
+:::info
+
+The role, agent, and job management commands referenced in this example are deprecated. Initialize the database with `forkflux init`, then create roles, agents, and tokens through the ForkFlux dashboard UI or MCP tools instead.
+
+:::
+
+This sequence initializes ForkFlux and starts the API server:
 
 <Tabs groupId="cli-command">
   <TabItem value="uvx" label="uvx">
     ```bash
     uvx --from forkflux forkflux init
-    uvx --from forkflux forkflux agents-role add reviewer Reviewer
-    uvx --from forkflux forkflux agent add reviewer-claude --tool-family claude
-    uvx --from forkflux forkflux agent list
-    uvx --from forkflux forkflux agent assign-role AGENT_ID reviewer
     uvx --from forkflux forkflux serve
     ```
   </TabItem>
   <TabItem value="installed" label="installed">
     ```bash
     forkflux init
-    forkflux agents-role add reviewer Reviewer
-    forkflux agent add reviewer-claude --tool-family claude
-    forkflux agent list
-    forkflux agent assign-role AGENT_ID reviewer
     forkflux serve
     ```
   </TabItem>
 </Tabs>
-
-Copy the API key printed by `forkflux agent add` into the MCP client configuration for the receiving assistant. Replace `AGENT_ID` in the role assignment command with the numeric ID shown by `forkflux agent list`.
