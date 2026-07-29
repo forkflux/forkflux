@@ -86,7 +86,6 @@ async def test_create_job_returns_201_and_persists_job_and_artifacts(
     assert created_job.assignee_agent_id is None
     assert created_job.constraints == payload["constraints"]
     assert created_job.failure_reason is None
-    assert created_job.claimed_at is None
     assert created_job.started_at is None
     assert created_job.completed_at is None
     assert created_job.failed_at is None

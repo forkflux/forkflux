@@ -172,7 +172,6 @@ export function createMockJobDetail(overrides: Partial<JobDetail> = {}): JobDeta
     blocked_reason: null,
     unblock_reason: null,
     published_at: '2026-01-01T00:01:00Z',
-    claimed_at: null,
     started_at: null,
     completed_at: null,
     failed_at: null,
@@ -214,7 +213,6 @@ const DEFAULT_META: JobListMeta = {
 const DEFAULT_COUNTS: StatusCount[] = [
   { status: 'all', count: 0 },
   { status: 'published', count: 0 },
-  { status: 'claimed', count: 0 },
   { status: 'in_progress', count: 0 },
   { status: 'blocked', count: 0 },
   { status: 'unblocked', count: 0 },

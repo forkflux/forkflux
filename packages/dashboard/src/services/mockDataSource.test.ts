@@ -26,7 +26,6 @@ const mockDetail = {
   blocked_reason: 'Waiting on upstream dependency',
   unblock_reason: null,
   published_at: '2026-01-01T00:01:00Z',
-  claimed_at: '2026-01-01T00:02:00Z',
   started_at: '2026-01-01T00:03:00Z',
   completed_at: null,
   failed_at: null,

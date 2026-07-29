@@ -6,7 +6,6 @@ import type { JobStatus } from '../../types/job'
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   published: 'Published',
-  claimed: 'Claimed',
   in_progress: 'In Progress',
   completed: 'Completed',
   blocked: 'Blocked',
@@ -17,7 +16,6 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 
 const STATUS_VARIANTS: Record<JobStatus, string> = {
   published: 'ff-badge--info',
-  claimed: 'ff-badge--info',
   in_progress: 'ff-badge--primary',
   completed: 'ff-badge--success',
   blocked: 'ff-badge--warning',

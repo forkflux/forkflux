@@ -70,7 +70,6 @@ async def test_claim_next_job_returns_201_and_claims_published_job(
         target_role_id=claimant_role_id,
         status=JobStatusEnum.PUBLISHED,
         assignee_agent_id=None,
-        claimed_at=None,
         created_at=old_timestamp,
         updated_at=old_timestamp,
         published_at=old_timestamp,
@@ -88,7 +87,6 @@ async def test_claim_next_job_returns_201_and_claims_published_job(
     assert body["status"] == JobStatusEnum.IN_PROGRESS.value
     assert body["assignee_agent_label"] == "claim-next-job-claimant-agent"
     assert body["target_role_key"] == "claim-next-job-claimant-role"
-    assert body["claimed_at"] is not None
     assert body["started_at"] is not None
 
     await db_session.refresh(job)
@@ -96,7 +94,6 @@ async def test_claim_next_job_returns_201_and_claims_published_job(
     assert claimed_job is not None
     assert claimed_job.status == JobStatusEnum.IN_PROGRESS
     assert claimed_job.assignee_agent_id == claimant_id
-    assert claimed_job.claimed_at is not None
     assert claimed_job.started_at is not None
 
 
@@ -268,7 +265,7 @@ async def test_claim_next_job_returns_404_when_no_published_jobs_available(
         db_session,
         source_agent_id=source_agent.id,
         target_role_id=role.id,
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         assignee_agent_id=None,
         created_at=old_timestamp,
         updated_at=old_timestamp,

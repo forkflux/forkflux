@@ -37,9 +37,9 @@ async def test_job_event_repository_create_persists_and_returns_event(db_session
     dto = JobEventCreate(
         job_id=handoff_job.id,
         event_type=JobEventTypeEnum.TASK_PUBLISHED,
-        current_status=JobStatusEnum.CLAIMED,
+        current_status=JobStatusEnum.IN_PROGRESS,
         actor_agent_id=source_agent.id,
-        payload_json={"source": "integration-test", "reason": "claimed"},
+        payload_json={"source": "integration-test", "reason": "in_progress"},
     )
 
     created_event = await repository.create(dto=dto)
@@ -69,7 +69,7 @@ async def test_job_event_repository_create_raises_conflict_on_integrity_error(
     dto = JobEventCreate(
         job_id=999_999,
         event_type=JobEventTypeEnum.TASK_PUBLISHED,
-        current_status=JobStatusEnum.CLAIMED,
+        current_status=JobStatusEnum.IN_PROGRESS,
         actor_agent_id=None,
         payload_json={"source": "integration-test"},
     )

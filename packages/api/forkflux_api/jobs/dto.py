@@ -146,8 +146,6 @@ class HandoffJobStats:
     total_handoffs: int
     estimated_time_saved_minutes: int
     waiting_jobs_by_role: list[tuple[str, int]]
-    p50_time_to_claim_minutes: float | None
-    p90_time_to_claim_minutes: float | None
     p50_time_to_resolution_minutes: float | None
     p90_time_to_resolution_minutes: float | None
 
@@ -163,7 +161,6 @@ class HandoffJobRawStats:
     stuck_jobs: int
     total_handoffs: int
     waiting_jobs_by_role: list[tuple[str, int]]
-    published_to_claimed_pairs: list[tuple[datetime | None, datetime | None]]
     published_to_resolution_pairs: list[tuple[datetime | None, datetime | None]]
 
 
@@ -229,7 +226,6 @@ class HandoffJobUiDetailItem:
     blocked_reason: str | None
     unblock_reason: str | None
     published_at: datetime | None
-    claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     failed_at: datetime | None

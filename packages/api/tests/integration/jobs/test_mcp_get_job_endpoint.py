@@ -56,7 +56,6 @@ async def test_get_job_returns_200_and_job_with_artifacts(client: AsyncClient, d
         constraints=["deadline:today", "format:markdown"],
         failure_reason=None,
         published_at=now,
-        claimed_at=None,
         started_at=None,
         completed_at=None,
         failed_at=None,
@@ -122,7 +121,6 @@ async def test_get_job_returns_200_and_job_with_artifacts(client: AsyncClient, d
     assert body["constraints"] == job.constraints
     assert body["failure_reason"] is None
     assert body["published_at"] == job.published_at.isoformat().replace("+00:00", "Z")
-    assert body["claimed_at"] is None
     assert body["started_at"] is None
     assert body["completed_at"] is None
     assert body["failed_at"] is None

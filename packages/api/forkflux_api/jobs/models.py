@@ -97,7 +97,6 @@ class HandoffJob(Base):
     unblock_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     published_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
-    claimed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)

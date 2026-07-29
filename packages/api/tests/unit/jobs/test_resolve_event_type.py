@@ -16,17 +16,17 @@ _TRANSITION_CASES = [
     # --- overrides (previous status matters) ---
     (JobStatusEnum.FAILED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_RESTARTED),
     # --- defaults (target status drives the event type) ---
-    (JobStatusEnum.CLAIMED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_STARTED),
+    (JobStatusEnum.IN_PROGRESS, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_STARTED),
     (JobStatusEnum.UNBLOCKED, JobStatusEnum.IN_PROGRESS, JobEventTypeEnum.TASK_STARTED),
     (JobStatusEnum.IN_PROGRESS, JobStatusEnum.COMPLETED, JobEventTypeEnum.TASK_COMPLETED),
     (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED, JobEventTypeEnum.TASK_FAILED),
-    (JobStatusEnum.CLAIMED, JobStatusEnum.FAILED, JobEventTypeEnum.TASK_FAILED),
+    (JobStatusEnum.IN_PROGRESS, JobStatusEnum.FAILED, JobEventTypeEnum.TASK_FAILED),
     (JobStatusEnum.BLOCKED, JobStatusEnum.FAILED, JobEventTypeEnum.TASK_FAILED),
     (JobStatusEnum.UNBLOCKED, JobStatusEnum.FAILED, JobEventTypeEnum.TASK_FAILED),
     (JobStatusEnum.IN_PROGRESS, JobStatusEnum.BLOCKED, JobEventTypeEnum.TASK_BLOCKED),
     (JobStatusEnum.BLOCKED, JobStatusEnum.UNBLOCKED, JobEventTypeEnum.TASK_UNBLOCKED),
     (JobStatusEnum.PUBLISHED, JobStatusEnum.CANCELLED, JobEventTypeEnum.TASK_CANCELLED),
-    (JobStatusEnum.CLAIMED, JobStatusEnum.CANCELLED, JobEventTypeEnum.TASK_CANCELLED),
+    (JobStatusEnum.IN_PROGRESS, JobStatusEnum.CANCELLED, JobEventTypeEnum.TASK_CANCELLED),
     (JobStatusEnum.BLOCKED, JobStatusEnum.CANCELLED, JobEventTypeEnum.TASK_CANCELLED),
     (JobStatusEnum.UNBLOCKED, JobStatusEnum.CANCELLED, JobEventTypeEnum.TASK_CANCELLED),
 ]

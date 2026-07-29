@@ -1157,6 +1157,14 @@
         ],
         "title": "CreateRoleRequest"
       },
+      "DependencyTypeEnum": {
+        "type": "string",
+        "enum": [
+          "blocks",
+          "reopen_of"
+        ],
+        "title": "DependencyTypeEnum"
+      },
       "GetMeResponse": {
         "properties": {
           "id": {
@@ -1756,18 +1764,6 @@
             ],
             "title": "Published At"
           },
-          "claimed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Claimed At"
-          },
           "started_at": {
             "anyOf": [
               {
@@ -1883,7 +1879,6 @@
           "blocked_reason",
           "unblock_reason",
           "published_at",
-          "claimed_at",
           "started_at",
           "completed_at",
           "failed_at",
@@ -1979,6 +1974,37 @@
         ],
         "title": "JobArtifactUiItem"
       },
+      "JobDependencyUiItem": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusEnum"
+          },
+          "target_role_label": {
+            "type": "string",
+            "title": "Target Role Label"
+          },
+          "dependency_type": {
+            "$ref": "#/components/schemas/DependencyTypeEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "summary",
+          "status",
+          "target_role_label",
+          "dependency_type"
+        ],
+        "title": "JobDependencyUiItem"
+      },
       "JobEventUiItem": {
         "properties": {
           "event_type": {
@@ -2064,7 +2090,6 @@
         "enum": [
           "pending",
           "published",
-          "claimed",
           "in_progress",
           "blocked",
           "unblocked",
@@ -2143,6 +2168,21 @@
             "type": "array",
             "title": "Constraints"
           },
+          "routing_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routing Rules"
+          },
           "retry_count": {
             "type": "integer",
             "title": "Retry Count"
@@ -2198,6 +2238,20 @@
             ],
             "title": "Unblock Reason"
           },
+          "upstream_dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/JobDependencyUiItem"
+            },
+            "type": "array",
+            "title": "Upstream Dependencies"
+          },
+          "downstream_dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/JobDependencyUiItem"
+            },
+            "type": "array",
+            "title": "Downstream Dependencies"
+          },
           "published_at": {
             "anyOf": [
               {
@@ -2209,18 +2263,6 @@
               }
             ],
             "title": "Published At"
-          },
-          "claimed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Claimed At"
           },
           "started_at": {
             "anyOf": [
@@ -2330,6 +2372,7 @@
           "assignee_agent_label",
           "target_role_label",
           "constraints",
+          "routing_rules",
           "retry_count",
           "max_retries",
           "artifacts",
@@ -2337,8 +2380,9 @@
           "failure_reason",
           "blocked_reason",
           "unblock_reason",
+          "upstream_dependencies",
+          "downstream_dependencies",
           "published_at",
-          "claimed_at",
           "started_at",
           "completed_at",
           "failed_at",

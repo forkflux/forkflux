@@ -67,7 +67,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
     newest_job = await HandoffJobFactory.create(
         db_session,
         summary="Newest list job",
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         priority=JobPriorityEnum.HIGH.value,
         source_agent_id=source_agent.id,
         target_role_id=source_role.id,
@@ -116,7 +116,7 @@ async def test_list_jobs_returns_200_with_ascending_created_order_and_mapped_fie
         "id": newest_job.id,
         "parent_job_id": None,
         "summary": newest_job.summary,
-        "status": JobStatusEnum.CLAIMED.value,
+        "status": JobStatusEnum.IN_PROGRESS.value,
         "priority": JobPriorityEnum.HIGH.value,
         "source_agent_label": source_agent.agent_label,
         "assignee_agent_label": assignee_agent.agent_label,
@@ -159,7 +159,7 @@ async def test_list_jobs_filters_by_status_and_target_role_key_when_my_roles_onl
     await HandoffJobFactory.create(
         db_session,
         summary="Non matching status",
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=reviewer_role.id,
         created_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
@@ -231,7 +231,7 @@ async def test_list_jobs_with_my_roles_only_false_and_no_target_role_key_returns
     await HandoffJobFactory.create(
         db_session,
         summary="Cross role non matching status",
-        status=JobStatusEnum.CLAIMED,
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=reviewer_role.id,
         created_at=datetime(2026, 4, 12, tzinfo=timezone.utc),
@@ -268,8 +268,8 @@ async def test_list_jobs_filters_by_multiple_repeated_status_query_params(
     )
     claimed_job = await HandoffJobFactory.create(
         db_session,
-        summary="Repeated status claimed",
-        status=JobStatusEnum.CLAIMED,
+        summary="Repeated status in progress",
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=source_role.id,
         created_at=datetime(2026, 4, 16, tzinfo=timezone.utc),
@@ -288,7 +288,7 @@ async def test_list_jobs_filters_by_multiple_repeated_status_query_params(
     )
 
     response = await client.get(
-        f"/api/v1/mcp/jobs?status={JobStatusEnum.PUBLISHED.value}&status={JobStatusEnum.CLAIMED.value}",
+        f"/api/v1/mcp/jobs?status={JobStatusEnum.PUBLISHED.value}&status={JobStatusEnum.IN_PROGRESS.value}",
         headers={"Authorization": f"Bearer {raw_token}"},
     )
 
@@ -316,8 +316,8 @@ async def test_list_jobs_treats_omitted_status_as_empty_status_list(
     )
     claimed_job = await HandoffJobFactory.create(
         db_session,
-        summary="Omitted status claimed",
-        status=JobStatusEnum.CLAIMED,
+        summary="Omitted status in progress",
+        status=JobStatusEnum.IN_PROGRESS,
         source_agent_id=source_agent.id,
         target_role_id=source_role.id,
         created_at=datetime(2026, 4, 19, tzinfo=timezone.utc),

@@ -10,7 +10,6 @@
 export type JobStatus =
   | 'pending'
   | 'published'
-  | 'claimed'
   | 'in_progress'
   | 'completed'
   | 'blocked'
@@ -95,7 +94,6 @@ export interface JobDetail extends Job {
   blocked_reason: string | null;
   unblock_reason: string | null;
   published_at: string | null;
-  claimed_at: string | null;
   started_at: string | null;
   completed_at: string | null;
   failed_at: string | null;

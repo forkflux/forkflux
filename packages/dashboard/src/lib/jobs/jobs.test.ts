@@ -177,18 +177,17 @@ describe('toStatusCounts', () => {
     expect(toStatusCounts({})).toEqual([{ status: 'all', count: 0 }])
   })
 
-  it('includes all 7 statuses when all present', () => {
+  it('includes all 6 statuses when all present', () => {
     const counts = toStatusCounts({
       published: 1,
-      claimed: 1,
       in_progress: 1,
       blocked: 1,
       completed: 1,
       failed: 1,
       cancelled: 1,
     })
-    expect(counts[0]).toEqual({ status: 'all', count: 7 })
-    expect(counts).toHaveLength(8)
+    expect(counts[0]).toEqual({ status: 'all', count: 6 })
+    expect(counts).toHaveLength(7)
   })
 })
 

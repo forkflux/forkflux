@@ -127,7 +127,6 @@ class HandoffJobWithArtifactsItem(BaseModel):
     unblock_reason: str | None
 
     published_at: datetime | None
-    claimed_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
     failed_at: datetime | None
