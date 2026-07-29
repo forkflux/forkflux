@@ -192,42 +192,6 @@ Configure each assistant to start the ForkFlux MCP server with that assistant's 
 
 Use the token printed when you registered the assistant's ForkFlux agent as `FORKFLUX_API_KEY`.
 
-## Environment setup sequence
-
-The following diagram shows the full environment setup and agent registration flow:
-
-```mermaid
-sequenceDiagram
-    actor Admin as 👤 Admin / DevOps
-    participant CLI as ForkFlux CLI
-    participant API as ForkFlux API
-    participant DB as Database SQLite/PostgreSQL
-    participant MCP as ForkFlux MCP Server
-    participant Agent as AI Agent IDE
-
-    Note over Admin, Agent: Phase 1 — One-time environment setup
-
-    Admin->>CLI: forkflux quickstart
-    CLI->>API: POST /api/v1/roles create role: developer
-    CLI->>API: POST /api/v1/roles create role: qa
-    CLI->>API: POST /api/v1/roles create role: reviewer
-    API->>DB: INSERT target_roles developer, qa, reviewer
-    DB-->>API: OK
-
-    CLI->>API: POST /api/v1/agents register agent-1 roles: developer
-    API-->>CLI: agent-1 + API token TOKEN_A1
-    CLI->>API: POST /api/v1/agents register agent-2 roles: qa, reviewer
-    API-->>CLI: agent-2 + API token TOKEN_A2
-
-    Note over CLI, Agent: Phase 2 — MCP server configuration per agent machine
-
-    CLI->>Agent: install ForkFlux MCP server + skills
-    Agent->>MCP: configure MCP client with FORKFLUX_API_KEY=TOKEN_A1
-    Agent->>MCP: configure MCP client with FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1
-
-    Note over Admin, Agent: Ready for handoffs
-```
-
 ## 6. Add ForkFlux skills
 
 Install the ForkFlux skill bundle so compatible assistants can run the sender and receiver workflows consistently:
