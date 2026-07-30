@@ -148,8 +148,8 @@ export function OnboardingPage() {
 
     try {
       await jobService.createRole(trimmedKey, trimmedLabel)
-      await refreshRoles()
       resetRoleForm()
+      await refreshRoles()
     } catch (err) {
       setRoleError(
         err instanceof Error
