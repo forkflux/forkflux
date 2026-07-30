@@ -21,14 +21,14 @@ depends_on: Union[str, Sequence[str], None] = None
 # The desired job_status enum values after removing 'claimed'.
 # Must match the application-level JobStatusEnum in jobs/constants.py.
 _JOB_STATUS_VALUES = [
-    "pending",
-    "published",
-    "in_progress",
-    "blocked",
-    "unblocked",
-    "completed",
-    "failed",
-    "cancelled",
+    "PENDING",
+    "PUBLISHED",
+    "IN_PROGRESS",
+    "BLOCKED",
+    "UNBLOCKED",
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
 ]
 
 # Columns that reference the job_status enum type on PostgreSQL.
@@ -50,12 +50,7 @@ def upgrade() -> None:
     bind = op.get_bind()
     is_postgresql = bind.dialect.name == "postgresql"
 
-    # 1. Backfill any remaining claimed rows to in_progress.
-    #    sync_enum_values will refuse to drop a value that is still
-    #    referenced by any row.
-    op.execute(sa.text("UPDATE handoff_job SET status = 'in_progress' WHERE status = 'claimed'"))
-
-    # 2. Remove 'claimed' from the PostgreSQL enum.
+    # 3. Remove 'claimed' from the PostgreSQL enum.
     if is_postgresql:
         op.sync_enum_values(  # type: ignore[attr-defined]
             enum_schema="public",
@@ -65,7 +60,7 @@ def upgrade() -> None:
             enum_values_to_rename=[],
         )
 
-    # 3. Drop the claimed_at column.
+    # 4. Drop the claimed_at column.
     with op.batch_alter_table("handoff_job") as batch_op:
         batch_op.drop_column("claimed_at")
 
@@ -84,7 +79,7 @@ def downgrade() -> None:
         op.sync_enum_values(  # type: ignore[attr-defined]
             enum_schema="public",
             enum_name="job_status",
-            new_values=["claimed"] + _JOB_STATUS_VALUES,
+            new_values=["CLAIMED"] + _JOB_STATUS_VALUES,
             affected_columns=_AFFECTED_COLUMNS,
             enum_values_to_rename=[],
         )
