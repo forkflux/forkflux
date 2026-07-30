@@ -205,6 +205,7 @@ export function OnboardingPage() {
         selectedRoleIds,
       )
       setCreatedAgent(result)
+      await refreshAgents()
       setTokenCopied(false)
       setMcpCopied(false)
       setCopyFailed(false)

@@ -230,7 +230,11 @@ describe('OnboardingPage', () => {
     })
 
     it('can create an agent and see the token success view', async () => {
-      fetchAgentsMock.mockResolvedValue([])
+      // First fetch (during goToStep2) returns empty; second fetch
+      // (refreshAgents after creation) returns agents so Continue enables.
+      fetchAgentsMock
+        .mockResolvedValueOnce([])
+        .mockResolvedValue(MOCK_AGENTS)
       await goToStep2()
 
       fireEvent.change(screen.getByPlaceholderText('e.g. frontend-bot'), {
@@ -259,6 +263,12 @@ describe('OnboardingPage', () => {
       expect(
         screen.getByText('MCP Server Configuration'),
       ).toBeInTheDocument()
+
+      // After refreshAgents, canProceedFromStep2 (agents.length >= 1)
+      // becomes true and Continue is enabled.
+      await waitFor(() => {
+        expect(screen.getByText('Continue')).not.toBeDisabled()
+      })
     })
 
     it('shows validation error when agent label is empty', async () => {
