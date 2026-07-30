@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle/ThemeToggle'
 import { jobService } from '@job-service'
 import { formatDate, slugifyRoleKey } from '../../lib/jobs/jobs'
@@ -8,6 +8,7 @@ import type {
   CreateAgentResponse,
   Role,
 } from '../../types/job'
+import type { OnboardingGuardContext } from '../../components/OnboardingGuard/OnboardingGuard'
 import './OnboardingPage.scss'
 
 /** MCP server configuration template — token is interpolated at render time. */
@@ -35,6 +36,7 @@ const DOCS_URL = 'https://docs.forkflux.ai/mcp-integration#client-specific-notes
 
 export function OnboardingPage() {
   const navigate = useNavigate()
+  const { refreshProfile } = useOutletContext<OnboardingGuardContext>() ?? { refreshProfile: () => {} }
 
   // ── shared state ──────────────────────────────────────────────
   const [step, setStep] = useState(1)
@@ -260,6 +262,7 @@ export function OnboardingPage() {
     setFinishError(null)
     try {
       await jobService.createProfile(true)
+      refreshProfile()
       navigate('/jobs', { replace: true })
     } catch (err) {
       setFinishError(

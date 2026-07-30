@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { jobService } from '@job-service'
 
@@ -11,28 +11,30 @@ import { jobService } from '@job-service'
  * - If `is_onboarded === true` and ON `/onboarding`:
  *   redirects to `/jobs`.
  * - Otherwise: renders child routes via `<Outlet />`.
+ *
+ * Exposes a `refreshProfile` callback via Outlet context so the onboarding
+ * page can eagerly update the guard's state after setup completes, preventing
+ * a redirect back to `/onboarding`.
  */
 export function OnboardingGuard() {
   const location = useLocation()
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
+  const checkProfile = useCallback(() => {
     jobService
       .getProfile()
       .then((onboarded) => {
-        if (cancelled) return
         setIsOnboarded(onboarded)
       })
       .catch((err) => {
-        if (cancelled) return
         setError(err instanceof Error ? err.message : 'Failed to check onboarding status')
       })
-    return () => {
-      cancelled = true
-    }
   }, [])
+
+  useEffect(() => {
+    checkProfile()
+  }, [checkProfile])
 
   // ── loading ────────────────────────────────────────────────────
   if (isOnboarded === null && error === null) {
@@ -82,5 +84,10 @@ export function OnboardingGuard() {
     return <Navigate to="/jobs" replace />
   }
 
-  return <Outlet />
+  return <Outlet context={{ refreshProfile: checkProfile }} />
+}
+
+/** Context shape exposed by OnboardingGuard via `<Outlet context>`. */
+export interface OnboardingGuardContext {
+  refreshProfile: () => void
 }
