@@ -12,6 +12,7 @@ const { mockService } = vi.hoisted(() => ({
     fetchJobDetail: vi.fn().mockResolvedValue(null),
     fetchRoles: vi.fn().mockResolvedValue([]),
     fetchAgents: vi.fn().mockResolvedValue([]),
+    getProfile: vi.fn().mockResolvedValue(true),
   },
 }))
 
@@ -74,6 +75,43 @@ describe('App routing', () => {
       expect(
         screen.getByText(/Loading agents|No agents have been registered yet/),
       ).toBeInTheDocument()
+    })
+  })
+
+  it('redirects to /onboarding when profile returns is_onboarded=false', async () => {
+    vi.mocked(mockService.getProfile).mockResolvedValue(false)
+    renderAt('/jobs')
+    await waitFor(() => {
+      expect(
+        screen.getByText('Welcome to ForkFlux'),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('redirects from /onboarding to /jobs when already onboarded', async () => {
+    vi.mocked(mockService.getProfile).mockResolvedValue(true)
+    renderAt('/onboarding')
+    await waitFor(() => {
+      expect(screen.getByText('Jobs')).toBeInTheDocument()
+    })
+  })
+
+  it('reaches /jobs after setup completes without redirecting back to /onboarding', async () => {
+    // Start as non-onboarded user visiting a protected page.
+    vi.mocked(mockService.getProfile).mockResolvedValue(false)
+    renderAt('/jobs')
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to ForkFlux')).toBeInTheDocument()
+    })
+
+    // Simulate setup completion: profile now returns onboarded=true.
+    vi.mocked(mockService.getProfile).mockResolvedValue(true)
+
+    // Navigate to /jobs — as handleFinishSetup does after createProfile + refreshProfile.
+    renderAt('/jobs')
+
+    await waitFor(() => {
+      expect(screen.getByText('Jobs')).toBeInTheDocument()
     })
   })
 })

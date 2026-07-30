@@ -76,6 +76,16 @@ const roleOverlay = new Map<string, Role>();
 const agentOverlay = new Map<number, Agent>();
 
 /**
+ * In-memory onboarding flag.
+ *
+ * Defaults to `false` so the onboarding flow triggers on first visit in dev
+ * mode. When `createProfile` is called, the flag is updated so subsequent
+ * calls to `getProfile` return the new value — mirroring how the real API
+ * persists the profile row.
+ */
+let isOnboarded = false;
+
+/**
  * Return a copy of a job with any overlay mutations applied.
  * Used by `fetchJobs` and `fetchJobCounts` to reflect in-memory state.
  */
@@ -367,5 +377,26 @@ export const mockDataSource: JobDataSource = {
       target_role_ids: targetRoleIds,
       api_token: token,
     };
+  },
+
+  /**
+   * Check whether the user has completed onboarding.
+   *
+   * Returns the in-memory `isOnboarded` flag. Defaults to `false` so the
+   * onboarding flow triggers on first visit.
+   */
+  getProfile(): Promise<boolean> {
+    return Promise.resolve(isOnboarded);
+  },
+
+  /**
+   * Mark onboarding as complete (or reset it).
+   *
+   * Updates the in-memory flag and returns the new value — mirroring the
+   * real API's `POST /api/v1/ui/profile`.
+   */
+  createProfile(value: boolean): Promise<boolean> {
+    isOnboarded = value;
+    return Promise.resolve(isOnboarded);
   },
 };

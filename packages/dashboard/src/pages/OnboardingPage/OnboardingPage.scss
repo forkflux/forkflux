@@ -1,0 +1,528 @@
+// ── Onboarding page ──────────────────────────────────────────────
+// BEM block: ff-onboarding
+//
+// Uses the same CSS custom properties as the rest of the dashboard
+// (defined in src/index.scss). The page renders outside <Layout> so
+// it inherits :root / [data-theme="dark"] tokens directly.
+//
+// Theme-aware tokens (correct for both light & dark themes):
+//   --ff-card-bg           → white / surface (inputs, table wrap)
+//   --ff-color-light-soft   → light-gray / surface-muted (hovers, muted fills)
+//   --ff-page-text(-muted)  → text colors
+// Avoid the always-dark brand surfaces (--ff-color-bg / -bg-soft /
+// -surface-muted) for fills — they never adapt to light theme.
+
+.ff-onboarding {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+  min-height: 100vh;
+  background: var(--ff-page-bg);
+}
+
+.ff-onboarding__card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  align-self: start;
+  background: var(--ff-card-bg);
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius-lg);
+  box-shadow: var(--ff-shadow-lg);
+  padding: 2.5rem 2rem;
+
+  &--error {
+    text-align: center;
+    color: var(--ff-color-danger);
+  }
+}
+
+.ff-onboarding__theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.ff-onboarding__loading {
+  text-align: center;
+  color: var(--ff-page-text-muted);
+  font-size: 1rem;
+}
+
+// ── Title ────────────────────────────────────────────────────────
+
+.ff-onboarding__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ff-page-text);
+  text-align: center;
+}
+
+.ff-onboarding__subtitle {
+  margin: 0 0 2rem;
+  text-align: center;
+  color: var(--ff-page-text-muted);
+  font-size: 0.95rem;
+}
+
+// ── Step indicators ──────────────────────────────────────────────
+
+.ff-onboarding__steps {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.ff-onboarding__step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--ff-color-light-soft);
+  color: var(--ff-page-text-muted);
+  transition: background 0.2s, color 0.2s;
+
+  &--active {
+    background: var(--ff-color-primary);
+    color: var(--ff-color-bg);
+  }
+
+  &--done {
+    background: var(--ff-color-success);
+    color: var(--ff-color-bg);
+  }
+}
+
+// ── Step content ─────────────────────────────────────────────────
+
+.ff-onboarding__step-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ff-page-text);
+}
+
+.ff-onboarding__step-desc {
+  margin: 0 0 1.25rem;
+  color: var(--ff-page-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+// ── Table (roles / agents list) ──────────────────────────────────
+
+.ff-onboarding__table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card-bg);
+}
+
+.ff-onboarding__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ff-onboarding__th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  color: var(--ff-page-text-muted);
+  border-bottom: 1px solid var(--ff-page-border);
+  white-space: nowrap;
+}
+
+.ff-onboarding__row {
+  transition: background 0.1s;
+
+  &:hover {
+    background: var(--ff-color-light-soft);
+  }
+
+  &:not(:last-child) {
+    .ff-onboarding__td {
+      border-bottom: 1px solid var(--ff-page-border);
+    }
+  }
+}
+
+.ff-onboarding__td {
+  padding: 0.5rem 0.75rem;
+  color: var(--ff-page-text);
+  vertical-align: middle;
+
+  &--mono {
+    font-family: var(--ff-mono);
+    font-size: 0.85rem;
+  }
+
+  &--muted {
+    color: var(--ff-page-text-muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+}
+
+// ── Badges (role labels in agent table) ──────────────────────────
+
+.ff-onboarding__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ff-onboarding__badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.6;
+  background: var(--ff-color-light-soft);
+  border: 1px solid var(--ff-page-border);
+  color: var(--ff-page-text);
+  white-space: nowrap;
+}
+
+// ── Inline form ──────────────────────────────────────────────────
+
+.ff-onboarding__form {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-color-light-soft);
+}
+
+.ff-onboarding__form-title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ff-page-text);
+}
+
+.ff-onboarding__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ff-page-text);
+}
+
+.ff-onboarding__required {
+  color: var(--ff-color-danger);
+}
+
+.ff-onboarding__input {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius-sm);
+  font-size: 0.9rem;
+  font-family: var(--ff-sans);
+  color: var(--ff-page-text);
+  background: var(--ff-card-bg);
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--ff-color-primary);
+    box-shadow: 0 0 0 2px var(--ff-primary-border);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--mono {
+    font-family: var(--ff-mono);
+    font-size: 0.85rem;
+  }
+}
+
+.ff-onboarding__hint {
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--ff-page-text-muted);
+  font-style: italic;
+}
+
+.ff-onboarding__form-error {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-danger-bg);
+  border: 1px solid var(--ff-danger-border);
+  color: var(--ff-on-danger);
+  font-size: 0.85rem;
+}
+
+.ff-onboarding__add-btn {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--ff-color-primary);
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-color-primary);
+  color: var(--ff-color-bg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--ff-color-primary-hover);
+    border-color: var(--ff-color-primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ── Fieldset / role checkboxes ───────────────────────────────────
+
+.ff-onboarding__fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.ff-onboarding__role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.ff-onboarding__role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--ff-radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+
+  &:hover {
+    background: var(--ff-color-light-soft);
+  }
+}
+
+.ff-onboarding__checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--ff-color-primary);
+}
+
+.ff-onboarding__role-label-text {
+  color: var(--ff-page-text);
+}
+
+.ff-onboarding__role-key-text {
+  color: var(--ff-page-text-muted);
+  font-family: var(--ff-mono);
+  font-size: 0.8rem;
+}
+
+// ── Token success view ───────────────────────────────────────────
+
+.ff-onboarding__token-view {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ff-success-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-success-bg);
+}
+
+.ff-onboarding__token-warning {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-warning-bg);
+  border: 1px solid var(--ff-warning-border);
+  color: var(--ff-on-warning);
+  font-size: 0.9rem;
+}
+
+.ff-onboarding__token-box {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ff-onboarding__token-input {
+  flex: 1;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius-sm);
+  font-family: var(--ff-mono);
+  font-size: 0.8rem;
+  color: var(--ff-page-text);
+  background: var(--ff-card-bg);
+
+  &:focus {
+    outline: none;
+    border-color: var(--ff-color-primary);
+    box-shadow: 0 0 0 2px var(--ff-primary-border);
+  }
+}
+
+.ff-onboarding__copy-btn {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--ff-color-primary);
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-color-primary);
+  color: var(--ff-color-bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--ff-color-primary-hover);
+    border-color: var(--ff-color-primary-hover);
+  }
+
+  &--block {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
+.ff-onboarding__token-fallback {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-warning-bg);
+  border: 1px solid var(--ff-warning-border);
+  color: var(--ff-on-warning);
+  font-size: 0.85rem;
+}
+
+// ── MCP config ───────────────────────────────────────────────────
+
+.ff-onboarding__mcp-box {
+  margin-bottom: 1rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius);
+  overflow: hidden;
+}
+
+.ff-onboarding__mcp-pre {
+  margin: 0;
+  padding: 1rem;
+  background: var(--ff-card-bg);
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  code {
+    font-family: var(--ff-mono);
+    color: var(--ff-page-text);
+  }
+}
+
+.ff-onboarding__docs-link {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--ff-page-text-muted);
+
+  a {
+    color: var(--ff-color-primary-hover);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// ── Summary (step 3) ─────────────────────────────────────────────
+
+.ff-onboarding__summary {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-color-light-soft);
+
+  p {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: var(--ff-page-text);
+    line-height: 1.5;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+// ── Bottom action bar ────────────────────────────────────────────
+
+.ff-onboarding__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ff-page-border);
+}
+
+.ff-onboarding__primary-btn {
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--ff-color-primary);
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-color-primary);
+  color: var(--ff-color-bg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--ff-color-primary-hover);
+    border-color: var(--ff-color-primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.ff-onboarding__secondary-btn {
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--ff-page-border);
+  border-radius: var(--ff-radius-sm);
+  background: var(--ff-card-bg);
+  color: var(--ff-page-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--ff-page-text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}

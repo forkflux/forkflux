@@ -288,3 +288,18 @@ export interface CreateAgentResponse {
   target_role_ids: number[];
   api_token: string;
 }
+
+/** Response from GET /api/v1/ui/profile */
+export interface GetProfileResponse {
+  is_onboarded: boolean;
+}
+
+/** Request body for POST /api/v1/ui/profile */
+export interface CreateProfileRequest {
+  is_onboarded: boolean;
+}
+
+/** Response from POST /api/v1/ui/profile */
+export interface CreateProfileResponse {
+  is_onboarded: boolean;
+}
