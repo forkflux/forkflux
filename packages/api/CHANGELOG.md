@@ -1,3 +1,29 @@
+## [1.1.0] - 2026-07-29
+
+### ⚙️ Miscellaneous Tasks
+
+- *(api,ui,mcp)* Remove `claimed` status
+
+### 🐛 Bug Fixes
+
+- *(ui)* Adjust events layout on the job details page
+- *(ui)* Refresh onboarding guard state via Outlet context after setup completes
+- *(ui)* Reset role form before refresh to preserve error state
+- *(ui)* Refresh agents after creation so Continue button enables on step 2
+
+### 🚀 Features
+
+- *(ui)* Add job dependencies section
+- *(api, ui)* Add jobs routing section
+- *(ui)* Add event details in timeline
+- *(ui)* Add json grid view and adjust colors
+- *(ui)* Align all job detail fields with backend
+- *(ui)* Add dashboard onboarding
+
+### 🚜 Refactor
+
+- *(api)* Mark cli deprecated
+
 ## [1.0.0] - 2026-07-28
 
 ### 🎨 Styling

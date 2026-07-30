@@ -1,3 +1,9 @@
+## [0.5.1] - 2026-07-29
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove `claimed` status
+
 ## [0.5.0] - 2026-07-28
 
 ### ⚙️ Miscellaneous Tasks

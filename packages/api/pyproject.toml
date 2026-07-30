@@ -1,6 +1,6 @@
 [project]
 name = "forkflux"
-version = "1.0.0"
+version = "1.1.0"
 description = "Core multi-agent collaboration and audit layer for AI-assisted engineering teams."
 readme = "README.md"
 requires-python = ">=3.14"
