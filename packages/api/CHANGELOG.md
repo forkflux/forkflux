@@ -1,3 +1,9 @@
+## [1.1.2] - 2026-07-30
+
+### 🐛 Bug Fixes
+
+- *(api)* Fix change status to `blocked`
+
 ## [1.1.1] - 2026-07-29
 
 ### 🐛 Bug Fixes
