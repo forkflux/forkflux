@@ -1,3 +1,9 @@
+## [1.1.1] - 2026-07-29
+
+### 🐛 Bug Fixes
+
+- *(api)* Fix migration enums
+
 ## [1.1.0] - 2026-07-29
 
 ### ⚙️ Miscellaneous Tasks
