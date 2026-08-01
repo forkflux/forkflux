@@ -1,3 +1,13 @@
+## [0.6.0] - 2026-08-01
+
+### 🐛 Bug Fixes
+
+- *(api)* Fix list roles permissions
+
+### 🚀 Features
+
+- *(api,mcp)* Add mcp http support
+
 ## [0.5.1] - 2026-07-29
 
 ### ⚙️ Miscellaneous Tasks
