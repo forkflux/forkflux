@@ -19,18 +19,26 @@ def _assert_tool_result_envelope(result, expected_payload: dict[str, Any]) -> No
     assert json.loads(result.content[0].text) == expected_payload
 
 
-def _collect_enum_values(value: object) -> set[str]:
-    if isinstance(value, dict):
-        dict_values = {item for item in value.get("enum", []) if isinstance(item, str)}
-        for nested_value in value.values():
-            dict_values.update(_collect_enum_values(nested_value))
-        return dict_values
-    if isinstance(value, list):
-        list_values: set[str] = set()
-        for nested_value in value:
-            list_values.update(_collect_enum_values(nested_value))
-        return list_values
-    return set()
+def _get_property_schema(schema: dict[str, Any], property_name: str) -> dict[str, Any]:
+    properties = schema.get("properties", {})
+    assert property_name in properties, f"missing property {property_name!r}"
+    return properties[property_name]
+
+
+def _get_enum_values(prop_schema: dict[str, Any]) -> set[str]:
+    values = {item for item in prop_schema.get("enum", []) if isinstance(item, str)}
+    for branch in prop_schema.get("anyOf", []):
+        values.update(_get_enum_values(branch))
+    return values
+
+
+def _get_routing_rule_item_schema(prop_schema: dict[str, Any]) -> dict[str, Any]:
+    for branch in prop_schema.get("anyOf", []):
+        if branch.get("type") == "array":
+            return branch["items"]
+    items = prop_schema.get("items")
+    assert isinstance(items, dict), f"routing_rules is not an array schema: {prop_schema}"
+    return items
 
 
 def _get_input_schema(tool: object) -> dict[str, Any]:
@@ -51,7 +59,16 @@ async def test_role_dependent_tool_schemas_expose_api_roles(
     for tool_name in ("forkflux_create_job", "forkflux_list_jobs", "forkflux_claim_next_job"):
         assert tool_name in tools_by_name
         schema = _get_input_schema(tools_by_name[tool_name])
-        assert expected_role_keys <= _collect_enum_values(schema)
+        target_role_schema = _get_property_schema(schema, "target_role_key")
+        assert expected_role_keys <= _get_enum_values(target_role_schema)
+
+    # forkflux_create_job additionally exposes nested routing-rule role fields.
+    create_job_schema = _get_input_schema(tools_by_name["forkflux_create_job"])
+    routing_rule_item = _get_routing_rule_item_schema(_get_property_schema(create_job_schema, "routing_rules"))
+    routing_target_role_schema = _get_property_schema(routing_rule_item, "target_role_key")
+    # The nested field is currently a plain string (RoutingRule.target_role_key is str,
+    # not TargetRoleEnum), so it carries no enum to assert against.
+    assert routing_target_role_schema.get("type") == "string"
 
 
 async def test_list_jobs_calls_api_request_with_default_params_and_returns_payload(

@@ -89,6 +89,30 @@ async def verify_shared_api_key(
         )
 
 
+async def verify_token_or_shared_api_key(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    service: AgentApiTokenService = Depends(get_agent_api_token_service),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    try:
+        await verify_shared_api_key(credentials=credentials, settings=settings)
+        return
+    except HTTPException:
+        pass
+
+    try:
+        await verify_token(credentials=credentials, service=service)
+        return
+    except HTTPException:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials (either Bearer token or API key required)",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 async def get_current_agent(
     payload: dict[str, int] = Depends(verify_token),
     agent_service: AgentIdentityService = Depends(get_agent_identity_service),

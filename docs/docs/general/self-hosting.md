@@ -50,6 +50,11 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
       - SHARED_API_KEY=<SHARED_API_KEY>
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +69,9 @@ services:
     environment:
       - FORKFLUX_API_URL=http://api:8000/api/v1
       - FORKFLUX_SHARED_API_KEY=<SHARED_API_KEY>
+    depends_on:
+      api:
+        condition: service_healthy
 
   postgres:
     image: postgres:18-alpine

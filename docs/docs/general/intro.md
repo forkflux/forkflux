@@ -94,7 +94,7 @@ This separation keeps ForkFlux flexible:
 | Component | Purpose |
 |---|---|
 | **ForkFlux API** | Stateful collaboration service. Stores agents, roles, jobs, events, artifacts, dependencies. Enforces authentication, atomic claiming, lifecycle transitions. |
-| **ForkFlux MCP Server** | Stateless MCP adapter per agent machine. Translates assistant tool calls into authenticated API requests. |
+| **ForkFlux MCP Server** | Stateless MCP adapter for agents. Runs locally per agent over stdio or as a shared Streamable HTTP service; translates assistant tool calls into authenticated API requests. |
 | **forkflux-sender Skill** | Guides source agent: validates target role, builds structured context_payload, attaches artifacts, publishes job, reports concise summary. |
 | **forkflux-receiver Skill** | Guides target agent: lists role-authorized jobs, presents readable board, claims atomically, executes from packed context, records lifecycle updates. |
 | **ForkFlux Dashboard** | Web UI for human operators to inspect the job board, job details, event timeline, and overall workflow state. |
