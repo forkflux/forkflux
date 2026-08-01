@@ -1,3 +1,13 @@
+## [1.2.0] - 2026-08-01
+
+### 🐛 Bug Fixes
+
+- *(api)* Fix list roles permissions
+
+### 🚀 Features
+
+- *(api,mcp)* Add mcp http support
+
 ## [1.1.2] - 2026-07-30
 
 ### 🐛 Bug Fixes
