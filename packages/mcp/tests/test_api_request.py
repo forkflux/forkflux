@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from forkflux_mcp.main import _api_request
+from forkflux_mcp.main import _api_request, _get_authorization
 
 
 def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespace):
@@ -20,9 +20,30 @@ def _patch_http_request(monkeypatch: pytest.MonkeyPatch, response: SimpleNamespa
     return captured
 
 
+async def test_get_authorization_prefers_request_header(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_key", "fallback-key")
+
+    def _fake_get_http_headers(*, include: set[str]) -> dict[str, str]:
+        assert include == {"authorization"}
+        return {"authorization": "Bearer request-key"}
+
+    monkeypatch.setattr("forkflux_mcp.main.get_http_headers", _fake_get_http_headers)
+
+    assert await _get_authorization() == "Bearer request-key"
+
+
+async def test_get_authorization_falls_back_to_api_key_when_request_header_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_key", "fallback-key")
+    monkeypatch.setattr("forkflux_mcp.main.get_http_headers", lambda **_: {})
+
+    assert await _get_authorization() == "fallback-key"
+
+
 async def test_api_request_returns_success_payload_and_forwards_request_args(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("forkflux_mcp.main.API_URL", "http://api.example.test")
-    monkeypatch.setattr("forkflux_mcp.main.API_KEY", "test-key")
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_url", "http://api.example.test")
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_key", "test-key")
 
     response = SimpleNamespace(
         is_success=True,
@@ -41,6 +62,32 @@ async def test_api_request_returns_success_payload_and_forwards_request_args(mon
     assert captured["headers"] == {
         "Content-Type": "application/json",
         "Authorization": "Bearer test-key",
+    }
+
+
+async def test_api_request_forwards_request_authorization_header_without_duplicate_bearer_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_url", "http://api.example.test")
+    monkeypatch.setattr("forkflux_mcp.main.settings.forkflux_api_key", "fallback-key")
+    monkeypatch.setattr(
+        "forkflux_mcp.main.get_http_headers",
+        lambda **_: {"authorization": "Bearer request-key"},
+    )
+
+    response = SimpleNamespace(
+        is_success=True,
+        status_code=200,
+        json=lambda: {"ok": True},
+    )
+    captured = _patch_http_request(monkeypatch, response)
+
+    result = await _api_request("GET", "/agents/me")
+
+    assert result == {"success": True, "details": {"ok": True}}
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer request-key",
     }
 
 

@@ -18,11 +18,31 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
+      # Use the same private value for SHARED_API_KEY and
+      # FORKFLUX_SHARED_API_KEY. Replace this example before deployment.
+      - SHARED_API_KEY=6ac25f5c-e001-4ab0-95fc-a27bcc776264
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     depends_on:
       postgres:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
+  mcp:
+    image: ghcr.io/forkflux/forkflux-mcp:latest
+    command: uvicorn forkflux_mcp.main:app --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"
+    environment:
+      - FORKFLUX_API_URL=http://api:8000/api/v1
+      - FORKFLUX_SHARED_API_KEY=6ac25f5c-e001-4ab0-95fc-a27bcc776264
+    depends_on:
+      api:
+        condition: service_healthy
 
   postgres:
     image: postgres:18-alpine

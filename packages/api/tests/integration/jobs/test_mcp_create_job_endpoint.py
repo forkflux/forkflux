@@ -232,7 +232,7 @@ async def test_create_job_returns_422_when_target_role_key_is_invalid(
         "detail": [
             {
                 "loc": ["body", "target_role_key"],
-                "msg": "Target role is invalid.",
+                "msg": "Target role is invalid: Available roles: none.",
                 "type": "target_role.invalid",
                 "input": "missing-role-key",
                 "ctx": {},

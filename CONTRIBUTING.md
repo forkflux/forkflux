@@ -48,15 +48,10 @@ source .venv/bin/activate
 # .\.venv\Scripts\activate
 
 # Install all required libraries
-uv sync
+uv sync --all-packages
 ```
 
-2. Install dependencies
-```bash
-uv sync --dev
-```
-
-3. Run tests
+2. Run tests
 ```bash
 python -m pytest -s tests/
 ```

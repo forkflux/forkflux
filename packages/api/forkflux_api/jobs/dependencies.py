@@ -1,11 +1,12 @@
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forkflux_api.agents.dependencies import get_target_role_service
+from forkflux_api.agents.dependencies import get_agent_identity_roles_service, get_target_role_service
 from forkflux_api.agents.exceptions import TargetRoleNotFoundError
-from forkflux_api.agents.models import TargetRole
-from forkflux_api.agents.services import TargetRoleService
+from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.agents.services import AgentIdentityRoleService, TargetRoleService
 from forkflux_api.database import get_session
+from forkflux_api.dependencies import get_current_agent
 from forkflux_api.jobs.api_exceptions import (
     BlockedByJobValidationError,
     ParentJobValidationError,
@@ -109,18 +110,43 @@ async def validate_blocked_by_jobs(
     return None
 
 
+async def _get_available_role_keys(
+    current_agent: AgentIdentity,
+    agent_identity_role_service: AgentIdentityRoleService,
+    target_role_service: TargetRoleService,
+) -> list[str]:
+    role_ids = await agent_identity_role_service.list_role_ids(agent_identity_id=current_agent.id)
+    roles = await target_role_service.get_roles_by_ids(role_ids)
+    return [role.role_key for role in roles]
+
+
 async def validate_target_role(
-    job_data: HandoffJobCreateRequest, service: TargetRoleService = Depends(get_target_role_service)
+    job_data: HandoffJobCreateRequest,
+    service: TargetRoleService = Depends(get_target_role_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
 ) -> TargetRole:
     try:
         target_role = await service.get_by_role_key(role_key=job_data.target_role_key)
         return target_role
     except TargetRoleNotFoundError:
-        raise TargetRoleValidationError(field_name="target_role_key", value=job_data.target_role_key)
+        available_roles = await _get_available_role_keys(
+            current_agent=current_agent,
+            agent_identity_role_service=agent_identity_role_service,
+            target_role_service=service,
+        )
+        raise TargetRoleValidationError(
+            field_name="target_role_key",
+            value=job_data.target_role_key,
+            available_roles=available_roles,
+        )
 
 
 async def validate_target_role_query_param(
-    target_role_key: str | None = None, service: TargetRoleService = Depends(get_target_role_service)
+    target_role_key: str | None = None,
+    service: TargetRoleService = Depends(get_target_role_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
 ) -> TargetRole | None:
     if target_role_key is None or target_role_key.strip() == "":
         return None
@@ -129,16 +155,38 @@ async def validate_target_role_query_param(
         role = await service.get_by_role_key(role_key=target_role_key)
         return role
     except TargetRoleNotFoundError:
-        raise TargetRoleValidationError(field_name="target_role_key", value=target_role_key, loc="query")
+        available_roles = await _get_available_role_keys(
+            current_agent=current_agent,
+            agent_identity_role_service=agent_identity_role_service,
+            target_role_service=service,
+        )
+        raise TargetRoleValidationError(
+            field_name="target_role_key",
+            value=target_role_key,
+            loc="query",
+            available_roles=available_roles,
+        )
 
 
 async def validate_target_role_claim_next(
-    data: HandoffJobClaimNextRequest, service: TargetRoleService = Depends(get_target_role_service)
+    data: HandoffJobClaimNextRequest,
+    service: TargetRoleService = Depends(get_target_role_service),
+    current_agent: AgentIdentity = Depends(get_current_agent),
+    agent_identity_role_service: AgentIdentityRoleService = Depends(get_agent_identity_roles_service),
 ) -> TargetRole:
     try:
         return await service.get_by_role_key(role_key=data.target_role_key)
     except TargetRoleNotFoundError:
-        raise TargetRoleValidationError(field_name="target_role_key", value=data.target_role_key)
+        available_roles = await _get_available_role_keys(
+            current_agent=current_agent,
+            agent_identity_role_service=agent_identity_role_service,
+            target_role_service=service,
+        )
+        raise TargetRoleValidationError(
+            field_name="target_role_key",
+            value=data.target_role_key,
+            available_roles=available_roles,
+        )
 
 
 async def validate_routing_rules(

@@ -9,6 +9,7 @@ from forkflux_api.agents.exceptions import AgentApiTokenNotFoundError, AgentIden
 from forkflux_api.agents.models import AgentIdentity
 from forkflux_api.agents.repositories import AgentApiTokenRepository, AgentIdentityRepository
 from forkflux_api.agents.services import AgentApiTokenService, AgentIdentityService
+from forkflux_api.config import Settings, get_settings
 from forkflux_api.database import get_session
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -68,6 +69,48 @@ async def verify_token(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+async def verify_shared_api_key(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authenticated",
+        )
+
+    if credentials.credentials != settings.shared_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def verify_token_or_shared_api_key(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    service: AgentApiTokenService = Depends(get_agent_api_token_service),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    try:
+        await verify_shared_api_key(credentials=credentials, settings=settings)
+        return
+    except HTTPException:
+        pass
+
+    try:
+        await verify_token(credentials=credentials, service=service)
+        return
+    except HTTPException:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials (either Bearer token or API key required)",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_agent(

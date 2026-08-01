@@ -4,12 +4,13 @@ from forkflux_api.agents.dependencies import get_agent_identity_roles_service, g
 from forkflux_api.agents.mcp_schemas import GetMeResponse, ListRolesResponse
 from forkflux_api.agents.models import AgentIdentity
 from forkflux_api.agents.services import AgentIdentityRoleService, TargetRoleService
-from forkflux_api.dependencies import get_current_agent, verify_token
+from forkflux_api.dependencies import get_current_agent, verify_token, verify_token_or_shared_api_key
 
 router = APIRouter(prefix="/agents", tags=["mcp"], dependencies=[Depends(verify_token)])
+public_router = APIRouter(prefix="/agents", tags=["mcp"], dependencies=[Depends(verify_token_or_shared_api_key)])
 
 
-@router.get("/roles", response_model=list[ListRolesResponse])
+@public_router.get("/roles", response_model=list[ListRolesResponse])
 async def list_roles(service: TargetRoleService = Depends(get_target_role_service)):
     roles = await service.get_all_roles()
     return roles

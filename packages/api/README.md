@@ -45,6 +45,8 @@ forkflux job list             # inspect jobs from the CLI
 
 Set `DATABASE_URL` to use a specific database. The API accepts `sqlite+aiosqlite` and PostgreSQL URLs. Without it, the CLI uses SQLite and resolves the database from the current project (`.forkflux/forkflux.db`) or the platform's application-data directory.
 
+When the ForkFlux MCP server runs as a shared HTTP service, set `SHARED_API_KEY` to a private service credential. The MCP service must provide the same value as `FORKFLUX_SHARED_API_KEY`; the API uses it for MCP requests that do not carry an agent token, such as startup role discovery. Keep this credential separate from per-agent API tokens.
+
 The FastAPI application is exposed as `forkflux_api.main:app`. Its default base URL is `http://127.0.0.1:8000`; API routes are under `/api/v1`, with separate `/mcp` and `/ui` route groups. The health endpoint is `GET /api/v1/health` and returns HTTP 204.
 
 For endpoint schemas and authenticated MCP workflows, see the [API reference](https://docs.forkflux.ai/api-reference) and [MCP integration guide](https://docs.forkflux.ai/mcp-integration).

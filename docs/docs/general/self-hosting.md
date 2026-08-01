@@ -7,27 +7,28 @@ slug: /self-hosting
 
 # Self-Hosting
 
-Self-hosting ForkFlux gives your agents a shared collaboration bus that you control. A hosted deployment usually includes the ForkFlux API, a database, and one MCP server configuration per assistant or agent environment.
+Self-hosting ForkFlux gives your agents a shared collaboration bus that you control. A hosted deployment can include the ForkFlux API, a database, and a shared MCP HTTP service that multiple assistants can reach.
 
 Use this page when you are ready to move beyond the local quickstart and run ForkFlux with explicit configuration, persistent storage, and production safeguards.
 
 ## Docker setup
 
-ForkFlux includes an example Docker Compose file for running the API with PostgreSQL.
+ForkFlux includes an example Docker Compose file for running the API, PostgreSQL, and the MCP server as a Streamable HTTP service. Copy [`etc/compose.example.yml`](https://github.com/forkflux/forkflux/blob/main/etc/compose.example.yml) into your deployment directory before editing it.
 
 ### Services
 
-The example Compose setup defines three services:
+The example Compose setup defines four services:
 
 | Service | Purpose |
 |---|---|
 | `postgres` | Persistent PostgreSQL database for jobs, agents, roles, events, and artifacts. |
 | `migrate` | Runs Alembic migrations before the API starts. |
 | `api` | Serves the ForkFlux API on `http://127.0.0.1:8000`. |
+| `mcp` | Serves the ForkFlux MCP endpoint over Streamable HTTP on `http://127.0.0.1:8080/mcp`. |
 
 ### Example Compose structure
 
-The example uses `ghcr.io/forkflux/forkflux:latest` for both the migration and API containers:
+The example uses `ghcr.io/forkflux/forkflux:latest` for the migration and API containers, plus `ghcr.io/forkflux/forkflux-mcp:latest` for the MCP HTTP service:
 
 ```yaml
 services:
@@ -48,11 +49,29 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://ff_user:ff_password@postgres:5432/ff_db
+      - SHARED_API_KEY=<SHARED_API_KEY>
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     depends_on:
       postgres:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
+  mcp:
+    image: ghcr.io/forkflux/forkflux-mcp:latest
+    command: uvicorn forkflux_mcp.main:app --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"
+    environment:
+      - FORKFLUX_API_URL=http://api:8000/api/v1
+      - FORKFLUX_SHARED_API_KEY=<SHARED_API_KEY>
+    depends_on:
+      api:
+        condition: service_healthy
 
   postgres:
     image: postgres:18-alpine
@@ -81,9 +100,12 @@ Start the services:
 docker compose -f compose.yml up -d
 ```
 
+If you kept the repository filename, use `docker compose -f etc/compose.example.yml up -d` instead.
+
 The example maps:
 
 - API: `http://127.0.0.1:8000`
+- MCP HTTP endpoint: `http://127.0.0.1:8080/mcp`
 - PostgreSQL: `127.0.0.1:5432`
 - API base URL for clients: `http://127.0.0.1:8000/api/v1`
 
@@ -111,26 +133,22 @@ The dashboard onboarding flow is an alternative to the deprecated role and agent
 
 ### Configure MCP clients for a hosted API
 
-After the API is reachable, configure each assistant's MCP server with the hosted API URL and that assistant's agent token:
+After the API and MCP HTTP service are reachable, configure each assistant to connect to the MCP `/mcp` endpoint with that assistant's agent token:
 
 ```json
 {
   "mcpServers": {
     "ff": {
-      "command": "uvx",
-      "args": [
-        "forkflux-mcp"
-      ],
-      "env": {
-        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
-        "FORKFLUX_API_URL": "https://forkflux.example.com/api/v1"
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <AGENT_API_TOKEN>"
       }
     }
   }
 }
 ```
 
-Use one token per assistant identity so role filtering, claims, and job ownership remain auditable.
+Use one token per assistant identity so role filtering, claims, and job ownership remain auditable. If you prefer to run one MCP process per assistant over stdio, use the local configuration in [MCP Integration](mcp-integration.md).
 
 ## Configuration
 
@@ -141,6 +159,7 @@ ForkFlux API configuration is environment-variable driven.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DATABASE_URL` | No | platform-specific SQLite path | Database connection URL. Supports `sqlite+aiosqlite` and PostgreSQL URLs. |
+| `SHARED_API_KEY` | HTTP MCP deployments: yes | none | Private service credential accepted by the API for MCP service requests that do not represent an agent, such as role discovery. Set it to the same value as `FORKFLUX_SHARED_API_KEY` on the MCP service. |
 
 If `DATABASE_URL` is not set, the API creates a local SQLite database in the platform-specific application data directory. This is convenient for local demos, but PostgreSQL is recommended for shared deployments.
 
@@ -163,9 +182,10 @@ Each MCP server process reads:
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `FORKFLUX_API_URL` | No | `http://localhost:8000/api/v1` | Base URL for the ForkFlux API. |
-| `FORKFLUX_API_KEY` | Yes | none | Agent bearer token used by the MCP server. |
+| `FORKFLUX_API_KEY` | stdio: yes; HTTP: no | none | Default agent bearer token used by a local stdio MCP process. In HTTP mode, clients provide their own bearer token in the request header. |
+| `FORKFLUX_SHARED_API_KEY` | HTTP service: yes; stdio: no | none | Shared service credential used when the MCP server makes an API request without an incoming agent token. It must match the API service's `SHARED_API_KEY`. |
 
-The MCP server can run locally on each agent machine, even when the API is hosted elsewhere. That is the recommended pattern for most assistant integrations.
+The MCP server can run locally on each agent machine over stdio, or as a shared HTTP service. In HTTP mode, clients send their own `Authorization: Bearer <AGENT_API_TOKEN>` header; do not put one agent's token in the shared service configuration. See [MCP Integration](mcp-integration.md#run-as-an-http-service) for the service startup command and client setup.
 
 ### Database migrations
 

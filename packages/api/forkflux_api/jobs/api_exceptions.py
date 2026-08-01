@@ -1,3 +1,5 @@
+from typing import Any, Literal
+
 from forkflux_api.exceptions import BaseValidationError
 
 
@@ -14,6 +16,21 @@ class BlockedByJobValidationError(BaseValidationError):
 class TargetRoleValidationError(BaseValidationError):
     code = "target_role.invalid"
     msg = "Target role is invalid."
+
+    def __init__(
+        self,
+        field_name: str,
+        value: Any = None,
+        loc: Literal["body", "query", "header", "path"] = "body",
+        available_roles: list[str] | None = None,
+    ) -> None:
+        role_keys = ", ".join(sorted(available_roles or [])) or "none"
+        super().__init__(
+            field_name=field_name,
+            value=value,
+            loc=loc,
+            detail=f"Available roles: {role_keys}.",
+        )
 
 
 class HandoffJobClaimValidationError(BaseValidationError):
