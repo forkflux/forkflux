@@ -614,7 +614,7 @@ async def test_list_jobs_returns_422_when_target_role_key_is_invalid(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    raw_token = "valid-list-jobs-invalid-role-token"
+    raw_token = "invalid-role-token"
     await _create_auth_context(db_session, raw_token)
 
     response = await client.get(
@@ -627,7 +627,7 @@ async def test_list_jobs_returns_422_when_target_role_key_is_invalid(
         "detail": [
             {
                 "loc": ["query", "target_role_key"],
-                "msg": "Target role is invalid.",
+                "msg": "Target role is invalid: Available roles: list-jobs-source-role-invalid-role-token.",
                 "type": "target_role.invalid",
                 "input": "missing-role-key",
                 "ctx": {},

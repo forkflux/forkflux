@@ -47,7 +47,7 @@ Clone the repository and install dependencies:
 ```bash
 git clone https://github.com/forkflux/forkflux.git
 cd forkflux
-uv sync --dev
+uv sync --all-packages
 pre-commit install
 ```
 

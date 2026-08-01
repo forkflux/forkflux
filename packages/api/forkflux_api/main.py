@@ -5,6 +5,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
+from forkflux_api.agents.mcp_handlers import public_router as mcp_agents_public_router
 from forkflux_api.agents.mcp_handlers import router as mcp_agents_router
 from forkflux_api.agents.ui_handlers import router as ui_agents_router
 from forkflux_api.exceptions import BaseValidationError
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
 
     # agents
     application.include_router(mcp_agents_router, prefix="/api/v1/mcp")
+    application.include_router(mcp_agents_public_router, prefix="/api/v1/mcp")
     application.include_router(ui_agents_router, prefix="/api/v1/ui")
     # jobs
     application.include_router(mcp_jobs_router, prefix="/api/v1/mcp")

@@ -228,7 +228,7 @@ async def test_claim_next_job_returns_422_when_target_role_key_is_invalid(
         "detail": [
             {
                 "loc": ["body", "target_role_key"],
-                "msg": "Target role is invalid.",
+                "msg": "Target role is invalid: Available roles: claim-next-job-invalid-role-claimant-role.",
                 "type": "target_role.invalid",
                 "input": "non-existent-role-key",
                 "ctx": {},

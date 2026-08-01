@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(default="")
+    shared_api_key: str | None = None
 
     @model_validator(mode="after")
     def build_database_url(self) -> "Settings":

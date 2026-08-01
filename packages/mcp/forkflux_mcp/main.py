@@ -1,12 +1,16 @@
-import asyncio
-import os
+from __future__ import annotations
+
 from enum import Enum
 from typing import Annotated, Any
 
 import httpx
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_http_headers
+from fastmcp.server.lifespan import lifespan
+from fastmcp.tools import tool
 from pydantic import Field
 
+from forkflux_mcp.config import get_settings
 from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum, JobStatusEnum
 from forkflux_mcp.schemas import JobArtifact, RoutingRule
 
@@ -39,27 +43,54 @@ GENERAL RULES:
 - Use MCP tools for ForkFlux operations; do not use shell commands, curl, custom scripts, mocked data, or direct HTTP calls instead.
 - Never dump raw JSON to the user. Summarize tool results as concise, human-readable Markdown.
 """  # noqa: E501
+TargetRoleEnum = Enum("TargetRoleEnum", {"unknown": "unknown"})
+
+
+@lifespan
+async def app_lifespan(server):
+    try:
+        await _fetch_and_update_roles()
+        server.add_tool(create_job)
+        server.add_tool(list_jobs)
+        server.add_tool(claim_next_job)
+        yield
+    finally:
+        pass
+
 
 mcp = FastMCP(
     "ForkFlux",
     instructions=FORKFLUX_INSTRUCTIONS,
+    lifespan=app_lifespan,
+    on_duplicate="replace",
 )
+settings = get_settings()
 
-API_URL = os.environ.get("FORKFLUX_API_URL", "http://localhost:8000/api/v1")
-API_KEY = os.environ.get("FORKFLUX_API_KEY")
-
-if not API_KEY:
+if not settings.forkflux_api_key:
     print("Warning: FORKFLUX_API_KEY is not set.")
+if not settings.forkflux_shared_api_key:
+    print("Warning: FORKFLUX_SHARED_API_KEY is not set.")
+
+
+async def _get_authorization() -> str | None:
+    headers = get_http_headers(include={"authorization"})
+    return headers.get("authorization", settings.forkflux_api_key or settings.forkflux_shared_api_key)
 
 
 async def _api_request(
     method: str, endpoint: str, params: dict[str, Any] | None = None, json_data: dict[str, Any] | None = None
 ) -> dict[str, Any]:
+    authorization = await _get_authorization()
+    if authorization and authorization.lower().startswith("bearer "):
+        authorization_header = authorization
+    else:
+        authorization_header = f"Bearer {authorization}"
+
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": authorization_header,
     }
-    url = f"{API_URL}/mcp{endpoint}"
+    url = f"{settings.forkflux_api_url}/mcp{endpoint}"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -98,33 +129,22 @@ async def _api_request(
         return {"success": False, "error": "Network or Internal Error", "details": str(e)}
 
 
-async def get_dynamic_all_roles_enum() -> Enum:
+async def _fetch_and_update_roles() -> None:
+    global TargetRoleEnum
+
     list_available_roles = await _api_request("GET", "/agents/roles")
     if list_available_roles["success"]:
         available_roles = [x["role_key"] for x in list_available_roles["details"]]
     else:
         available_roles = []
-    return Enum("TargetRoleEnum", {role: role for role in available_roles})
+    TargetRoleEnum = Enum("TargetRoleEnum", {role: role for role in available_roles})  # type: ignore[misc]
 
 
-async def get_dynamic_my_roles_enum() -> Enum:
-    list_available_roles = await _api_request("GET", "/agents/me/roles")
-    if list_available_roles["success"]:
-        available_roles = [x["role_key"] for x in list_available_roles["details"]]
-    else:
-        available_roles = []
-    return Enum("TargetMyRoleEnum", {role: role for role in available_roles})
-
-
-TargetRoleEnum = asyncio.run(get_dynamic_all_roles_enum())
-TargetMyRoleEnum = asyncio.run(get_dynamic_my_roles_enum())
-
-
-@mcp.tool("forkflux_create_job")
+@tool(name="forkflux_create_job")
 async def create_job(
     summary: str,
     context_payload: dict[str, Any],
-    target_role_key: TargetRoleEnum,  # type: ignore[valid-type]
+    target_role_key: TargetRoleEnum,
     constraints: list[str],
     artifacts: list[JobArtifact],
     priority: JobPriorityEnum,
@@ -170,7 +190,7 @@ async def create_job(
         json_data={
             "summary": summary,
             "context_payload": context_payload,
-            "target_role_key": target_role_key.value,  # type: ignore[attr-defined]
+            "target_role_key": target_role_key.value,
             "constraints": constraints,
             "artifacts": serialized_artifacts,
             "priority": priority,
@@ -181,11 +201,11 @@ async def create_job(
     )
 
 
-@mcp.tool("forkflux_list_jobs")
+@tool(name="forkflux_list_jobs")
 async def list_jobs(
     limit: Annotated[int, Field(default=50, ge=1, le=200)] = 50,
     status: JobStatusEnum | None = JobStatusEnum.PUBLISHED,
-    target_role_key: TargetRoleEnum | None = None,  # type: ignore[valid-type]
+    target_role_key: TargetRoleEnum | None = None,
     my_roles_only: bool = True,
 ):
     """
@@ -212,7 +232,7 @@ async def list_jobs(
         params={
             "limit": limit,
             "status": status.value if status else None,
-            "target_role_key": target_role_key.value if target_role_key else None,  # type: ignore[attr-defined]
+            "target_role_key": target_role_key.value if target_role_key else None,
             "my_roles_only": my_roles_only,
         },
     )
@@ -251,10 +271,8 @@ async def claim_job(job_id: Annotated[int, Field(description="The unique ID of t
     return await _api_request("POST", f"/jobs/{job_id}/claim")
 
 
-@mcp.tool("forkflux_claim_next_job")
-async def claim_next_job(
-    target_role_key: TargetMyRoleEnum,  # type: ignore[valid-type]
-):
+@tool(name="forkflux_claim_next_job")
+async def claim_next_job(target_role_key: TargetRoleEnum):
     """
     Atomically claims the next available published job for a given role and returns
     its full context (fat claim).
@@ -271,7 +289,7 @@ async def claim_next_job(
     return await _api_request(
         "POST",
         "/jobs/claim-next",
-        json_data={"target_role_key": target_role_key.value},  # type: ignore[attr-defined]
+        json_data={"target_role_key": target_role_key.value},
     )
 
 
@@ -660,6 +678,10 @@ def reopen_context_prompt() -> str:
 
 def main() -> None:
     mcp.run()
+
+
+# Create ASGI application
+app = mcp.http_app()
 
 
 if __name__ == "__main__":

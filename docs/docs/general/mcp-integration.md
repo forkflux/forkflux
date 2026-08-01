@@ -7,7 +7,7 @@ slug: /mcp-integration
 
 # MCP Integration
 
-ForkFlux MCP connects MCP-compatible assistants to a ForkFlux API instance. The MCP server runs next to the assistant, reads an agent token from the environment, and translates assistant tool calls into authenticated ForkFlux API requests.
+ForkFlux MCP connects MCP-compatible assistants to a ForkFlux API instance. It supports both a local stdio process and a long-running Streamable HTTP service. In either mode, the MCP server translates assistant tool calls into authenticated ForkFlux API requests.
 
 Use this page when you need to:
 
@@ -32,59 +32,78 @@ Before you configure an assistant, you need:
 |---|---|
 | ForkFlux API URL | The API base URL the MCP server can reach, including `/api/v1`. Local default: `http://127.0.0.1:8000/api/v1`. |
 | Agent API token | A ForkFlux token for the assistant identity. Use one token per assistant so job ownership and role filtering stay auditable. |
-| MCP-compatible client | An assistant or IDE that can start local MCP servers over stdio. |
-| Python runtime | Python 3.12+ when running `forkflux-mcp` through `uvx` or an installed package. |
+| MCP-compatible client | An assistant or IDE that can start local MCP servers over stdio or connect to a Streamable HTTP endpoint. |
+| Python runtime | Python 3.12+ when running `forkflux-mcp` through `uvx`, installing the package, or hosting the HTTP service. |
 
 :::tip
 
-The MCP server is stateless. It can run locally on each agent machine while all agents point to the same shared ForkFlux API.
+The MCP server is stateless. Run one local process per assistant, or host one HTTP service that multiple assistants can reach. In HTTP mode, each request carries the calling assistant's agent token so the API can preserve agent identity and role-based authorization.
 
 :::
 
 ## Installation options
 
-ForkFlux supports three common MCP server launch patterns.
+ForkFlux supports two MCP transport modes: local stdio and Streamable HTTP. Use stdio when the assistant manages the MCP process itself. Use HTTP when you want a shared, long-running MCP service for multiple assistants or machines.
 
-### Run with Docker
+### Run as an HTTP service
 
-Use Docker only when your MCP client or deployment environment requires containerized tooling.
+The MCP package exports an ASGI application at `forkflux_mcp.main:app`. Start it with Uvicorn when an assistant needs to connect over HTTP instead of starting a local stdio process:
+
+```bash
+export FORKFLUX_API_URL="http://127.0.0.1:8000/api/v1"
+export FORKFLUX_SHARED_API_KEY="<SHARED_API_KEY>"
+uvicorn forkflux_mcp.main:app --host 0.0.0.0 --port 8080
+```
+
+If you installed the package with `uvx`, use the same command through the package environment:
+
+```bash
+uvx --from forkflux-mcp uvicorn forkflux_mcp.main:app --host 0.0.0.0 --port 8080
+```
+
+The Streamable HTTP endpoint is `http://127.0.0.1:8080/mcp`. The HTTP service does not need a fixed `FORKFLUX_API_KEY` when each client sends its own agent token in the `Authorization` header. Keep `FORKFLUX_SHARED_API_KEY` configured on the MCP service so it can make internal API requests that do not have a client request header, such as startup role discovery.
+
+For a complete API, MCP, and PostgreSQL deployment, copy the repository's [Docker Compose example](https://github.com/forkflux/forkflux/blob/main/etc/compose.example.yml) and start the stack as described in [Self-Hosting](self-hosting.md). The example exposes the API on port `8000` and the MCP HTTP service on port `8080`.
+
+## Configuration
+
+The MCP process uses the following environment variables:
+
+| Variable | Required | Default | Description |
+|---|---:|---|---|
+| `FORKFLUX_API_KEY` | stdio: yes; HTTP: no | none | Default agent bearer token. In HTTP service mode, an incoming `Authorization` header takes precedence, so a fixed agent token is not required on the shared service. |
+| `FORKFLUX_API_URL` | no | `http://localhost:8000/api/v1` | Base URL for the ForkFlux API. Include `/api/v1`. |
+| `FORKFLUX_SHARED_API_KEY` | stdio: no; HTTP: yes | none | Shared service credential used by the MCP server when it calls the API without an incoming agent authorization header. Set it to the same value as the API service's `SHARED_API_KEY`. |
+
+The shared key is not an agent identity and must not be used as a client's `FORKFLUX_API_KEY`. Keep it only in the private environment of the API and MCP services. A typical service deployment uses:
+
+```dotenv
+# API service
+SHARED_API_KEY=<SHARED_API_KEY>
+
+# MCP service
+FORKFLUX_API_URL=http://api:8000/api/v1
+FORKFLUX_SHARED_API_KEY=<SHARED_API_KEY>
+```
+
+### Streamable HTTP client configuration
+
+After the HTTP service is running, register its `/mcp` endpoint with an MCP client. Send a distinct agent token for each assistant:
 
 ```json
 {
   "mcpServers": {
     "ff": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "--network",
-        "host",
-        "-e",
-        "FORKFLUX_API_URL",
-        "-e",
-        "FORKFLUX_API_KEY",
-        "ghcr.io/forkflux/forkflux-mcp:latest"
-      ],
-      "env": {
-        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
-        "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <YOUR_AGENT_API_KEY>"
       }
     }
   }
 }
 ```
 
-If the container cannot reach the API through `127.0.0.1`, set `FORKFLUX_API_URL` to an address reachable from inside Docker, such as a host gateway or hosted API URL.
-
-## Configuration
-
-Every MCP client needs the same two environment variables:
-
-| Variable | Required | Default | Description |
-|---|---:|---|---|
-| `FORKFLUX_API_KEY` | yes | none | Agent bearer token used for every ForkFlux API request. |
-| `FORKFLUX_API_URL` | no | `http://localhost:8000/api/v1` | Base URL for the ForkFlux API. Include `/api/v1`. |
+The `Authorization` header is forwarded to the ForkFlux API for tool calls. This preserves the same agent ownership and role filtering rules as a local stdio connection. Use HTTPS or a trusted private network when exposing the HTTP service; do not publish it without authentication.
 
 ### Standard client configuration
 
@@ -95,11 +114,9 @@ Use this shape for clients that accept MCP server JSON:
   "mcpServers": {
     "ff": {
       "command": "uvx",
-      "args": [
-        "forkflux-mcp"
-      ],
+      "args": ["forkflux-mcp"],
       "env": {
-        "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+        "FORKFLUX_API_KEY": "<YOUR_AGENT_API_KEY>",
         "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
       }
     }
@@ -107,7 +124,7 @@ Use this shape for clients that accept MCP server JSON:
 }
 ```
 
-Replace `<AGENT_API_TOKEN>` with the token for the assistant you are configuring.
+Replace `<YOUR_AGENT_API_KEY>` with the token for the assistant you are configuring.
 
 ### Command-based client configuration
 
@@ -133,8 +150,12 @@ Other CLIs use similar syntax. Keep the server name short, for example `ff`, so 
 
     **Local Server Connection**
     ```bash
-    claude mcp add
-ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 -- uvx forkflux-mcp
+    claude mcp add ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 -- uvx forkflux-mcp
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    claude mcp add --header "Authorization: Bearer YOUR_AGENT_API_KEY" --transport http ff http://127.0.0.1:8080/mcp
     ```
 </details>
 
@@ -151,12 +172,24 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -173,6 +206,11 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
     ```bash
     opencode mcp add ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 -- uvx forkflux-mcp
     ```
+
+    **Remote Server Connection**
+    ```bash
+    opencode mcp add ff --url http://127.0.0.1:8080/mcp --header "Authorization: Bearer YOUR_AGENT_API_KEY"
+    ```
 </details>
 
 <details>
@@ -183,6 +221,16 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
     **Local Server Connection**
     ```bash
     codex mcp add ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 -- uvx forkflux-mcp
+    ```
+
+    **Remote Server Connection**
+
+    Add this to your Codex configuration file (`~/.codex/config.toml` or `.codex/config.toml`).
+
+    ```bash
+    [mcp_servers.ff]
+    url = "http://127.0.0.1:8080/mcp"
+    http_headers = { "Authorization" = "Bearer YOUR_AGENT_API_KEY" }
     ```
 </details>
 
@@ -197,12 +245,24 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "serverUrl": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -221,12 +281,25 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "servers": {
+        "ff": {
+          "type": "http",
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -249,12 +322,24 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "servers": {
+        "ff": {
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -289,12 +374,27 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "type": "remote",
+          "url": "http://127.0.0.1:8080/mcp",
+            "headers": {
+              "Authorization": "Bearer YOUR_AGENT_API_KEY"
+            },
+            "enabled": true
           }
         }
       }
@@ -313,12 +413,25 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "type": "streamable-http",
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -337,12 +450,24 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "serverUrl": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -361,11 +486,9 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
           }
         }
@@ -389,13 +512,28 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
           }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "type": "streamableHttp",
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
+          },
+          "disabled": false,
+          "autoApprove": []
         }
       }
     }
@@ -426,17 +564,31 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
     1. Open the Gemini CLI settings file at `~/.gemini/settings.json`
     2. Add the following to the `mcpServers` object:
 
+    **Local Server Connection**
     ```bash
     {
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "httpUrl": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY",
+            "Accept": "application/json, text/event-stream"
           }
         }
       }
@@ -453,6 +605,11 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
     ```bash
     hermes mcp add ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0.0.1:8000/api/v1 -- uvx forkflux-mcp
     ```
+
+    **Remote Server Connection**
+    ```bash
+    hermes mcp add ff --url http://127.0.0.1:8080/mcp --header "Authorization: Bearer YOUR_AGENT_API_KEY"
+    ```
 </details>
 
 <details>
@@ -462,20 +619,33 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
 
     1. In JetBrains IDEs, go to `Settings` -> `Tools` -> `AI Assistant` -> `Model Context Protocol (MCP)`.
     2. Click `+ Add`.
-    3. Select the **STDIO** tab and paste the JSON configuration.
+    3. Select the **HTTP** or **STDIO** tab and paste the JSON configuration.
     4. Click `Apply` to save changes.
 
+    **Local Server Connection**
     ```bash
     {
       "mcpServers": {
         "ff": {
           "command": "uvx",
-          "args": [
-            "forkflux-mcp",
-          ],
+          "args": ["forkflux-mcp"],
           "env": {
-            "FORKFLUX_API_KEY": "<AGENT_API_TOKEN>",
+            "FORKFLUX_API_KEY": "YOUR_AGENT_API_KEY",
             "FORKFLUX_API_URL": "http://127.0.0.1:8000/api/v1"
+          }
+        }
+      }
+    }
+    ```
+
+    **Remote Server Connection**
+    ```bash
+    {
+      "mcpServers": {
+        "ff": {
+          "url": "http://127.0.0.1:8080/mcp",
+          "headers": {
+            "Authorization": "Bearer YOUR_AGENT_API_KEY"
           }
         }
       }
@@ -485,11 +655,13 @@ ff --env FORKFLUX_API_KEY=YOUR_AGENT_API_KEY --env FORKFLUX_API_URL=http://127.0
 
 ## Authentication model
 
-ForkFlux MCP authentication is token-based. The MCP server reads `FORKFLUX_API_KEY` and sends it to the API as a bearer token:
+ForkFlux MCP authentication is token-based. For a local stdio process, the MCP server reads `FORKFLUX_API_KEY` and sends it to the API as a bearer token. For an HTTP service, the server forwards the calling client's `Authorization` header instead:
 
 ```text
-Authorization: Bearer <AGENT_API_TOKEN>
+Authorization: Bearer YOUR_AGENT_API_KEY
 ```
+
+`FORKFLUX_SHARED_API_KEY` is a separate service-to-service credential. The MCP server uses it only when there is no incoming client authorization header, and the API validates it through `SHARED_API_KEY`. It is intended for HTTP service startup and other internal requests, not for identifying an assistant.
 
 The API uses the token to identify:
 
@@ -501,6 +673,8 @@ The API uses the token to identify:
 Token handling rules:
 
 - Use one token per assistant identity.
+- In HTTP mode, send a different agent token in each client's `Authorization` header.
+- Keep `SHARED_API_KEY` and `FORKFLUX_SHARED_API_KEY` identical and private when using the HTTP service mode.
 - Do not commit tokens to Git.
 - Do not reuse one token across multiple agents unless you intentionally want them to share the same identity.
 - Rotate or revoke tokens that appear in logs, screenshots, or shared config files.

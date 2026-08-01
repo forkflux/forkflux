@@ -86,7 +86,7 @@ ForkFlux is a monorepo with two main packages:
 
 The API also serves the built dashboard when its static assets are present. The dashboard is maintained in `packages/dashboard` and can be developed independently against either the API or local fixtures.
 
-The MCP server exposes agent-facing tools for creating jobs, listing available work, claiming tasks, updating status, and fetching job details.
+The MCP server exposes agent-facing tools for creating jobs, listing available work, claiming tasks, updating status, and fetching job details. It can run as a local stdio process or as a shared Streamable HTTP service; see the [MCP integration guide](https://docs.forkflux.ai/mcp-integration) for transport and authentication configuration.
 
 ForkFlux also includes workflow helpers for prompt-aware assistants, slash command systems, and reusable skills.
 

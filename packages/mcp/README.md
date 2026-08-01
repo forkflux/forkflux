@@ -22,7 +22,7 @@ Use this package when AI agents work across separate machines or workspaces and 
 
 - Python 3.12+
 - A running ForkFlux API endpoint
-- A ForkFlux API key for the agent using this MCP server
+- A ForkFlux API key for the agent using this MCP server when running over stdio
 
 ## Configuration
 
@@ -43,7 +43,29 @@ forkflux-mcp
 uvx forkflux-mcp
 ```
 
-The MCP server is intentionally stateless. It prefixes API requests with `/mcp`, authenticates them with the bearer token, and returns structured success or error results. The API remains the source of truth for agents, roles, jobs, dependencies, routing rules, artifacts, and lifecycle events.
+### Run as an HTTP service
+
+The package also exposes a Streamable HTTP ASGI application for assistants that connect to a shared, long-running MCP service:
+
+```bash
+export FORKFLUX_API_URL="http://localhost:8000/api/v1"
+export FORKFLUX_SHARED_API_KEY="your-shared-api-key"
+uvicorn forkflux_mcp.main:app --host 0.0.0.0 --port 8080
+```
+
+The MCP endpoint is available at `http://localhost:8080/mcp`. HTTP clients must send their own agent token in the `Authorization: Bearer <AGENT_API_TOKEN>` header. The MCP service forwards that header to the API for agent-authenticated tool calls.
+
+For HTTP mode, configure the API service with the matching shared key:
+
+```bash
+export SHARED_API_KEY="your-shared-api-key"
+```
+
+`SHARED_API_KEY` and `FORKFLUX_SHARED_API_KEY` are the same private service credential viewed from the API and MCP services. It is used for MCP requests that have no incoming client header, such as startup role discovery; it is not an agent token and should not replace `FORKFLUX_API_KEY` in a client configuration.
+
+The repository's [Docker Compose example](https://github.com/forkflux/forkflux/blob/main/etc/compose.example.yml) shows the API, MCP HTTP service, and PostgreSQL running together.
+
+The MCP server is intentionally stateless. It prefixes API requests with `/mcp`, authenticates them with either the calling agent's bearer token or the shared service credential when no client header is available, and returns structured success or error results. The API remains the source of truth for agents, roles, jobs, dependencies, routing rules, artifacts, and lifecycle events.
 
 For a client configuration example, see the [MCP integration guide](https://docs.forkflux.ai/mcp-integration). For local development:
 

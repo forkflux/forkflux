@@ -54,7 +54,7 @@ The bus is role-oriented rather than person-oriented. A job targets a role such 
 ForkFlux uses a small monorepo with two main packages:
 
 - **ForkFlux API** — the stateful collaboration service. It stores agents, roles, jobs, events, and artifacts. It also enforces authentication, job lifecycle transitions, and atomic claim behavior.
-- **ForkFlux MCP Server** — the Model Context Protocol adapter. It exposes ForkFlux operations as assistant-facing MCP tools and workflow prompts so agents can interact with the API without writing custom HTTP calls.
+- **ForkFlux MCP Server** — the Model Context Protocol adapter. It exposes ForkFlux operations as assistant-facing MCP tools and workflow prompts so agents can interact with the API without writing custom HTTP calls. Run it locally over stdio or host it as a shared Streamable HTTP service.
 
 The architecture looks like this:
 

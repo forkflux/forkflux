@@ -7,7 +7,6 @@ from fastmcp.client import Client
 from fastmcp.client.transports import FastMCPTransport
 from fastmcp.exceptions import ToolError
 from forkflux_mcp.constants import JobChangeStatusEnum, JobPriorityEnum
-from forkflux_mcp.main import TargetRoleEnum
 from forkflux_mcp.schemas import JobArtifact
 
 
@@ -18,6 +17,41 @@ def _assert_tool_result_envelope(result, expected_payload: dict[str, Any]) -> No
     assert len(result.content) == 1
     assert result.content[0].type == "text"
     assert json.loads(result.content[0].text) == expected_payload
+
+
+def _collect_enum_values(value: object) -> set[str]:
+    if isinstance(value, dict):
+        dict_values = {item for item in value.get("enum", []) if isinstance(item, str)}
+        for nested_value in value.values():
+            dict_values.update(_collect_enum_values(nested_value))
+        return dict_values
+    if isinstance(value, list):
+        list_values: set[str] = set()
+        for nested_value in value:
+            list_values.update(_collect_enum_values(nested_value))
+        return list_values
+    return set()
+
+
+def _get_input_schema(tool: object) -> dict[str, Any]:
+    schema = getattr(tool, "inputSchema", None)
+    if schema is None:
+        schema = getattr(tool, "input_schema")
+    assert isinstance(schema, dict)
+    return schema
+
+
+async def test_role_dependent_tool_schemas_expose_api_roles(
+    client: Client[FastMCPTransport],
+) -> None:
+    tools = await client.list_tools()
+    tools_by_name = {tool.name: tool for tool in tools}
+    expected_role_keys = {"qa_agent", "security_reviewer"}
+
+    for tool_name in ("forkflux_create_job", "forkflux_list_jobs", "forkflux_claim_next_job"):
+        assert tool_name in tools_by_name
+        schema = _get_input_schema(tools_by_name[tool_name])
+        assert expected_role_keys <= _collect_enum_values(schema)
 
 
 async def test_list_jobs_calls_api_request_with_default_params_and_returns_payload(
@@ -87,7 +121,7 @@ async def test_create_job_calls_api_request_with_full_payload_and_returns_result
             arguments={
                 "summary": "Investigate flaky integration test",
                 "context_payload": {"suite": "jobs", "failing_case": "test_create_job_endpoint"},
-                "target_role_key": TargetRoleEnum.qa_agent,
+                "target_role_key": "qa_agent",
                 "constraints": ["do-not-modify-production-data", "keep-runtime-under-5-minutes"],
                 "artifacts": artifacts_payload,
                 "priority": JobPriorityEnum.HIGH,
@@ -149,7 +183,7 @@ async def test_create_job_with_routing_rules_passes_them_to_api_request(
             arguments={
                 "summary": "Build the auth feature",
                 "context_payload": {"feature": "auth"},
-                "target_role_key": TargetRoleEnum.qa_agent,
+                "target_role_key": "qa_agent",
                 "constraints": ["deadline:today"],
                 "artifacts": [],
                 "priority": JobPriorityEnum.HIGH,
@@ -222,7 +256,7 @@ async def test_claim_next_job_calls_api_request_with_expected_contract_and_retur
     with patch("forkflux_mcp.main._api_request", return_value=expected_payload) as mock_api_request:
         result = await client.call_tool(
             "forkflux_claim_next_job",
-            arguments={"target_role_key": TargetRoleEnum.qa_agent},
+            arguments={"target_role_key": "qa_agent"},
         )
 
     mock_api_request.assert_called_once_with(
@@ -355,7 +389,7 @@ async def test_create_job_with_blocked_by_calls_api_request_with_correct_payload
             arguments={
                 "summary": "Fan-in job waiting for upstream",
                 "context_payload": {"task": "qa_review"},
-                "target_role_key": TargetRoleEnum.qa_agent,
+                "target_role_key": "qa_agent",
                 "constraints": ["deadline:today"],
                 "artifacts": [],
                 "priority": JobPriorityEnum.NORMAL,

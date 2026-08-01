@@ -16,36 +16,6 @@
         }
       }
     },
-    "/api/v1/mcp/agents/roles": {
-      "get": {
-        "tags": [
-          "mcp"
-        ],
-        "summary": "List Roles",
-        "operationId": "list_roles_api_v1_mcp_agents_roles_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/forkflux_api__agents__mcp_schemas__ListRolesResponse"
-                  },
-                  "type": "array",
-                  "title": "Response List Roles Api V1 Mcp Agents Roles Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/mcp/agents/me": {
       "get": {
         "tags": [
@@ -100,6 +70,64 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/mcp/agents/roles": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "List Roles",
+        "operationId": "list_roles_api_v1_mcp_agents_roles_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "db_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CLIScopeEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Scope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/forkflux_api__agents__mcp_schemas__ListRolesResponse"
+                  },
+                  "title": "Response List Roles Api V1 Mcp Agents Roles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/ui/agents": {
@@ -1029,6 +1057,15 @@
           "role_label"
         ],
         "title": "AgentRoleSummary"
+      },
+      "CLIScopeEnum": {
+        "type": "string",
+        "enum": [
+          "local",
+          "project",
+          "user"
+        ],
+        "title": "CLIScopeEnum"
       },
       "CreateAgentRequest": {
         "properties": {
