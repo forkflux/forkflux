@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../../components/ThemeToggle/ThemeToggle'
 import { jobService } from '@job-service'
 import { formatDate, slugifyRoleKey } from '../../lib/jobs/jobs'
-import type {
-  Agent,
-  CreateAgentResponse,
-  Role,
-} from '../../types/job'
-import type { OnboardingGuardContext } from '../../components/OnboardingGuard/OnboardingGuard'
+import { useAgents } from '../../store/hooks'
+import { useProfile } from '../../store/hooks'
+import { useRoles } from '../../store/hooks'
+import type { CreateAgentResponse } from '../../types/job'
 import './OnboardingPage.scss'
 
 /** MCP server configuration template — token is interpolated at render time. */
@@ -36,14 +34,31 @@ const DOCS_URL = 'https://docs.forkflux.ai/mcp-integration#client-specific-notes
 
 export function OnboardingPage() {
   const navigate = useNavigate()
-  const { refreshProfile } = useOutletContext<OnboardingGuardContext>() ?? { refreshProfile: () => {} }
+  const { setOnboarded } = useProfile()
 
   // ── shared state ──────────────────────────────────────────────
+  // Roles + agents come from the shared store slices (same slices as
+  // RolesPage/AgentsPage), so the onboarding wizard's lists stay in sync with
+  // the rest of the app and we avoid a duplicate initial fetch. Per-form
+  // `fetch(true)` already bypasses the cache, so no `invalidate` is needed.
+  const {
+    items: roles,
+    isLoading: rolesLoading,
+    error: rolesError,
+    fetch: fetchRoles,
+  } = useRoles()
+  const {
+    items: agents,
+    isLoading: agentsLoading,
+    error: agentsError,
+    fetch: fetchAgents,
+  } = useAgents()
   const [step, setStep] = useState(1)
-  const [roles, setRoles] = useState<Role[]>([])
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // `loading`/`error` gate the whole page on initial fetch. Both slices load
+  // in parallel; the page is loading until both resolve, and surfaces the
+  // first error from either slice (mirrors the old `Promise.all` aggregate).
+  const loading = rolesLoading || agentsLoading
+  const error = rolesError ?? agentsError
 
   // ── step 1: role creation ─────────────────────────────────────
   const [roleKey, setRoleKey] = useState('')
@@ -72,41 +87,19 @@ export function OnboardingPage() {
   const [finishError, setFinishError] = useState<string | null>(null)
 
   // ── initial data load ─────────────────────────────────────────
+  // Both slices load in parallel via the shared store. `loading`/`error` are
+  // derived from the agents slice (agents fetch is the slower of the two).
   useEffect(() => {
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag before async fetch
-    setLoading(true)
-    Promise.all([jobService.fetchRoles(), jobService.fetchAgents()])
-      .then(([roleData, agentData]) => {
-        if (cancelled) return
-        setRoles(roleData)
-        setAgents(agentData)
-        setError(null)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(
-          err instanceof Error ? err.message : 'Failed to load data',
-        )
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    void fetchRoles()
+    void fetchAgents()
+  }, [fetchRoles, fetchAgents])
 
   // ── role helpers ──────────────────────────────────────────────
+  // Force-refetch the roles slice, surfacing a fetch error to the role form.
   function refreshRoles() {
-    return jobService
-      .fetchRoles()
-      .then((data) => setRoles(data))
-      .catch((err) => {
-        setRoleError(
-          err instanceof Error ? err.message : 'Failed to refresh roles',
-        )
-      })
+    return fetchRoles(true).catch(() => {
+      setRoleError('Failed to refresh roles')
+    })
   }
 
   function handleRoleLabelChange(value: string) {
@@ -162,15 +155,11 @@ export function OnboardingPage() {
   }
 
   // ── agent helpers ─────────────────────────────────────────────
+  // Force-refetch the agents slice, surfacing a fetch error to the agent form.
   function refreshAgents() {
-    return jobService
-      .fetchAgents()
-      .then((data) => setAgents(data))
-      .catch((err) => {
-        setAgentError(
-          err instanceof Error ? err.message : 'Failed to refresh agents',
-        )
-      })
+    return fetchAgents(true).catch(() => {
+      setAgentError('Failed to refresh agents')
+    })
   }
 
   function toggleRoleId(roleId: number) {
@@ -263,7 +252,7 @@ export function OnboardingPage() {
     setFinishError(null)
     try {
       await jobService.createProfile(true)
-      refreshProfile()
+      setOnboarded(true)
       navigate('/jobs', { replace: true })
     } catch (err) {
       setFinishError(

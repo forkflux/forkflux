@@ -7,6 +7,7 @@ import {
   createMockRole,
   createMockCreateAgentResponse,
 } from '../../test/utils'
+import { resetStore } from '../../store/index'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs.
@@ -35,6 +36,9 @@ const MOCK_ROLES = [
 describe('AgentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared Zustand store so a fresh `fetchedAt` from a previous
+    // test can't short-circuit this test's `fetch()` via the cache-skip path.
+    resetStore()
     fetchAgentsMock.mockResolvedValue([])
     fetchRolesMock.mockResolvedValue(MOCK_ROLES)
     createAgentMock.mockResolvedValue(createMockCreateAgentResponse())

@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { RolesPage } from './RolesPage'
 import { renderWithRouter, createMockRole } from '../../test/utils'
+import { resetStore } from '../../store/index'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs.
@@ -23,6 +24,9 @@ const createRoleMock = vi.mocked(mockService.createRole)
 describe('RolesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared Zustand store so a fresh `fetchedAt` from a previous
+    // test can't short-circuit this test's `fetch()` via the cache-skip path.
+    resetStore()
     fetchRolesMock.mockResolvedValue([])
     createRoleMock.mockResolvedValue(createMockRole())
   })

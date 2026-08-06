@@ -7,6 +7,7 @@ import {
   createMockAgent,
   createMockCreateAgentResponse,
 } from '../../test/utils'
+import { resetStore } from '../../store/index'
 import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
@@ -49,6 +50,9 @@ const MOCK_AGENTS = [
 describe('OnboardingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared Zustand store so a fresh `fetchedAt` from a previous
+    // test can't short-circuit this test's `fetch()` via the cache-skip path.
+    resetStore()
     fetchRolesMock.mockResolvedValue([])
     fetchAgentsMock.mockResolvedValue([])
     createRoleMock.mockResolvedValue(createMockRole())
@@ -83,8 +87,11 @@ describe('OnboardingPage', () => {
       fetchRolesMock.mockRejectedValue('string error')
       renderWithRouter(<OnboardingPage />)
       await waitFor(() => {
+        // The roles slice owns the generic error string (it surfaces the
+        // first error from roles or agents). On a roles-only string rejection
+        // the page shows the roles slice's generic message.
         expect(
-          screen.getByText(/Error: Failed to load data/),
+          screen.getByText(/Error: Failed to load roles/),
         ).toBeInTheDocument()
       })
     })
