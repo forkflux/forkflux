@@ -17,9 +17,11 @@
     "@babel/runtime": "^8.0.0",
     "@redheadphone/react-json-grid": "^1.0.0",
     "@uiw/react-json-view": "^2.0.0-alpha.43",
+    "immer": "^11.1.16",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { formatDate, slugifyRoleKey } from '../../lib/jobs/jobs'
+import { useRoles } from '../../store/hooks'
 import { jobService } from '@job-service'
-import type { Role } from '../../types/job'
 import './RolesPage.scss'
 
 export function RolesPage() {
-  const [roles, setRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { items: roles, isLoading, error, fetch, invalidate } = useRoles()
 
-  // Create-role form state
+  // Create-role form state (purely page-local UI state — stays here).
   const [createOpen, setCreateOpen] = useState(false)
   const [roleKey, setRoleKey] = useState('')
   const [roleLabel, setRoleLabel] = useState('')
@@ -18,43 +16,12 @@ export function RolesPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
+  // Load roles on mount via the shared store slice. The slice dedupes
+  // concurrent callers and caches fresh results, so visiting RolesPage and
+  // then AgentsPage fetches roles once, not twice.
   useEffect(() => {
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag before async fetch
-    setLoading(true)
-    jobService
-      .fetchRoles()
-      .then((data) => {
-        if (cancelled) return
-        setRoles(data)
-        setError(null)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load roles')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  /**
-   * Refresh the roles list from the data source. Used after a successful
-   * create to reflect the new role without a full page reload.
-   */
-  function refreshRoles() {
-    return jobService
-      .fetchRoles()
-      .then((data) => {
-        setRoles(data)
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load roles')
-      })
-  }
+    void fetch()
+  }, [fetch])
 
   /** Open the create-role drawer and reset form state. */
   function openCreateForm() {
@@ -84,8 +51,9 @@ export function RolesPage() {
 
   /**
    * Submit the create-role form. Validates that both fields are non-empty
-   * before calling the API. On success, refreshes the roles list and closes
-   * the drawer. On error, displays a user-friendly message.
+   * before calling the API. On success, invalidates the roles cache so the
+   * next render refetches, and closes the drawer. On error, displays a
+   * user-friendly message.
    */
   async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -107,7 +75,10 @@ export function RolesPage() {
 
     try {
       await jobService.createRole(trimmedKey, trimmedLabel)
-      await refreshRoles()
+      // Invalidate the shared cache + force a refetch so the new role shows
+      // up across RolesPage AND AgentsPage (which reuse the same slice).
+      invalidate()
+      await fetch(true)
       setCreateOpen(false)
       setRoleKey('')
       setRoleLabel('')
@@ -123,7 +94,7 @@ export function RolesPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="ff-roles">Loading roles…</div>
   }
 

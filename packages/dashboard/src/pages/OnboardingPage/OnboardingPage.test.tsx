@@ -7,6 +7,7 @@ import {
   createMockAgent,
   createMockCreateAgentResponse,
 } from '../../test/utils'
+import { resetStore } from '../../store/index'
 import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
@@ -49,6 +50,9 @@ const MOCK_AGENTS = [
 describe('OnboardingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared Zustand store so a fresh `fetchedAt` from a previous
+    // test can't short-circuit this test's `fetch()` via the cache-skip path.
+    resetStore()
     fetchRolesMock.mockResolvedValue([])
     fetchAgentsMock.mockResolvedValue([])
     createRoleMock.mockResolvedValue(createMockRole())
@@ -83,8 +87,11 @@ describe('OnboardingPage', () => {
       fetchRolesMock.mockRejectedValue('string error')
       renderWithRouter(<OnboardingPage />)
       await waitFor(() => {
+        // The roles slice owns the generic error string (it surfaces the
+        // first error from roles or agents). On a roles-only string rejection
+        // the page shows the roles slice's generic message.
         expect(
-          screen.getByText(/Error: Failed to load data/),
+          screen.getByText(/Error: Failed to load roles/),
         ).toBeInTheDocument()
       })
     })
@@ -158,6 +165,40 @@ describe('OnboardingPage', () => {
       await waitFor(() => {
         expect(screen.getByText('QA Engineer')).toBeInTheDocument()
       })
+    })
+
+    it("shows form-specific message when the post-create role refresh fails", async () => {
+      createRoleMock.mockResolvedValue(
+        createMockRole({ id: 10, role_key: 'qa', role_label: 'QA Engineer' }),
+      )
+      // Initial load succeeds; the forced refresh after create rejects.
+      fetchRolesMock
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('refresh down'))
+
+      renderWithRouter(<OnboardingPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Add Role')).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByPlaceholderText('e.g. Frontend Engineer'), {
+        target: { value: 'QA Engineer' },
+      })
+      fireEvent.click(screen.getByText('Add Role'))
+
+      // createRole succeeded, but the refresh FAILED. Because roles already
+      // loaded once (fetchedAt != null) the page gate does NOT bounce to a
+      // full-page error; instead the role form surfaces the form-specific
+      // message derived from the slice's supported failure result.
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to refresh roles'),
+        ).toBeInTheDocument()
+      })
+      // The wizard must stay on step 1 (not bounce to the full-page error card).
+      expect(
+        screen.getByText('Step 1: Add workflow roles'),
+      ).toBeInTheDocument()
     })
 
     it('shows validation error when role label is empty', async () => {
@@ -269,6 +310,44 @@ describe('OnboardingPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Continue')).not.toBeDisabled()
       })
+    })
+
+    it("shows form-specific message when the post-create agent refresh fails", async () => {
+      // Initial roles + agents loads succeed; every forced agents refresh
+      // after that rejects (persistently, so the slice error stays set across
+      // the create + "add another" refreshes).
+      fetchRolesMock.mockResolvedValue(MOCK_ROLES)
+      fetchAgentsMock
+        .mockResolvedValueOnce(MOCK_AGENTS)
+        .mockRejectedValue(new Error('refresh down'))
+
+      await goToStep2()
+
+      fireEvent.change(screen.getByPlaceholderText('e.g. frontend-bot'), {
+        target: { value: 'my-bot' },
+      })
+      const checkboxes = screen.getAllByRole('checkbox')
+      fireEvent.click(checkboxes[0])
+      fireEvent.click(screen.getByText('Create Agent'))
+
+      // createAgent succeeded → token-success view. The forced refresh ran by
+      // handleAddAgent rejected, so `agentsError` is set; since agents already
+      // loaded once (fetchedAt != null) the page gate does NOT bounce to a
+      // full-page error. Re-open the form via "+ Add Another Agent" (which
+      // fires another failing refresh) so the agent form error block renders
+      // and surfaces the form-specific message derived from the slice error.
+      await waitFor(() => {
+        expect(screen.getByText('+ Add Another Agent')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('+ Add Another Agent'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to refresh agents'),
+        ).toBeInTheDocument()
+      })
+      // Step 2 is still rendered (no full-page bounce).
+      expect(screen.getByText('Step 2: Add agents')).toBeInTheDocument()
     })
 
     it('shows validation error when agent label is empty', async () => {

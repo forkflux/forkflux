@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { jobService } from '@job-service'
+import { useProfile } from '../../store/hooks'
 
 /**
  * Layout-route wrapper that checks onboarding status on mount.
@@ -12,31 +12,24 @@ import { jobService } from '@job-service'
  *   redirects to `/jobs`.
  * - Otherwise: renders child routes via `<Outlet />`.
  *
- * Exposes a `refreshProfile` callback via Outlet context so the onboarding
- * page can eagerly update the guard's state after setup completes, preventing
- * a redirect back to `/onboarding`.
+ * Onboarding status lives in the global store `profileSlice`. `OnboardingPage`
+ * writes `setOnboarded(true)` directly after `createProfile` succeeds, so this
+ * guard no longer needs to expose an `Outlet context` refresh callback — the
+ * store propagation replaces the old `refreshProfile` plumbing.
  */
 export function OnboardingGuard() {
   const location = useLocation()
-  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const checkProfile = useCallback(() => {
-    jobService
-      .getProfile()
-      .then((onboarded) => {
-        setIsOnboarded(onboarded)
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to check onboarding status')
-      })
-  }, [])
+  const { isOnboarded, error, check } = useProfile()
 
   useEffect(() => {
-    checkProfile()
-  }, [checkProfile])
+    void check()
+  }, [check])
 
   // ── loading ────────────────────────────────────────────────────
+  // Stay in loading until the onboarding status is known (`null` before
+  // `check()` flips `isLoading`, during the in-flight request, or even if
+  // `isLoading` never gets set) and no error has surfaced. Once a boolean or
+  // error arrives the guard resolves to its normal redirect/outlet paths.
   if (isOnboarded === null && error === null) {
     return (
       <div
@@ -84,10 +77,5 @@ export function OnboardingGuard() {
     return <Navigate to="/jobs" replace />
   }
 
-  return <Outlet context={{ refreshProfile: checkProfile }} />
-}
-
-/** Context shape exposed by OnboardingGuard via `<Outlet context>`. */
-export interface OnboardingGuardContext {
-  refreshProfile: () => void
+  return <Outlet />
 }

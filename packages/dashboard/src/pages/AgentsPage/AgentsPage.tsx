@@ -2,20 +2,29 @@ import { useEffect, useRef, useState } from 'react'
 import { Drawer } from '../../components/Drawer/Drawer'
 import { formatDate } from '../../lib/jobs/jobs'
 import { jobService } from '@job-service'
-import type {
-  Agent,
-  CreateAgentResponse,
-  Role,
-} from '../../types/job'
+import { useRoles } from '../../store/hooks'
+import { useAgents } from '../../store/hooks'
+import type { CreateAgentResponse } from '../../types/job'
 import './AgentsPage.scss'
 
 export function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Agents + roles come from the shared store. Roles are reused with
+  // RolesPage via the same `rolesSlice`, so switching tabs no longer triggers
+  // a duplicate `fetchRoles`.
+  const { items: agents, isLoading, error, fetch: fetchAgents } = useAgents()
+  const {
+    items: roles,
+    isLoading: rolesLoading,
+    error: rolesError,
+    fetch: fetchRoles,
+  } = useRoles()
 
-  // Create-agent form state
+  // Combined loading/error: both datasets are required before the page can
+  // render the table or open the create drawer. A roles fetch failure used
+  // to be swallowed (indistinguishable from "no roles created yet"); now it
+  // is surfaced and the create action stays gated until roles resolve.
+
+  // Create-agent form state (purely page-local UI state — stays here).
   const [createOpen, setCreateOpen] = useState(false)
   const [agentLabel, setAgentLabel] = useState('')
   const [toolFamily, setToolFamily] = useState('')
@@ -31,43 +40,12 @@ export function AgentsPage() {
   const [copyFailed, setCopyFailed] = useState(false)
   const tokenInputRef = useRef<HTMLInputElement>(null)
 
+  // Load agents + roles on mount via the shared store slices. Both slices
+  // dedupe concurrent callers and cache fresh results.
   useEffect(() => {
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag before async fetch
-    setLoading(true)
-    Promise.all([jobService.fetchAgents(), jobService.fetchRoles()])
-      .then(([agentData, roleData]) => {
-        if (cancelled) return
-        setAgents(agentData)
-        setRoles(roleData)
-        setError(null)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load agents')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  /**
-   * Refresh the agents list from the data source. Used after a successful
-   * create to reflect the new agent without a full page reload.
-   */
-  function refreshAgents() {
-    return jobService
-      .fetchAgents()
-      .then((data) => {
-        setAgents(data)
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load agents')
-      })
-  }
+    void fetchAgents()
+    void fetchRoles()
+  }, [fetchAgents, fetchRoles])
 
   /** Open the create-agent drawer and reset form state. */
   function openCreateForm() {
@@ -153,13 +131,14 @@ export function AgentsPage() {
   }
 
   /**
-   * Close the drawer. If a token was just shown, refresh the agents list so
-   * the new agent appears in the table. Reset all form/token state.
+   * Close the drawer. If a token was just shown, force-refetch the agents
+   * slice so the new agent appears in the table. Reset all form/token state.
    */
   function handleCloseDrawer() {
     setCreateOpen(false)
     if (createdAgent) {
-      void refreshAgents()
+      // Force a refetch bypassing the cache so the just-created agent shows up.
+      void fetchAgents(true)
     }
     setCreatedAgent(null)
     setAgentLabel('')
@@ -170,12 +149,16 @@ export function AgentsPage() {
     setCopyFailed(false)
   }
 
-  if (loading) {
+  if (isLoading || rolesLoading) {
     return <div className="ff-agents">Loading agents…</div>
   }
 
-  if (error) {
-    return <div className="ff-agents ff-agents--error">Error: {error}</div>
+  if (error || rolesError) {
+    return (
+      <div className="ff-agents ff-agents--error">
+        Error: {error ?? rolesError}
+      </div>
+    )
   }
 
   return (
