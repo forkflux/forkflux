@@ -12,7 +12,17 @@ export function AgentsPage() {
   // RolesPage via the same `rolesSlice`, so switching tabs no longer triggers
   // a duplicate `fetchRoles`.
   const { items: agents, isLoading, error, fetch: fetchAgents } = useAgents()
-  const { items: roles, fetch: fetchRoles } = useRoles()
+  const {
+    items: roles,
+    isLoading: rolesLoading,
+    error: rolesError,
+    fetch: fetchRoles,
+  } = useRoles()
+
+  // Combined loading/error: both datasets are required before the page can
+  // render the table or open the create drawer. A roles fetch failure used
+  // to be swallowed (indistinguishable from "no roles created yet"); now it
+  // is surfaced and the create action stays gated until roles resolve.
 
   // Create-agent form state (purely page-local UI state — stays here).
   const [createOpen, setCreateOpen] = useState(false)
@@ -139,12 +149,16 @@ export function AgentsPage() {
     setCopyFailed(false)
   }
 
-  if (isLoading) {
+  if (isLoading || rolesLoading) {
     return <div className="ff-agents">Loading agents…</div>
   }
 
-  if (error) {
-    return <div className="ff-agents ff-agents--error">Error: {error}</div>
+  if (error || rolesError) {
+    return (
+      <div className="ff-agents ff-agents--error">
+        Error: {error ?? rolesError}
+      </div>
+    )
   }
 
   return (

@@ -19,14 +19,18 @@ import { useProfile } from '../../store/hooks'
  */
 export function OnboardingGuard() {
   const location = useLocation()
-  const { isOnboarded, isLoading, error, check } = useProfile()
+  const { isOnboarded, error, check } = useProfile()
 
   useEffect(() => {
     void check()
   }, [check])
 
   // ── loading ────────────────────────────────────────────────────
-  if (isOnboarded === null && isLoading && error === null) {
+  // Stay in loading until the onboarding status is known (`null` before
+  // `check()` flips `isLoading`, during the in-flight request, or even if
+  // `isLoading` never gets set) and no error has surfaced. Once a boolean or
+  // error arrives the guard resolves to its normal redirect/outlet paths.
+  if (isOnboarded === null && error === null) {
     return (
       <div
         style={{

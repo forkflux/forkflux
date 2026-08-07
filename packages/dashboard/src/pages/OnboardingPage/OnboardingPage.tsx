@@ -45,20 +45,29 @@ export function OnboardingPage() {
     items: roles,
     isLoading: rolesLoading,
     error: rolesError,
+    fetchedAt: rolesFetchedAt,
     fetch: fetchRoles,
   } = useRoles()
   const {
     items: agents,
     isLoading: agentsLoading,
     error: agentsError,
+    fetchedAt: agentsFetchedAt,
     fetch: fetchAgents,
   } = useAgents()
   const [step, setStep] = useState(1)
-  // `loading`/`error` gate the whole page on initial fetch. Both slices load
-  // in parallel; the page is loading until both resolve, and surfaces the
-  // first error from either slice (mirrors the old `Promise.all` aggregate).
+  // `loading`/`error` gate the whole page on the INITIAL fetch only. Both
+  // slices load in parallel; the page is loading until both resolve. A slice
+  // error is fatal only while that slice has never loaded (`fetchedAt` is
+  // `null`) — once it has loaded, a later refresh failure (after a create, a
+  // tab return, etc.) is non-fatal so the wizard stays on the current step
+  // and the affected form surfaces its own message (see `refreshRoles` and
+  // the role form error render; `refreshAgents` and the agent form analog).
   const loading = rolesLoading || agentsLoading
-  const error = rolesError ?? agentsError
+  const error =
+    (rolesError && rolesFetchedAt === null
+      ? rolesError
+      : null) ?? (agentsError && agentsFetchedAt === null ? agentsError : null)
 
   // ── step 1: role creation ─────────────────────────────────────
   const [roleKey, setRoleKey] = useState('')
@@ -95,11 +104,13 @@ export function OnboardingPage() {
   }, [fetchRoles, fetchAgents])
 
   // ── role helpers ──────────────────────────────────────────────
-  // Force-refetch the roles slice, surfacing a fetch error to the role form.
+  // Force-refetch the roles slice. The slice never rejects: on failure it
+  // records `rolesError` (the supported failure result) instead. The role
+  // form renders the form-specific "Failed to refresh roles" message from
+  // that slice error (see the role form error block), so this helper no
+  // longer needs an (unreachable) `.catch`.
   function refreshRoles() {
-    return fetchRoles(true).catch(() => {
-      setRoleError('Failed to refresh roles')
-    })
+    return fetchRoles(true)
   }
 
   function handleRoleLabelChange(value: string) {
@@ -155,11 +166,13 @@ export function OnboardingPage() {
   }
 
   // ── agent helpers ─────────────────────────────────────────────
-  // Force-refetch the agents slice, surfacing a fetch error to the agent form.
+  // Force-refetch the agents slice. The slice never rejects: on failure it
+  // records `agentsError` (the supported failure result) instead. The agent
+  // form renders the form-specific "Failed to refresh agents" message from
+  // that slice error (see the agent form error block), so this helper no
+  // longer needs an (unreachable) `.catch`.
   function refreshAgents() {
-    return fetchAgents(true).catch(() => {
-      setAgentError('Failed to refresh agents')
-    })
+    return fetchAgents(true)
   }
 
   function toggleRoleId(roleId: number) {
@@ -377,8 +390,8 @@ export function OnboardingPage() {
                 placeholder="e.g. Frontend Engineer"
                 disabled={creatingRole}
                 required
-                aria-describedby={roleError ? 'onb-role-error' : undefined}
-                aria-invalid={roleError ? true : undefined}
+                aria-describedby={(roleError || (rolesError && rolesFetchedAt)) ? 'onb-role-error' : undefined}
+                aria-invalid={(roleError || (rolesError && rolesFetchedAt)) ? true : undefined}
               />
 
               <label className="ff-onboarding__label" htmlFor="onb-role-key">
@@ -393,23 +406,33 @@ export function OnboardingPage() {
                 placeholder="e.g. frontend_engineer"
                 disabled={creatingRole}
                 required
-                aria-describedby={roleError ? 'onb-role-error' : undefined}
-                aria-invalid={roleError ? true : undefined}
+                aria-describedby={(roleError || (rolesError && rolesFetchedAt)) ? 'onb-role-error' : undefined}
+                aria-invalid={(roleError || (rolesError && rolesFetchedAt)) ? true : undefined}
               />
               {!roleKeyTouched && roleLabel && (
                 <p className="ff-onboarding__hint">Auto-generated from label</p>
               )}
 
-              {roleError && (
-                <p
-                  id="onb-role-error"
-                  className="ff-onboarding__form-error"
-                  role="alert"
-                  aria-live="assertive"
-                >
-                  {roleError}
-                </p>
-              )}
+              {/* Prefer the form's own validation/create error; fall back to
+                  the slice's refresh failure (post-initial-load) surfaced as
+                  the form-specific message — mirrors the now-removed
+                  unreachable `.catch` in `refreshRoles`. */}
+              {(() => {
+                const refreshFailed =
+                  rolesError !== null && rolesFetchedAt !== null
+                const msg = roleError ?? (refreshFailed ? 'Failed to refresh roles' : null)
+                if (!msg) return null
+                return (
+                  <p
+                    id="onb-role-error"
+                    className="ff-onboarding__form-error"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    {msg}
+                  </p>
+                )
+              })()}
 
               <button
                 type="submit"
@@ -597,8 +620,8 @@ export function OnboardingPage() {
                   placeholder="e.g. frontend-bot"
                   disabled={creatingAgent}
                   required
-                  aria-describedby={agentError ? 'onb-agent-error' : undefined}
-                  aria-invalid={agentError ? true : undefined}
+                  aria-describedby={(agentError || (agentsError && agentsFetchedAt)) ? 'onb-agent-error' : undefined}
+                  aria-invalid={(agentError || (agentsError && agentsFetchedAt)) ? true : undefined}
                 />
 
                 <label className="ff-onboarding__label" htmlFor="onb-tool-family">
@@ -646,16 +669,26 @@ export function OnboardingPage() {
                   )}
                 </fieldset>
 
-                {agentError && (
-                  <p
-                    id="onb-agent-error"
-                    className="ff-onboarding__form-error"
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {agentError}
-                  </p>
-                )}
+                {/* Prefer the form's own validation/create error; fall back to
+                    the slice's refresh failure (post-initial-load) surfaced as
+                    the form-specific message — mirrors the now-removed
+                    unreachable `.catch` in `refreshAgents`. */}
+                {(() => {
+                  const refreshFailed =
+                    agentsError !== null && agentsFetchedAt !== null
+                  const msg = agentError ?? (refreshFailed ? 'Failed to refresh agents' : null)
+                  if (!msg) return null
+                  return (
+                    <p
+                      id="onb-agent-error"
+                      className="ff-onboarding__form-error"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      {msg}
+                    </p>
+                  )
+                })()}
 
                 <button
                   type="submit"

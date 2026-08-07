@@ -74,6 +74,26 @@ describe('AgentsPage', () => {
         ).toBeInTheDocument()
       })
     })
+
+    it('surfaces error message when fetchRoles rejects', async () => {
+      fetchRolesMock.mockRejectedValue(new Error('Roles unavailable'))
+      renderWithRouter(<AgentsPage />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Error: Roles unavailable/),
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('surfaces generic error for non-Error roles rejections', async () => {
+      fetchRolesMock.mockRejectedValue('roles boom')
+      renderWithRouter(<AgentsPage />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Error: Failed to load roles/),
+        ).toBeInTheDocument()
+      })
+    })
   })
 
   describe('empty state', () => {
