@@ -22,7 +22,6 @@ export function RolesPage() {
   const [editRole, setEditRole] = useState<Role | null>(null)
   const [editKey, setEditKey] = useState('')
   const [editLabel, setEditLabel] = useState('')
-  const [editKeyTouched, setEditKeyTouched] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -115,26 +114,18 @@ export function RolesPage() {
     setEditRole(role)
     setEditKey(role.role_key)
     setEditLabel(role.role_label)
-    setEditKeyTouched(true)
     setEditError(null)
     setEditOpen(true)
   }
 
-  /**
-   * Handle changes to the edit-role label input. When the user has not
-   * manually edited the role key, auto-suggest a slugified key from the
-   * label — mirroring the create form's behavior.
-   */
+  /** Handle changes to the edit-role label input. The edit key is pre-populated and
+   * not auto-suggested from the label, so existing role keys stay stable. */
   function handleEditLabelChange(value: string) {
     setEditLabel(value)
-    if (!editKeyTouched) {
-      setEditKey(slugifyRoleKey(value))
-    }
   }
 
-  /** Handle manual edits to the edit-role key — stops auto-suggestion. */
+  /** Handle manual edits to the edit-role key. */
   function handleEditKeyChange(value: string) {
-    setEditKeyTouched(true)
     setEditKey(value)
   }
 
@@ -420,10 +411,6 @@ export function RolesPage() {
             aria-describedby={editError ? 'edit-role-form-error' : undefined}
             aria-invalid={editError ? true : undefined}
           />
-          {!editKeyTouched && editLabel && (
-            <p className="ff-roles__hint">Auto-generated from label</p>
-          )}
-
           {editError && (
             <p
               id="edit-role-form-error"

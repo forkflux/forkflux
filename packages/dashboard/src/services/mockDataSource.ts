@@ -369,26 +369,28 @@ export const mockDataSource: JobDataSource = {
       );
     }
 
-    // Find the role by ID. Prefer an overlay entry (which reflects any
-    // prior update) over the static JSON so `existing.role_key` is the
-    // current key — keeping the old-key cleanup below correct across
-    // repeated updates of the same role.
-    const overlayRoles = Array.from(roleOverlay.values());
-    const existing =
-      overlayRoles.find((r) => r.id === roleId) ??
-      ALL_ROLES.find((r) => r.id === roleId);
+    // Use the merged, deletion-aware active role list for both the
+    // existing-role lookup and the duplicate-key conflict check.
+    // `mergeRolesWithOverlay` shadows static entries with overlay entries
+    // by `id` and excludes `deletedRoleIds`, so:
+    //   • soft-deleted roles can't be looked up (hence can't be updated),
+    //   • renamed overlay entries expose their current key (no stale-key
+    //     false positives), and
+    //   • keys from deleted roles are reusable (they're filtered out of
+    //     the conflict pool).
+    const activeRoles = mergeRolesWithOverlay();
+    const existing = activeRoles.find((r) => r.id === roleId);
     if (!existing) {
       throw new Error(
         'This role no longer exists. Please refresh and try again.',
       );
     }
 
-    // If the role_key changed, ensure no other role already uses it.
-    const conflict =
-      ALL_ROLES.some((r) => r.id !== roleId && r.role_key === key) ||
-      Array.from(roleOverlay.values()).some(
-        (r) => r.id !== roleId && r.role_key === key,
-      );
+    // If the role_key changed, ensure no active (non-deleted) role already
+    // uses it.
+    const conflict = activeRoles.some(
+      (r) => r.id !== roleId && r.role_key === key,
+    );
     if (conflict) {
       throw new Error(`A role with the key "${key}" already exists.`);
     }
