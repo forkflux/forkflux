@@ -3,6 +3,7 @@ import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { JobDetailPage } from './JobDetailPage'
 import { renderWithRoutes, createMockJobDetail } from '../../test/utils'
 import type { JobDetail } from '../../types/job'
+import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock is available when the hoisted vi.mock runs.
 const { mockService } = vi.hoisted(() => ({

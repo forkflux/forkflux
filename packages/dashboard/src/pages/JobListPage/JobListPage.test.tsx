@@ -3,6 +3,7 @@ import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { JobListPage } from './JobListPage'
 import { renderWithRouter, createMockJob, createMockRole } from '../../test/utils'
 import type { JobListResponse, JobListMeta, Role, StatusCount } from '../../types/job'
+import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs. We can't reference imported functions inside vi.hoisted, so

@@ -34,7 +34,7 @@ Common commands:
 forkflux init                 # apply database migrations
 forkflux serve                # run the API on 0.0.0.0:8000
 forkflux stats                # show recent queue and handoff metrics
-forkflux agents-role list     # list configured target roles
+forkflux quickstart           # create example roles and agents
 forkflux agent list           # list registered agents and roles
 forkflux job list             # inspect jobs from the CLI
 ```

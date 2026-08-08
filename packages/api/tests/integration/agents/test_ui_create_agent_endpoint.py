@@ -125,3 +125,32 @@ async def test_create_agent_returns_422_when_agent_label_is_empty_string(
     assert response.status_code == 422
     locs = {tuple(item["loc"]) for item in response.json()["detail"]}
     assert ("body", "agent_label") in locs
+
+
+async def test_create_agent_returns_422_when_target_role_is_soft_deleted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    soft_deleted_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ghost",
+        role_label="Ghost",
+        is_deleted=True,
+    )
+
+    payload = {
+        "agent_label": "agent-soft-deleted-role",
+        "tool_family": "backend",
+        "target_role_ids": [soft_deleted_role.id],
+    }
+
+    response = await client.post("/api/v1/ui/agents", json=payload)
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail[0]["loc"] == ["body", "target_role_ids"]
+    assert detail[0]["type"] == "target_role.not_found"
+    assert detail[0]["input"] == [soft_deleted_role.id]
+
+    agents = (await db_session.execute(select(AgentIdentity))).scalars().all()
+    assert agents == []

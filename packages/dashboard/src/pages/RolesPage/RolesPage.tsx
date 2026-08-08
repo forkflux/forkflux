@@ -3,6 +3,7 @@ import { Drawer } from '../../components/Drawer/Drawer'
 import { formatDate, slugifyRoleKey } from '../../lib/jobs/jobs'
 import { useRoles } from '../../store/hooks'
 import { jobService } from '@job-service'
+import type { Role } from '../../types/job.ts'
 import './RolesPage.scss'
 
 export function RolesPage() {
@@ -15,6 +16,20 @@ export function RolesPage() {
   const [roleKeyTouched, setRoleKeyTouched] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  // Edit-role form state (purely page-local UI state — stays here).
+  const [editOpen, setEditOpen] = useState(false)
+  const [editRole, setEditRole] = useState<Role | null>(null)
+  const [editKey, setEditKey] = useState('')
+  const [editLabel, setEditLabel] = useState('')
+  const [updating, setUpdating] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  // Delete-role confirmation state (purely page-local UI state — stays here).
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Role | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Load roles on mount via the shared store slice. The slice dedupes
   // concurrent callers and caches fresh results, so visiting RolesPage and
@@ -94,6 +109,109 @@ export function RolesPage() {
     }
   }
 
+  /** Open the edit-role drawer, pre-populated with the role's values. */
+  function openEditForm(role: Role) {
+    setEditRole(role)
+    setEditKey(role.role_key)
+    setEditLabel(role.role_label)
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  /** Handle changes to the edit-role label input. The edit key is pre-populated and
+   * not auto-suggested from the label, so existing role keys stay stable. */
+  function handleEditLabelChange(value: string) {
+    setEditLabel(value)
+  }
+
+  /** Handle manual edits to the edit-role key. */
+  function handleEditKeyChange(value: string) {
+    setEditKey(value)
+  }
+
+  /**
+   * Submit the edit-role form. Validates that both fields are non-empty
+   * before calling the API. On success, invalidates the roles cache so
+   * the next render refetches, and closes the drawer. On error, displays
+   * a user-friendly message.
+   */
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (!editRole) return
+
+    const trimmedKey = editKey.trim()
+    const trimmedLabel = editLabel.trim()
+
+    if (!trimmedLabel) {
+      setEditError('Please provide a role label.')
+      return
+    }
+    if (!trimmedKey) {
+      setEditError('Please provide a role key.')
+      return
+    }
+
+    setUpdating(true)
+    setEditError(null)
+
+    try {
+      await jobService.updateRole(editRole.id, trimmedKey, trimmedLabel)
+      // Invalidate the shared cache + force a refetch so the updated
+      // role shows up across RolesPage AND AgentsPage.
+      invalidate()
+      await fetch(true)
+      setEditOpen(false)
+      setEditRole(null)
+    } catch (err) {
+      setEditError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update role. Please try again.',
+      )
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  /** Open the delete-confirmation drawer for the given role. */
+  function openDeleteConfirm(role: Role) {
+    setDeleteTarget(role)
+    setDeleteError(null)
+    setDeleteOpen(true)
+  }
+
+  /**
+   * Confirm the role deletion. Calls the API to delete the role, then
+   * invalidates the roles cache and refetches so the removed role
+   * disappears across RolesPage AND AgentsPage. On error, displays a
+   * user-friendly message inside the confirmation drawer.
+   */
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return
+
+    setDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await jobService.deleteRole(deleteTarget.id)
+      // Invalidate the shared cache + force a refetch so the deleted
+      // role is removed across RolesPage AND AgentsPage.
+      invalidate()
+      await fetch(true)
+      setDeleteOpen(false)
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete role. Please try again.',
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (isLoading) {
     return <div className="ff-roles">Loading roles…</div>
   }
@@ -126,6 +244,7 @@ export function RolesPage() {
                 <th className="ff-roles__th">Key</th>
                 <th className="ff-roles__th">Label</th>
                 <th className="ff-roles__th">Created</th>
+                <th className="ff-roles__th ff-roles__th--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -137,6 +256,25 @@ export function RolesPage() {
                   <td className="ff-roles__td">{role.role_label}</td>
                   <td className="ff-roles__td ff-roles__td--muted">
                     {formatDate(role.created_at)}
+                  </td>
+                  <td className="ff-roles__td ff-roles__td--actions">
+                    <button
+                      type="button"
+                      className="ff-roles__edit-btn"
+                      onClick={() => openEditForm(role)}
+                      aria-label={`Edit role ${role.role_label}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="ff-roles__delete-btn"
+                      onClick={() => openDeleteConfirm(role)}
+                      aria-label={`Delete role ${role.role_label}`}
+                      disabled={deleting && deleteTarget?.id === role.id}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -224,6 +362,141 @@ export function RolesPage() {
             </button>
           </div>
         </form>
+      </Drawer>
+
+      {/* Edit role form drawer */}
+      <Drawer
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit Role"
+        width="500px"
+      >
+        <form className="ff-roles__form" onSubmit={handleEditSubmit} noValidate>
+          <p className="ff-roles__form-desc">
+            Update this target role's <strong>key</strong> and
+            <strong> label</strong>. The <strong>role key</strong> is the
+            stable identifier used in API calls; the <strong>label</strong>
+            is the human-readable display name.
+          </p>
+
+          <label className="ff-roles__label" htmlFor="edit-role-label">
+            Role Label <span className="ff-roles__required">*</span>
+          </label>
+          <input
+            id="edit-role-label"
+            type="text"
+            className="ff-roles__input"
+            value={editLabel}
+            onChange={(e) => handleEditLabelChange(e.target.value)}
+            placeholder="e.g. Frontend Engineer"
+            disabled={updating}
+            required
+            aria-describedby={editError ? 'edit-role-form-error' : undefined}
+            aria-invalid={editError ? true : undefined}
+            autoFocus
+          />
+
+          <label className="ff-roles__label" htmlFor="edit-role-key">
+            Role Key <span className="ff-roles__required">*</span>
+          </label>
+          <input
+            id="edit-role-key"
+            type="text"
+            className="ff-roles__input ff-roles__input--mono"
+            value={editKey}
+            onChange={(e) => handleEditKeyChange(e.target.value)}
+            placeholder="e.g. frontend_engineer"
+            disabled={updating}
+            required
+            aria-describedby={editError ? 'edit-role-form-error' : undefined}
+            aria-invalid={editError ? true : undefined}
+          />
+          {editError && (
+            <p
+              id="edit-role-form-error"
+              className="ff-roles__form-error"
+              role="alert"
+              aria-live="assertive"
+            >
+              {editError}
+            </p>
+          )}
+
+          <div className="ff-roles__form-actions">
+            <button
+              type="button"
+              className="ff-roles__cancel-btn"
+              onClick={() => setEditOpen(false)}
+              disabled={updating}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ff-roles__submit-btn"
+              disabled={updating}
+            >
+              {updating ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </Drawer>
+
+      {/*
+        Delete role confirmation drawer. Reuses the same Drawer component
+        as the create/edit forms for visual and behavioral consistency.
+        Shows a warning with the role label and a danger-styled confirm
+        button so the user must explicitly confirm the destructive action.
+      */}
+      <Drawer
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete Role"
+        width="500px"
+      >
+        <div className="ff-roles__confirm">
+          <p className="ff-roles__confirm-text">
+            Are you sure you want to delete the role{' '}
+            <strong className="ff-roles__confirm-role">
+              {deleteTarget?.role_label}
+            </strong>{' '}
+            (<code className="ff-roles__confirm-code">{deleteTarget?.role_key}</code>)?
+          </p>
+          <p className="ff-roles__confirm-warning">
+            This action cannot be undone. Jobs already assigned to this
+            role will retain their assignment, but no new jobs can be
+            routed to it.
+          </p>
+
+          {deleteError && (
+            <p
+              className="ff-roles__form-error"
+              role="alert"
+              aria-live="assertive"
+            >
+              {deleteError}
+            </p>
+          )}
+
+          <div className="ff-roles__form-actions">
+            <button
+              type="button"
+              className="ff-roles__cancel-btn"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ff-roles__delete-confirm-btn"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Confirm Delete'}
+            </button>
+          </div>
+        </div>
       </Drawer>
     </div>
   )

@@ -46,3 +46,27 @@ async def test_list_roles_returns_200_with_empty_list_when_no_roles(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_list_roles_excludes_soft_deleted_roles(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="ghost",
+        role_label="Ghost",
+        is_deleted=True,
+    )
+
+    response = await client.get("/api/v1/ui/agents/roles")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["role_key"] == "admin"

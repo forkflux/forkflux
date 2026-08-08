@@ -75,6 +75,33 @@ export interface JobDataSource {
   createRole(roleKey: string, roleLabel: string): Promise<Role>;
 
   /**
+   * Update an existing target role via
+   * `PATCH /api/v1/ui/agents/roles/{role_id}`.
+   *
+   * Sends `role_key` and `role_label` as JSON body. On success (200)
+   * returns the updated `Role`. Throws a typed error on 422 — a conflict
+   * when `role_key` is already taken by another role, a not-found when
+   * `role_id` no longer exists, or a Pydantic validation error — so the
+   * UI can display a user-friendly message.
+   */
+  updateRole(
+    roleId: number,
+    roleKey: string,
+    roleLabel: string,
+  ): Promise<Role>;
+
+  /**
+   * Delete an existing target role via
+   * `DELETE /api/v1/ui/agents/roles/{role_id}`.
+   *
+   * Performs a soft-delete on the backend. On success (204) resolves to
+   * `void` — no response body is returned. Throws a typed error on 422
+   * (role not found or already deleted) so the UI can display a
+   * user-friendly message.
+   */
+  deleteRole(roleId: number): Promise<void>;
+
+  /**
    * Create a new agent via `POST /api/v1/ui/agents`.
    *
    * Sends `agent_label`, `tool_family`, and `target_role_ids` as JSON body.

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from forkflux_api.database import Base, UTCDateTime
@@ -10,10 +10,25 @@ PK_TYPE = BigInteger().with_variant(Integer, "sqlite")
 
 class TargetRole(Base):
     __tablename__ = "target_role"
+    __table_args__ = (
+        Index(
+            "uq_target_role_role_key_active",
+            "role_key",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),
+            sqlite_where=text("is_deleted = false"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(PK_TYPE, primary_key=True, autoincrement=True)
-    role_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    role_key: Mapped[str] = mapped_column(Text, nullable=False)
     role_label: Mapped[str] = mapped_column(Text, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
 

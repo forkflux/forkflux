@@ -59,6 +59,7 @@ class TargetRoleFactory(BaseSQLAlchemyFactory):
     __model__ = TargetRole
 
     role_key = Use(lambda: f"role-{next(TargetRoleFactory._counter)}")
+    is_deleted: bool = False
     created_at: datetime = datetime.now(timezone.utc)
 
 

@@ -9,6 +9,12 @@ class TargetRoleCreate:
 
 
 @dataclass(slots=True)
+class TargetRoleUpdate:
+    role_key: str
+    role_label: str
+
+
+@dataclass(slots=True)
 class AgentIdentityCreate:
     agent_label: str
     tool_family: str | None

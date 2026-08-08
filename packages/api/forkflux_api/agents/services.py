@@ -12,6 +12,7 @@ from forkflux_api.agents.dto import (
     AgentRegistrationResult,
     RoleSummary,
     TargetRoleCreate,
+    TargetRoleUpdate,
 )
 from forkflux_api.agents.exceptions import TargetRoleNotFoundError
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
@@ -73,11 +74,20 @@ class TargetRoleService:
         log.info("operation_completed")
         return role
 
-    async def delete_role(self, role_key: str) -> None:
-        log = self._logger.bind(method="delete_role", role_key=role_key)
+    async def update_role(self, role_id: int, dto: TargetRoleUpdate) -> TargetRole:
+        log = self._logger.bind(method="update_role", role_id=role_id, role_key=dto.role_key)
         log.info("operation_started")
 
-        await self._target_role_repo.delete(role_key)
+        role = await self._target_role_repo.update(role_id, dto)
+
+        log.info("operation_completed")
+        return role
+
+    async def delete_role(self, role_id: int) -> None:
+        log = self._logger.bind(method="delete_role", role_id=role_id)
+        log.info("operation_started")
+
+        await self._target_role_repo.delete(role_id)
 
         log.info("operation_completed")
         return None

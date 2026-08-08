@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { screen, waitFor, fireEvent } from '@testing-library/react'
+import { screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { RolesPage } from './RolesPage'
 import { renderWithRouter, createMockRole } from '../../test/utils'
 import { resetStore } from '../../store/index'
+import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs.
@@ -10,6 +11,8 @@ const { mockService } = vi.hoisted(() => {
   const service = {
     fetchRoles: vi.fn(),
     createRole: vi.fn(),
+    updateRole: vi.fn(),
+    deleteRole: vi.fn(),
   }
   return { mockService: service }
 })
@@ -20,6 +23,8 @@ vi.mock('@job-service', () => ({
 
 const fetchRolesMock = vi.mocked(mockService.fetchRoles)
 const createRoleMock = vi.mocked(mockService.createRole)
+const updateRoleMock = vi.mocked(mockService.updateRole)
+const deleteRoleMock = vi.mocked(mockService.deleteRole)
 
 describe('RolesPage', () => {
   beforeEach(() => {
@@ -29,6 +34,8 @@ describe('RolesPage', () => {
     resetStore()
     fetchRolesMock.mockResolvedValue([])
     createRoleMock.mockResolvedValue(createMockRole())
+    updateRoleMock.mockResolvedValue(createMockRole())
+    deleteRoleMock.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -289,6 +296,385 @@ describe('RolesPage', () => {
       await waitFor(() => {
         expect(screen.queryByText('Create Role')).not.toBeInTheDocument()
       })
+    })
+  })
+
+  describe('edit role form', () => {
+    it('renders an Edit button per role row', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('frontend')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText('Edit')).toBeInTheDocument()
+      expect(screen.getByLabelText('Edit role Frontend Engineer')).toBeInTheDocument()
+    })
+
+    it('opens the edit drawer pre-populated when Edit is clicked', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+
+      // Drawer open with title and pre-populated inputs.
+      await waitFor(() => {
+        expect(screen.getByText('Edit Role')).toBeInTheDocument()
+        expect(
+          screen.getByPlaceholderText('e.g. Frontend Engineer'),
+        ).toBeInTheDocument()
+        expect(
+          screen.getByPlaceholderText('e.g. frontend_engineer'),
+        ).toBeInTheDocument()
+      })
+      expect(
+        (screen.getByPlaceholderText('e.g. Frontend Engineer') as HTMLInputElement).value,
+      ).toBe('Frontend Engineer')
+      expect(
+        (screen.getByPlaceholderText('e.g. frontend_engineer') as HTMLInputElement).value,
+      ).toBe('frontend')
+    })
+
+    it('updates a role and refreshes the list on success', async () => {
+      fetchRolesMock.mockResolvedValueOnce([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      fetchRolesMock.mockResolvedValueOnce([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Specialist',
+        }),
+      ])
+      updateRoleMock.mockResolvedValue(
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Specialist',
+        }),
+      )
+
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+      await waitFor(() => {
+        expect(screen.getByText('Save Changes')).toBeInTheDocument()
+      })
+
+      // Change the label.
+      const labelInput = screen.getByPlaceholderText('e.g. Frontend Engineer')
+      fireEvent.change(labelInput, { target: { value: 'Frontend Specialist' } })
+
+      fireEvent.click(screen.getByText('Save Changes'))
+
+      await waitFor(() => {
+        expect(updateRoleMock).toHaveBeenCalledWith(1, 'frontend', 'Frontend Specialist')
+      })
+
+      // fetchRoles should be called twice: initial load + refresh after edit.
+      await waitFor(() => {
+        expect(fetchRolesMock).toHaveBeenCalledTimes(2)
+      })
+
+      // The updated label appears in the list.
+      await waitFor(() => {
+        expect(screen.getByText('Frontend Specialist')).toBeInTheDocument()
+      })
+    })
+
+    it('shows validation error when label is empty on edit', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+      await waitFor(() => {
+        expect(screen.getByText('Save Changes')).toBeInTheDocument()
+      })
+
+      // Clear the label.
+      const labelInput = screen.getByPlaceholderText('e.g. Frontend Engineer')
+      fireEvent.change(labelInput, { target: { value: '' } })
+
+      fireEvent.click(screen.getByText('Save Changes'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Please provide a role label.')).toBeInTheDocument()
+      })
+      expect(updateRoleMock).not.toHaveBeenCalled()
+    })
+
+    it('shows error message when updateRole rejects', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      updateRoleMock.mockRejectedValue(
+        new Error('A role with the key "backend" already exists.'),
+      )
+
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('e.g. Frontend Engineer')).toBeInTheDocument()
+      })
+
+      // Change the key to one that conflicts.
+      const keyInput = screen.getByPlaceholderText('e.g. frontend_engineer')
+      fireEvent.change(keyInput, { target: { value: 'backend' } })
+
+      fireEvent.click(screen.getByText('Save Changes'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('A role with the key "backend" already exists.'),
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('closes the edit drawer when Cancel is clicked', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+      await waitFor(() => {
+        expect(screen.getByText('Save Changes')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Cancel'))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Save Changes')).not.toBeInTheDocument()
+      })
+    })
+
+    it('does not auto-suggest the key from the label on edit (key is pre-populated)', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Edit'))
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('e.g. Frontend Engineer')).toBeInTheDocument()
+      })
+
+      const labelInput = screen.getByPlaceholderText('e.g. Frontend Engineer')
+      const keyInput = screen.getByPlaceholderText('e.g. frontend_engineer') as HTMLInputElement
+
+      // Change the label — key should NOT auto-suggest (key is pre-populated,
+      // `editKeyTouched` starts true for pre-existing roles).
+      fireEvent.change(labelInput, { target: { value: 'Backend Engineer' } })
+      expect(keyInput.value).toBe('frontend')
+    })
+  })
+
+  describe('delete role confirmation', () => {
+    it('renders a Delete button per role row', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText('Delete')).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('Delete role Frontend Engineer'),
+      ).toBeInTheDocument()
+    })
+
+    it('opens the confirmation drawer when Delete is clicked', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Delete'))
+
+      await waitFor(() => {
+        // The confirmation sentence is split across a <p> parent and
+        // nested <strong>/<code> children, so an exact-string getByText
+        // matches none of them. A substring regex matcher is the
+        // correct way to assert on the leading fragment.
+        expect(
+          screen.getByText(/Are you sure you want to delete/),
+        ).toBeInTheDocument()
+      })
+
+      // The role label "Frontend Engineer" appears both in the table's
+      // label cell AND inside the delete-confirmation drawer's <strong>.
+      // Scope the assertion to the Delete Role dialog so getByText finds
+      // exactly one element and does not error on the duplicate.
+      const deleteDialog = await screen.findByRole('dialog', {
+        name: 'Delete Role',
+      })
+      expect(
+        within(deleteDialog).getByText('Frontend Engineer'),
+      ).toBeInTheDocument()
+    })
+
+    it('deletes a role and refreshes the list on success', async () => {
+      fetchRolesMock.mockResolvedValueOnce([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      fetchRolesMock.mockResolvedValueOnce([])
+
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Delete'))
+
+      await waitFor(() => {
+        // The confirmation drawer shows the confirm button with unique text.
+        expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Confirm Delete'))
+
+      await waitFor(() => {
+        expect(deleteRoleMock).toHaveBeenCalledWith(1)
+      })
+
+      // fetchRoles should be called twice: initial load + refresh after delete.
+      await waitFor(() => {
+        expect(fetchRolesMock).toHaveBeenCalledTimes(2)
+      })
+    })
+
+    it('shows error message when deleteRole rejects', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      deleteRoleMock.mockRejectedValue(
+        new Error('This role no longer exists. Please refresh and try again.'),
+      )
+
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Delete'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Confirm Delete'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('This role no longer exists. Please refresh and try again.'),
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('closes the confirmation drawer when Cancel is clicked', async () => {
+      fetchRolesMock.mockResolvedValue([
+        createMockRole({
+          id: 1,
+          role_key: 'frontend',
+          role_label: 'Frontend Engineer',
+        }),
+      ])
+      renderWithRouter(<RolesPage />)
+      await waitFor(() => {
+        expect(screen.getByText('Delete')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Delete'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      })
+
+      // Click Cancel inside the confirmation drawer.
+      fireEvent.click(screen.getByText('Cancel'))
+
+      await waitFor(() => {
+        // The confirm button should be gone after cancellation.
+        expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument()
+        // But the row's Delete button should still be there.
+        expect(screen.getByText('Delete')).toBeInTheDocument()
+      })
+
+      expect(deleteRoleMock).not.toHaveBeenCalled()
     })
   })
 })

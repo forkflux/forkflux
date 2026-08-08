@@ -8,6 +8,11 @@ class CreateRoleRequest(BaseModel):
     role_label: str = Field(min_length=1, max_length=255)
 
 
+class UpdateRoleRequest(BaseModel):
+    role_key: str = Field(min_length=1, max_length=255)
+    role_label: str = Field(min_length=1, max_length=255)
+
+
 class CreateAgentRequest(BaseModel):
     agent_label: str = Field(min_length=1, max_length=255)
     tool_family: str | None = Field(default=None, max_length=255)
