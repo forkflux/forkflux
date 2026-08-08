@@ -58,13 +58,25 @@ const MOCK_FIELD_MAX_LENGTH = 255;
 const jobOverlay = new Map<number, Partial<JobDetail>>();
 
 /**
- * In-memory overlay for created roles.
+ * In-memory overlay for created or updated roles.
  *
- * When a role is created via `createRole`, it is appended here so that
- * subsequent `fetchRoles` calls return the new role — mirroring how the
- * real API persists changes. Keyed by `role_key` for duplicate detection.
+ * When a role is created via `createRole` or updated via `updateRole`,
+ * it is stored here so that subsequent `fetchRoles` calls return the
+ * current role — mirroring how the real API persists changes. Keyed by
+ * `role_key` for duplicate detection. `updateRole` overrides static-JSON
+ * roles by writing here, and `fetchRoles`/`fetchListMeta` merge by `id`
+ * so an overlay entry shadows the static entry instead of duplicating it.
  */
 const roleOverlay = new Map<string, Role>();
+
+/**
+ * In-memory set of soft-deleted role IDs.
+ *
+ * When a role is deleted via `deleteRole`, its ID is added here so that
+ * subsequent `fetchRoles`/`fetchListMeta` calls filter it out — mirroring
+ * how the real API soft-deletes rows and excludes them from list responses.
+ */
+const deletedRoleIds = new Set<number>();
 
 /**
  * In-memory overlay for created agents.
@@ -116,7 +128,28 @@ function applyOverlayToDetail(detail: JobDetail): JobDetail {
 export function __resetMockState(): void {
   jobOverlay.clear();
   roleOverlay.clear();
+  deletedRoleIds.clear();
   agentOverlay.clear();
+}
+
+/**
+ * Merge the static role list with the in-memory overlay by `id`.
+ *
+ * `updateRole` writes overlay entries for static-JSON roles (so the
+ * updated key/label sticks). A naive concatenate (`[...ALL_ROLES,
+ * ...overlay]`) would return the role twice: once from the static data
+ * and once from the overlay. This helper lets the overlay entry
+ * **shadow** the static one by `id` instead — matching how the real API
+ * returns a single row per role.
+ */
+function mergeRolesWithOverlay(): Role[] {
+  const overlay = Array.from(roleOverlay.values());
+  const overlayIds = new Set(overlay.map((r) => r.id));
+  const staticNotOverridden = ALL_ROLES.filter(
+    (r) => !overlayIds.has(r.id) && !deletedRoleIds.has(r.id),
+  );
+  const overlayNotDeleted = overlay.filter((r) => !deletedRoleIds.has(r.id));
+  return [...staticNotOverridden, ...overlayNotDeleted];
 }
 
 export const mockDataSource: JobDataSource = {
@@ -160,14 +193,15 @@ export const mockDataSource: JobDataSource = {
 
   fetchListMeta(_query: JobListQuery): Promise<JobListMeta> {
     // Roles are sourced from the mock roles JSON merged with any roles
-    // created via `createRole` in the current session — matching
-    // `fetchRoles` so job-list metadata stays consistent after role
-    // creation. Status counts are sourced from `fetchJobCounts()` (the
-    // dedicated counts endpoint), so `statuses` is left empty here.
-    const created = Array.from(roleOverlay.values());
+    // created or updated via `createRole`/`updateRole` in the current
+    // session — matching `fetchRoles` so job-list metadata stays
+    // consistent after role mutation. `mergeRolesWithOverlay` shadows
+    // static-JSON roles with their updated overlay entries. Status
+    // counts are sourced from `fetchJobCounts()` (the dedicated counts
+    // endpoint), so `statuses` is left empty here.
     return Promise.resolve({
       statuses: [],
-      roles: [...ALL_ROLES, ...created],
+      roles: mergeRolesWithOverlay(),
     });
   },
 
@@ -252,8 +286,7 @@ export const mockDataSource: JobDataSource = {
    * `GET /api/v1/ui/agents/roles` endpoint contract.
    */
   fetchRoles(): Promise<Role[]> {
-    const created = Array.from(roleOverlay.values());
-    return Promise.resolve([...ALL_ROLES, ...created]);
+    return Promise.resolve(mergeRolesWithOverlay());
   },
 
   /**
@@ -299,6 +332,116 @@ export const mockDataSource: JobDataSource = {
 
     roleOverlay.set(key, role);
     return role;
+  },
+
+  /**
+   * Update an existing target role (mock). Mirrors the API data source
+   * contract: returns the updated `Role` with the new `role_key` and
+   * `role_label`. Throws a typed error when the role ID does not exist,
+   * or when the new `role_key` is already taken by another role.
+   *
+   * Persisted to the in-memory overlay so subsequent `fetchRoles` calls
+   * return the updated role — mirroring the real API. When the
+   * `role_key` changes, the old overlay entry is removed.
+   */
+  async updateRole(
+    roleId: number,
+    roleKey: string,
+    roleLabel: string,
+  ): Promise<Role> {
+    // Simulate a small delay for realism.
+    await new Promise((r) => setTimeout(r, 100));
+
+    const key = roleKey.trim();
+    const label = roleLabel.trim();
+
+    // Client-side length validation mirroring the backend's 255-char
+    // limit and the API data source — keeps mock and API behavior
+    // aligned.
+    if (key.length > MOCK_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role key must be at most ${MOCK_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+    if (label.length > MOCK_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role label must be at most ${MOCK_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+
+    // Find the role by ID. Prefer an overlay entry (which reflects any
+    // prior update) over the static JSON so `existing.role_key` is the
+    // current key — keeping the old-key cleanup below correct across
+    // repeated updates of the same role.
+    const overlayRoles = Array.from(roleOverlay.values());
+    const existing =
+      overlayRoles.find((r) => r.id === roleId) ??
+      ALL_ROLES.find((r) => r.id === roleId);
+    if (!existing) {
+      throw new Error(
+        'This role no longer exists. Please refresh and try again.',
+      );
+    }
+
+    // If the role_key changed, ensure no other role already uses it.
+    const conflict =
+      ALL_ROLES.some((r) => r.id !== roleId && r.role_key === key) ||
+      Array.from(roleOverlay.values()).some(
+        (r) => r.id !== roleId && r.role_key === key,
+      );
+    if (conflict) {
+      throw new Error(`A role with the key "${key}" already exists.`);
+    }
+
+    // When the role_key changed, remove the old overlay entry so the
+    // stale key doesn't linger in fetchRoles results. Always set the
+    // updated (or new) overlay entry under the new key.
+    if (existing.role_key !== key && roleOverlay.has(existing.role_key)) {
+      roleOverlay.delete(existing.role_key);
+    }
+
+    const updated: Role = {
+      ...existing,
+      role_key: key,
+      role_label: label,
+    };
+    roleOverlay.set(key, updated);
+    return updated;
+  },
+
+  /**
+   * Delete an existing target role (mock). Mirrors the API data source
+   * contract: performs a soft-delete by adding the role ID to the
+   * in-memory `deletedRoleIds` set so that subsequent `fetchRoles`
+   * calls exclude it — mirroring the real API's soft-delete behavior.
+   *
+   * Throws a typed error when the role ID does not exist or was already
+   * deleted, matching the API source and the backend's 422
+   * `target_role.not_found` response.
+   */
+  async deleteRole(roleId: number): Promise<void> {
+    // Simulate a small delay for realism.
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Check if already deleted — a second delete should fail.
+    if (deletedRoleIds.has(roleId)) {
+      throw new Error(
+        'This role no longer exists. Please refresh and try again.',
+      );
+    }
+
+    // Find the role by ID in overlay or static JSON.
+    const overlayRoles = Array.from(roleOverlay.values());
+    const existing =
+      overlayRoles.find((r) => r.id === roleId) ??
+      ALL_ROLES.find((r) => r.id === roleId);
+    if (!existing) {
+      throw new Error(
+        'This role no longer exists. Please refresh and try again.',
+      );
+    }
+
+    deletedRoleIds.add(roleId);
   },
 
   /**

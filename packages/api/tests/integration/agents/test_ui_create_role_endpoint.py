@@ -61,3 +61,26 @@ async def test_create_role_returns_422_when_fields_are_empty_strings(
     locs = {tuple(item["loc"]) for item in response.json()["detail"]}
     assert ("body", "role_key") in locs
     assert ("body", "role_label") in locs
+
+
+async def test_create_role_returns_201_recreating_soft_deleted_role_key(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin (deleted)",
+        is_deleted=True,
+    )
+
+    payload = {"role_key": "admin", "role_label": "Administrator (recreated)"}
+
+    response = await client.post("/api/v1/ui/agents/roles", json=payload)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["id"] is not None
+    assert body["role_key"] == "admin"
+    assert body["role_label"] == "Administrator (recreated)"
+    assert body["created_at"] is not None

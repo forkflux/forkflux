@@ -7,7 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from forkflux_api.agents.dto import AgentApiTokenCreate, AgentIdentityCreate, AgentIdentityRoleAssign, TargetRoleCreate
+from forkflux_api.agents.dto import (
+    AgentApiTokenCreate,
+    AgentIdentityCreate,
+    AgentIdentityRoleAssign,
+    TargetRoleCreate,
+    TargetRoleUpdate,
+)
 from forkflux_api.agents.exceptions import (
     AgentApiTokenConflictError,
     AgentApiTokenNotFoundError,
@@ -16,10 +22,11 @@ from forkflux_api.agents.exceptions import (
     AgentIdentityRoleConflictError,
     AgentIdentityRoleNotFoundError,
     TargetRoleConflictError,
-    TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
 from forkflux_api.agents.models import AgentApiToken, AgentIdentity, AgentIdentityRole, TargetRole
+
+_ACTIVE_FILTER = TargetRole.is_deleted.is_(False)
 
 
 class TargetRoleRepository:
@@ -28,15 +35,18 @@ class TargetRoleRepository:
         self._logger = structlog.get_logger().bind(cls=self.__class__.__name__, trace_id=trace_id)
 
     async def list(self) -> list[TargetRole]:
-        result = await self._session.execute(select(TargetRole))
+        result = await self._session.execute(select(TargetRole).where(_ACTIVE_FILTER))
         return list(result.scalars().all())
 
     async def list_by_ids(self, ids: List[int]) -> List[TargetRole]:
-        result = await self._session.execute(select(TargetRole).where(TargetRole.id.in_(ids)))
+        if not ids:
+            return []
+
+        result = await self._session.execute(select(TargetRole).where(TargetRole.id.in_(ids), _ACTIVE_FILTER))
         return list(result.scalars().all())
 
     async def get_by_role_key(self, role_key: str) -> TargetRole:
-        result = await self._session.execute(select(TargetRole).where(TargetRole.role_key == role_key))
+        result = await self._session.execute(select(TargetRole).where(TargetRole.role_key == role_key, _ACTIVE_FILTER))
         target_role = result.scalar_one_or_none()
         if target_role is None:
             raise TargetRoleNotFoundError
@@ -45,7 +55,7 @@ class TargetRoleRepository:
 
     async def exists(self, role_key: str) -> bool:
         log = self._logger.bind(method="exists", role_key=role_key)
-        result = await self._session.execute(select(exists().where(TargetRole.role_key == role_key)))
+        result = await self._session.execute(select(exists().where(TargetRole.role_key == role_key, _ACTIVE_FILTER)))
         role_exists = result.scalar_one()
 
         if role_exists:
@@ -71,17 +81,35 @@ class TargetRoleRepository:
 
         return target_role
 
-    async def delete(self, role_key: str) -> None:
-        log = self._logger.bind(method="delete", role_key=role_key)
+    async def update(self, role_id: int, dto: TargetRoleUpdate) -> TargetRole:
+        log = self._logger.bind(method="update", role_id=role_id)
+        result = await self._session.execute(select(TargetRole).where(TargetRole.id == role_id, _ACTIVE_FILTER))
+        target_role = result.scalar_one_or_none()
+        if target_role is None:
+            log.info("target_role_update_miss")
+            raise TargetRoleNotFoundError
+
+        target_role.role_key = dto.role_key
+        target_role.role_label = dto.role_label
+
         try:
-            result = await self._session.execute(delete(TargetRole).where(TargetRole.role_key == role_key))
+            await self._session.flush()
         except IntegrityError as err:
             await self._session.rollback()
-            raise TargetRoleInUseError from err
+            raise TargetRoleConflictError from err
 
-        deleted_count = result.rowcount or 0  # type: ignore[attr-defined]
+        log.info("target_role_updated")
+        return target_role
 
-        if deleted_count == 0:
+    async def delete(self, role_id: int) -> None:
+        log = self._logger.bind(method="delete", role_id=role_id)
+        result = await self._session.execute(
+            update(TargetRole).where(TargetRole.id == role_id, _ACTIVE_FILTER).values(is_deleted=True)
+        )
+
+        updated_count = result.rowcount or 0  # type: ignore[attr-defined]
+
+        if updated_count == 0:
             log.info("target_role_delete_miss")
             raise TargetRoleNotFoundError
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { screen } from '@testing-library/react'
 import { NotFoundPage } from './NotFoundPage'
 import { renderWithRouter } from '../../test/utils'
+import '@testing-library/jest-dom/vitest'
 
 describe('NotFoundPage', () => {
   it('renders a 404 heading', () => {

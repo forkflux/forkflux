@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from forkflux_api.agents.dto import TargetRoleCreate
-from forkflux_api.agents.exceptions import TargetRoleNotFoundError
+from forkflux_api.agents.dto import TargetRoleCreate, TargetRoleUpdate
+from forkflux_api.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
 from forkflux_api.agents.services import TargetRoleService
 
 
@@ -98,11 +98,64 @@ async def test_target_role_service_is_role_exists_returns_false() -> None:
 
 
 async def test_target_role_service_delete_role_delegates_and_returns_none() -> None:
+    role_id = 1
     repository = Mock()
     repository.delete = AsyncMock(return_value=None)
     service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
 
-    result = await service.delete_role("frontend_engineer")
+    result = await service.delete_role(role_id)
 
-    repository.delete.assert_awaited_once_with("frontend_engineer")
+    repository.delete.assert_awaited_once_with(role_id)
     assert result is None
+
+
+async def test_target_role_service_delete_role_propagates_not_found_for_missing_role() -> None:
+    role_id = 999
+    repository = Mock()
+    repository.delete = AsyncMock(side_effect=TargetRoleNotFoundError)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    with pytest.raises(TargetRoleNotFoundError):
+        await service.delete_role(role_id)
+
+    repository.delete.assert_awaited_once_with(role_id)
+
+
+async def test_target_role_service_update_role_delegates_and_returns_role() -> None:
+    role_id = 1
+    dto = TargetRoleUpdate(role_key="engineer", role_label="Engineer")
+    expected_role = object()
+    repository = Mock()
+    repository.update = AsyncMock(return_value=expected_role)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    role = await service.update_role(role_id, dto)
+
+    repository.update.assert_awaited_once_with(role_id, dto)
+    assert role == expected_role
+
+
+async def test_target_role_service_update_role_propagates_not_found_for_missing_role() -> None:
+    role_id = 999
+    dto = TargetRoleUpdate(role_key="engineer", role_label="Engineer")
+    repository = Mock()
+    repository.update = AsyncMock(side_effect=TargetRoleNotFoundError)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    with pytest.raises(TargetRoleNotFoundError):
+        await service.update_role(role_id, dto)
+
+    repository.update.assert_awaited_once_with(role_id, dto)
+
+
+async def test_target_role_service_update_role_propagates_conflict_for_taken_role_key() -> None:
+    role_id = 1
+    dto = TargetRoleUpdate(role_key="admin", role_label="Administrator")
+    repository = Mock()
+    repository.update = AsyncMock(side_effect=TargetRoleConflictError)
+    service = TargetRoleService(target_role_repo=repository, trace_id="trace-123")
+
+    with pytest.raises(TargetRoleConflictError):
+        await service.update_role(role_id, dto)
+
+    repository.update.assert_awaited_once_with(role_id, dto)

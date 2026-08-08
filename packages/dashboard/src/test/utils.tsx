@@ -247,6 +247,8 @@ export function createMockJobService(
     fetchRoles: vi.fn().mockResolvedValue([]),
     fetchAgents: vi.fn().mockResolvedValue([]),
     createRole: vi.fn().mockResolvedValue(createMockRole()),
+    updateRole: vi.fn().mockResolvedValue(createMockRole()),
+    deleteRole: vi.fn().mockResolvedValue(undefined),
     createAgent: vi.fn().mockResolvedValue(createMockCreateAgentResponse()),
     unblockJob: vi.fn().mockResolvedValue(DEFAULT_UNBLOCK_RESPONSE),
     getProfile: vi.fn().mockResolvedValue(false),

@@ -86,6 +86,125 @@
       color: var(--ff-page-text-muted);
       white-space: nowrap;
     }
+
+    &--actions {
+      text-align: right;
+      white-space: nowrap;
+    }
+  }
+
+  &__th--actions {
+    text-align: right;
+  }
+
+  &__edit-btn {
+    padding: 6px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-page-text);
+    cursor: pointer;
+    transition:
+      background 0.1s,
+      border-color 0.1s;
+
+    &:hover {
+      border-color: var(--ff-color-primary);
+      color: var(--ff-color-primary);
+    }
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--ff-color-primary);
+      box-shadow: 0 0 0 2px var(--ff-primary-border);
+    }
+  }
+
+  &__delete-btn {
+    margin-left: 8px;
+    padding: 6px 12px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-page-border);
+    background: var(--ff-card-bg);
+    color: var(--ff-color-danger);
+    cursor: pointer;
+    transition:
+      background 0.1s,
+      border-color 0.1s,
+      color 0.1s;
+
+    &:hover:not(:disabled) {
+      border-color: var(--ff-color-danger);
+      background: var(--ff-danger-bg);
+    }
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--ff-color-danger);
+      box-shadow: 0 0 0 2px var(--ff-danger-border);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  // Delete confirmation dialog content (inside drawer)
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__confirm-text {
+    font-size: 0.9375rem;
+    color: var(--ff-page-text);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__confirm-role {
+    font-weight: 600;
+  }
+
+  &__confirm-code {
+    font-family: var(--ff-font-mono, 'SFMono-Regular', Consolas, monospace);
+    font-size: 0.8125rem;
+    background: var(--ff-color-light-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  &__confirm-warning {
+    font-size: 0.8125rem;
+    color: var(--ff-page-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__delete-confirm-btn {
+    padding: 8px 16px;
+    border-radius: var(--ff-radius);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--ff-color-danger);
+    background: var(--ff-color-danger);
+    color: var(--ff-on-danger, #fff);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   }
 
   // Create role form (inside drawer)

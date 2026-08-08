@@ -321,6 +321,164 @@ describe('mockDataSource', () => {
   })
 
   // -----------------------------------------------------------------------
+  // updateRole
+  // -----------------------------------------------------------------------
+
+  describe('updateRole', () => {
+    beforeEach(() => {
+      __resetMockState()
+    })
+
+    afterEach(() => {
+      __resetMockState()
+    })
+
+    it('updates a static role and returns it with the new values', async () => {
+      const updated = await mockDataSource.updateRole(1, 'frontend_renamed', 'Frontend Specialist')
+
+      expect(updated.id).toBe(1)
+      expect(updated.role_key).toBe('frontend_renamed')
+      expect(updated.role_label).toBe('Frontend Specialist')
+      expect(updated.created_at).toBeTruthy()
+    })
+
+    it('updates an overlay (created) role', async () => {
+      // Create a role via createRole so it lives in the overlay.
+      const created = await mockDataSource.createRole('qa', 'QA Tester')
+
+      const updated = await mockDataSource.updateRole(created.id, 'qa_lead', 'QA Lead')
+
+      expect(updated.id).toBe(created.id)
+      expect(updated.role_key).toBe('qa_lead')
+      expect(updated.role_label).toBe('QA Lead')
+    })
+
+    it('trims whitespace from key and label', async () => {
+      const updated = await mockDataSource.updateRole(1, '  frontend_v2  ', '  Frontend V2  ')
+
+      expect(updated.role_key).toBe('frontend_v2')
+      expect(updated.role_label).toBe('Frontend V2')
+    })
+
+    it('makes the updated role appear in fetchRoles with the new values', async () => {
+      await mockDataSource.updateRole(1, 'frontend_renamed', 'Frontend Specialist')
+
+      const roles = await mockDataSource.fetchRoles()
+      expect(roles).toHaveLength(1)
+      expect(roles[0]!.id).toBe(1)
+      expect(roles[0]!.role_key).toBe('frontend_renamed')
+      expect(roles[0]!.role_label).toBe('Frontend Specialist')
+    })
+
+    it('does not duplicate the role in fetchRoles after key change', async () => {
+      await mockDataSource.updateRole(1, 'frontend_renamed', 'Frontend Specialist')
+
+      const roles = await mockDataSource.fetchRoles()
+      expect(roles).toHaveLength(1)
+    })
+
+    it('throws when the role id does not exist', async () => {
+      await expect(
+        mockDataSource.updateRole(999, 'qa', 'QA Tester'),
+      ).rejects.toThrow('This role no longer exists. Please refresh and try again.')
+    })
+
+    it('throws a conflict error when role_key is taken by another role', async () => {
+      await mockDataSource.createRole('backend', 'Backend Engineer')
+      // role id 1 (frontend) already exists; now try to rename role 1 to "backend".
+      await expect(
+        mockDataSource.updateRole(1, 'backend', 'Frontend Engineer'),
+      ).rejects.toThrow('A role with the key "backend" already exists.')
+    })
+
+    it('allows updating a role to its own current key (no conflict)', async () => {
+      const updated = await mockDataSource.updateRole(1, 'frontend', 'Frontend Engineer V2')
+
+      expect(updated.role_key).toBe('frontend')
+      expect(updated.role_label).toBe('Frontend Engineer V2')
+    })
+
+    it('holds the updated role in a second update of the same role', async () => {
+      await mockDataSource.updateRole(1, 'frontend_renamed', 'Frontend V1')
+      await mockDataSource.updateRole(1, 'frontend_v2', 'Frontend V2')
+
+      const roles = await mockDataSource.fetchRoles()
+      expect(roles).toHaveLength(1)
+      expect(roles[0]!.role_key).toBe('frontend_v2')
+      expect(roles[0]!.role_label).toBe('Frontend V2')
+    })
+
+    it('throws when role_key exceeds 255 characters', async () => {
+      await expect(
+        mockDataSource.updateRole(1, 'a'.repeat(256), 'Frontend Engineer'),
+      ).rejects.toThrow('Role key must be at most 255 characters.')
+    })
+
+    it('throws when role_label exceeds 255 characters', async () => {
+      await expect(
+        mockDataSource.updateRole(1, 'frontend', 'a'.repeat(256)),
+      ).rejects.toThrow('Role label must be at most 255 characters.')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // deleteRole
+  // -----------------------------------------------------------------------
+
+  describe('deleteRole', () => {
+    it('removes the role from fetchRoles after deletion', async () => {
+      const before = await mockDataSource.fetchRoles()
+      expect(before).toHaveLength(1)
+
+      await mockDataSource.deleteRole(1)
+
+      const after = await mockDataSource.fetchRoles()
+      expect(after).toHaveLength(0)
+    })
+
+    it('resolves void on successful deletion', async () => {
+      const result = await mockDataSource.deleteRole(1)
+      expect(result).toBeUndefined()
+    })
+
+    it('removes the role from fetchListMeta roles after deletion', async () => {
+      const before = await mockDataSource.fetchListMeta(defaultQuery())
+      expect(before.roles).toHaveLength(1)
+
+      await mockDataSource.deleteRole(1)
+
+      const after = await mockDataSource.fetchListMeta(defaultQuery())
+      expect(after.roles).toHaveLength(0)
+    })
+
+    it('throws a not-found error for a non-existent role ID', async () => {
+      await expect(
+        mockDataSource.deleteRole(999),
+      ).rejects.toThrow('This role no longer exists. Please refresh and try again.')
+    })
+
+    it('throws a not-found error for an already-deleted role', async () => {
+      await mockDataSource.deleteRole(1)
+
+      await expect(
+        mockDataSource.deleteRole(1),
+      ).rejects.toThrow('This role no longer exists. Please refresh and try again.')
+    })
+
+    it('deletes a created role from the overlay', async () => {
+      const created = await mockDataSource.createRole('qa', 'QA Tester')
+      const before = await mockDataSource.fetchRoles()
+      expect(before).toHaveLength(2)
+
+      await mockDataSource.deleteRole(created.id)
+
+      const after = await mockDataSource.fetchRoles()
+      expect(after).toHaveLength(1)
+      expect(after.find((r) => r.id === created.id)).toBeUndefined()
+    })
+  })
+
+  // -----------------------------------------------------------------------
   // fetchAgents
   // -----------------------------------------------------------------------
 

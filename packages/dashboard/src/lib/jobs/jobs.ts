@@ -26,26 +26,54 @@ import type {
 /**
  * Derive the distinct set of statuses present in the data, sorted
  * alphabetically for deterministic filter ordering.
+ *
+ * Grouping is performed with a manual `reduce` instead of
+ * `Object.groupBy` (ES2024) so the helper runs in every environment —
+ * including the jsdom test runtime, which does not yet expose
+ * `Object.groupBy`. Behaviour is identical: build a `Record<status, Job[]>`
+ * then read its keys.
  */
 export function getDistinctStatuses(jobs: Job[]): JobStatus[] {
-  const grouped = Object.groupBy(jobs, (j) => j.status);
+  const grouped = groupJobsByStatus(jobs);
   return Object.keys(grouped).sort() as JobStatus[];
 }
 
 /**
- * Count jobs per status, plus an "all" total. Uses `Object.groupBy` to
- * bucket jobs by status, then maps to `{ status, count }` pairs.
+ * Count jobs per status, plus an "all" total. Buckets jobs by status via
+ * the shared `groupJobsByStatus` helper (manual `reduce`, not the ES2024
+ * `Object.groupBy` which is unavailable in jsdom), then maps each bucket
+ * to a `{ status, count }` pair.
  */
 export function getStatusCounts(jobs: Job[]): StatusCount[] {
-  const grouped = Object.groupBy(jobs, (j) => j.status);
+  const grouped = groupJobsByStatus(jobs);
 
   const result: StatusCount[] = [{ status: 'all', count: jobs.length }];
 
   for (const status of Object.keys(grouped).sort() as JobStatus[]) {
-    result.push({ status, count: grouped[status]!.length });
+    result.push({ status, count: grouped[status].length });
   }
 
   return result;
+}
+
+/**
+ * Bucket a list of jobs into a `Record<status, Job[]>` using a manual
+ * `reduce`. This is the environment-portable replacement for the ES2024
+ * `Object.groupBy` call: jsdom (used by Vitest) does not expose
+ * `Object.groupBy`, and relying on it would break the test runtime and any
+ * browser that has not yet shipped the API. The result shape matches what
+ * `Object.groupBy` returns so the call sites above are unchanged.
+ */
+function groupJobsByStatus(jobs: Job[]): Record<string, Job[]> {
+  return jobs.reduce<Record<string, Job[]>>((acc, job) => {
+    const bucket = acc[job.status];
+    if (bucket) {
+      bucket.push(job);
+    } else {
+      acc[job.status] = [job];
+    }
+    return acc;
+  }, {});
 }
 
 /**

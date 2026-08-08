@@ -16,7 +16,7 @@ from alembic.config import Config
 from rich.console import Console
 from rich.table import Table
 
-from forkflux_api.agents.models import AgentIdentity, TargetRole
+from forkflux_api.agents.models import AgentIdentity
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
@@ -28,7 +28,6 @@ from forkflux_api.agents.exceptions import (
     AgentIdentityRoleConflictError,
     AgentIdentityRoleNotFoundError,
     TargetRoleConflictError,
-    TargetRoleInUseError,
     TargetRoleNotFoundError,
 )
 from forkflux_api.agents.repositories import (
@@ -108,10 +107,25 @@ def _configure_cli_logging() -> None:
 
 async def _apply_fixtures() -> tuple[str, str]:
     _configure_cli_logging()
+    trace_id = str(uuid4())
 
-    console.print("Lets add 2 roles - developer and QA")
-    developer_role = await add_role.__wrapped__(role_key="developer", role_label="Developer")
-    qa_role = await add_role.__wrapped__(role_key="qa", role_label="QA")
+    console.print("Lets add 2 roles - Developer and QA")
+    async with session_manager() as session:
+        try:
+            repo = TargetRoleRepository(session=session, trace_id=trace_id)
+            dto = TargetRoleCreate(role_key="developer", role_label="Developer")
+            developer_role = await TargetRoleService(target_role_repo=repo, trace_id=trace_id).create_role(dto=dto)
+        except TargetRoleConflictError:
+            console.print("Role with key 'developer' already exists", style="bold red")
+            raise typer.Exit(code=1)
+
+        try:
+            repo = TargetRoleRepository(session=session, trace_id=trace_id)
+            dto = TargetRoleCreate(role_key="qa", role_label="QA")
+            qa_role = await TargetRoleService(target_role_repo=repo, trace_id=trace_id).create_role(dto=dto)
+        except TargetRoleConflictError:
+            console.print("Role with key 'qa' already exists", style="bold red")
+            raise typer.Exit(code=1)
 
     console.print("Lets add 2 agents - agent-1 and agent-2")
     developer_result = await add_agent.__wrapped__(agent_label="agent-1")
@@ -368,68 +382,6 @@ def quickstart(
     console.print("Everything for handoff is ready.")
     console.print("Only one step left! Run the server with:")
     console.print("uvx --from forkflux-api forkflux serve", style="bold green")
-
-
-@agents_role_app.command("list", deprecated=True)
-@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def list_roles() -> None:
-    _configure_cli_logging()
-    trace_id = str(uuid4())
-
-    async with session_manager() as session:
-        repo = TargetRoleRepository(session=session, trace_id=trace_id)
-        roles = await TargetRoleService(target_role_repo=repo, trace_id=trace_id).get_all_roles()
-
-    table = Table("Key", "Label")
-    for role in roles:
-        table.add_row(role.role_key, role.role_label)
-    console.print(table)
-
-
-@agents_role_app.command("add", deprecated=True)
-@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def add_role(role_key: str, role_label: str) -> TargetRole:
-    """
-    Adds a new role with the specified key and label.
-    """
-    _configure_cli_logging()
-    trace_id = str(uuid4())
-
-    async with session_manager() as session:
-        try:
-            repo = TargetRoleRepository(session=session, trace_id=trace_id)
-            dto = TargetRoleCreate(role_key=role_key, role_label=role_label)
-            new_role = await TargetRoleService(target_role_repo=repo, trace_id=trace_id).create_role(dto=dto)
-            console.print(f"Role {new_role.role_key} created successfully")
-        except TargetRoleConflictError:
-            console.print(f"Role with key {role_key} already exists", style="bold red")
-
-    return new_role
-
-
-@agents_role_app.command("delete", deprecated=True)
-@lambda f: wraps(f)(lambda *a, **kw: asyncio.run(f(*a, **kw)))
-async def delete_role(role_key: str) -> None:
-    """
-    Deletes a role by key.
-    """
-    _configure_cli_logging()
-    trace_id = str(uuid4())
-
-    delete = typer.confirm(f"Are you sure you want to delete role '{role_key}'?")
-    if not delete:
-        console.print("Aborting...", style="bold red")
-        raise typer.Abort()
-
-    async with session_manager() as session:
-        try:
-            repo = TargetRoleRepository(session=session, trace_id=trace_id)
-            await TargetRoleService(target_role_repo=repo, trace_id=trace_id).delete_role(role_key=role_key)
-            console.print(f"Role {role_key} deleted successfully")
-        except TargetRoleInUseError:
-            console.print(f"Role with key {role_key} is in use and cannot be deleted", style="bold red")
-        except TargetRoleNotFoundError:
-            console.print(f"Role with key {role_key} not found", style="bold red")
 
 
 @agent_app.command("list", deprecated=True)

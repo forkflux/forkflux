@@ -8,6 +8,7 @@ import {
   createMockCreateAgentResponse,
 } from '../../test/utils'
 import { resetStore } from '../../store/index'
+import '@testing-library/jest-dom/vitest'
 
 // Use vi.hoisted so the mock service is created before the hoisted vi.mock
 // factory runs.

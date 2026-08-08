@@ -28,6 +28,7 @@ import type {
   StatusCount,
   UnblockJobRequest,
   UnblockJobResponse,
+  UpdateRoleRequest,
 } from '../types/job.ts';
 import type { JobDataSource } from './types.ts';
 
@@ -53,11 +54,33 @@ async function fetchJson<T>(url: string): Promise<T> {
  * 404 from 422 for the unblock endpoint).
  */
 async function postJson(url: string, body: unknown): Promise<Response> {
+  return sendJson('POST', url, body);
+}
+
+/**
+ * Send a JSON request with the given HTTP method and return the raw
+ * `Response`. Used by `postJson` (POST) and the role-update flow (PATCH).
+ */
+async function sendJson(
+  method: string,
+  url: string,
+  body: unknown,
+): Promise<Response> {
   return fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+/**
+ * Send a JSON PATCH request and return the raw `Response`.
+ *
+ * Used by `updateRole` to edit a role without pulling the shared
+ * `body`-libraries.
+ */
+async function patchJson(url: string, body: unknown): Promise<Response> {
+  return sendJson('PATCH', url, body);
 }
 
 /**
@@ -103,6 +126,9 @@ const ROLE_CONFLICT_CODE = 'target_role.conflict';
 
 /** Backend error code for a target-role-not-found on agent creation. */
 const ROLE_NOT_FOUND_CODE = 'target_role.not_found';
+
+/** Backend error code for a target-role-not-found on role update. */
+const ROLE_UPDATE_NOT_FOUND_CODE = 'target_role.not_found';
 
 /** Maximum length enforced by the backend `CreateRoleRequest` schema. */
 const ROLE_FIELD_MAX_LENGTH = 255;
@@ -313,6 +339,132 @@ export const apiDataSource: JobDataSource = {
     }
 
     return (await res.json()) as Role;
+  },
+
+  /**
+   * Update an existing target role via
+   * `PATCH /api/v1/ui/agents/roles/{role_id}`.
+   *
+   * Sends `role_key` and `role_label` as JSON body. On success (200)
+   * returns the updated `Role`.
+   *
+   * Error handling distinguishes three kinds of 422 responses:
+   * - **Not found** (`detail[0].type === "target_role.not_found"`): the
+   *   role ID no longer exists — throws a user-friendly "Role not found"
+   *   message.
+   * - **Conflict** (`detail[0].type === "target_role.conflict"`): another
+   *   role already uses the given `role_key` — throws an
+   *   "already exists" message.
+   * - **Validation** (any other 422, e.g. `"string_too_long"`): the input
+   *   failed Pydantic validation — throws the backend's error message.
+   *
+   * Client-side length validation (255 chars) is also performed before
+   * the request to give immediate feedback without a round-trip.
+   */
+  async updateRole(
+    roleId: number,
+    roleKey: string,
+    roleLabel: string,
+  ): Promise<Role> {
+    // Client-side validation mirroring the backend's 255-char limit.
+    if (roleKey.length > ROLE_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role key must be at most ${ROLE_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+    if (roleLabel.length > ROLE_FIELD_MAX_LENGTH) {
+      throw new Error(
+        `Role label must be at most ${ROLE_FIELD_MAX_LENGTH} characters.`,
+      );
+    }
+
+    const body: UpdateRoleRequest = {
+      role_key: roleKey,
+      role_label: roleLabel,
+    };
+    const res = await patchJson(
+      `${getBaseUrl()}/ui/agents/roles/${roleId}`,
+      body,
+    );
+
+    if (res.status === 422) {
+      let errorBody: ValidationErrorResponse | null = null;
+      try {
+        errorBody = (await res.json()) as ValidationErrorResponse;
+      } catch {
+        // Response body is not JSON — fall through to generic error.
+      }
+
+      const firstError = errorBody?.detail?.[0];
+      if (firstError?.type === ROLE_UPDATE_NOT_FOUND_CODE) {
+        throw new Error(
+          'This role no longer exists. Please refresh and try again.',
+        );
+      }
+      if (firstError?.type === ROLE_CONFLICT_CODE) {
+        throw new Error(
+          `A role with the key "${roleKey}" already exists.`,
+        );
+      }
+      // Non-conflict validation error — use the backend's message.
+      throw new Error(
+        firstError?.msg ?? 'Invalid input. Please check your values.',
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    return (await res.json()) as Role;
+  },
+
+  /**
+   * Delete an existing target role via
+   * `DELETE /api/v1/ui/agents/roles/{role_id}`.
+   *
+   * Performs a soft-delete on the backend. On success (204) resolves to
+   * `void` — no response body is returned.
+   *
+   * Error handling distinguishes not-found from other 422 responses:
+   * - **Not found** (`detail[0].type === "target_role.not_found"`): the
+   *   role ID no longer exists (or was already soft-deleted) — throws a
+   *   user-friendly "Role not found" message.
+   * - **Other 422**: uses the backend's error message or a fallback.
+   */
+  async deleteRole(roleId: number): Promise<void> {
+    const res = await fetch(`${getBaseUrl()}/ui/agents/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+
+    // 204 No Content — success, nothing to parse.
+    if (res.status === 204) return;
+
+    if (res.status === 422) {
+      let errorBody: ValidationErrorResponse | null = null;
+      try {
+        errorBody = (await res.json()) as ValidationErrorResponse;
+      } catch {
+        // Response body is not JSON — fall through to generic error.
+      }
+
+      const firstError = errorBody?.detail?.[0];
+      if (firstError?.type === ROLE_UPDATE_NOT_FOUND_CODE) {
+        throw new Error(
+          'This role no longer exists. Please refresh and try again.',
+        );
+      }
+      // Non-not-found validation error — use the backend's message.
+      throw new Error(
+        firstError?.msg ?? 'Invalid input. Please check your values.',
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText}`,
+      );
+    }
   },
 
   /**

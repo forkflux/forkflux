@@ -82,6 +82,52 @@ async def test_list_my_roles_returns_200_and_empty_list_when_no_roles_assigned(
     assert response.json() == []
 
 
+async def test_list_my_roles_drops_soft_deleted_role_from_assigned_roles(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    raw_token = "valid-list-my-roles-soft-deleted-token"
+    active_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="admin",
+        role_label="Admin",
+    )
+    soft_deleted_role = await TargetRoleFactory.create(
+        db_session,
+        role_key="ghost",
+        role_label="Ghost",
+        is_deleted=True,
+    )
+    identity = await AgentIdentityFactory.create(
+        db_session,
+        agent_label="agent-soft-deleted-role",
+    )
+    await AgentApiTokenFactory.create(
+        db_session,
+        token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+        agent_id=identity.id,
+        is_active=True,
+    )
+    await AgentIdentityRoleFactory.create(
+        db_session,
+        agent_identity_id=identity.id,
+        target_role_id=active_role.id,
+    )
+    await AgentIdentityRoleFactory.create(
+        db_session,
+        agent_identity_id=identity.id,
+        target_role_id=soft_deleted_role.id,
+    )
+
+    response = await client.get(
+        "/api/v1/mcp/agents/me/roles",
+        headers={"Authorization": f"Bearer {raw_token}"},
+    )
+
+    assert response.status_code == 200
+    assert {item["role_key"] for item in response.json()} == {active_role.role_key}
+
+
 async def test_list_my_roles_returns_403_when_bearer_token_is_missing(client: AsyncClient) -> None:
     response = await client.get("/api/v1/mcp/agents/me/roles")
 

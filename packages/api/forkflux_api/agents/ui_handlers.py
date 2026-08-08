@@ -7,7 +7,7 @@ from forkflux_api.agents.dependencies import (
     get_agent_registration_use_case,
     get_target_role_service,
 )
-from forkflux_api.agents.dto import AgentRegistration, TargetRoleCreate
+from forkflux_api.agents.dto import AgentRegistration, TargetRoleCreate, TargetRoleUpdate
 from forkflux_api.agents.exceptions import TargetRoleConflictError, TargetRoleNotFoundError
 from forkflux_api.agents.services import AgentIdentityService, AgentRegistrationUseCase, TargetRoleService
 from forkflux_api.agents.ui_schemas import (
@@ -16,6 +16,7 @@ from forkflux_api.agents.ui_schemas import (
     CreateRoleRequest,
     ListAgentsResponse,
     ListRolesResponse,
+    UpdateRoleRequest,
 )
 
 router = APIRouter(prefix="/agents", tags=["ui"])
@@ -65,3 +66,33 @@ async def create_role(
             field_name="role_key", value=role_data.role_key, loc="body", detail=err.msg
         )
     return role
+
+
+@router.patch("/roles/{role_id}", response_model=ListRolesResponse)
+async def update_role(
+    role_id: int,
+    role_data: UpdateRoleRequest,
+    service: TargetRoleService = Depends(get_target_role_service),
+):
+    dto = TargetRoleUpdate(role_key=role_data.role_key, role_label=role_data.role_label)
+    try:
+        role = await service.update_role(role_id, dto)
+    except TargetRoleNotFoundError as err:
+        raise TargetRoleNotFoundValidationError(field_name="role_id", value=role_id, loc="path", detail=err.msg)
+    except TargetRoleConflictError as err:
+        raise TargetRoleConflictValidationError(
+            field_name="role_key", value=role_data.role_key, loc="body", detail=err.msg
+        )
+    return role
+
+
+@router.delete("/roles/{role_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_role(
+    role_id: int,
+    service: TargetRoleService = Depends(get_target_role_service),
+):
+    try:
+        await service.delete_role(role_id)
+    except TargetRoleNotFoundError as err:
+        raise TargetRoleNotFoundValidationError(field_name="role_id", value=role_id, loc="path", detail=err.msg)
+    return None

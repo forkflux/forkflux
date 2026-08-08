@@ -596,7 +596,7 @@ wheels = [
 
 [[package]]
 name = "forkflux"
-version = "1.1.2"
+version = "1.2.0"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "aiosqlite" },
@@ -647,7 +647,7 @@ dev = [
 
 [[package]]
 name = "forkflux-mcp"
-version = "0.5.1"
+version = "0.6.0"
 source = { editable = "packages/mcp" }
 dependencies = [
     { name = "fastmcp", extra = ["tasks"] },

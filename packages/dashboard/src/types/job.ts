@@ -231,6 +231,19 @@ export interface CreateRoleRequest {
 }
 
 /**
+ * Request body for the `PATCH /api/v1/ui/agents/roles/{role_id}` endpoint.
+ *
+ * Both fields are required, non-blank strings (max 255 chars). The
+ * `role_key` is the stable identifier; `role_label` is the human-readable
+ * display text. Mirrors the backend `UpdateRoleRequest` Pydantic schema —
+ * a full replacement, not a partial update, so both fields must be sent.
+ */
+export interface UpdateRoleRequest {
+  role_key: string;
+  role_label: string;
+}
+
+/**
  * A role summary attached to an agent — the structured shape nested inside
  * `ListAgentsResponse`. Mirrors the backend `AgentRoleSummary` Pydantic schema.
  */
